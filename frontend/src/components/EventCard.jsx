@@ -61,7 +61,7 @@ const EventCard = ({ event, featured = false }) => {
             </div>
           </div>
           <button
-            className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold rounded-full transition-all duration-300 hover:brightness-110 active:scale-95 opacity-0 group-hover:opacity-100 shadow-[0_0_20px_rgba(0,122,255,0.4)]"
+            className="event-buy-button flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold rounded-full transition-all duration-300 hover:brightness-110 active:scale-95 shadow-[0_0_20px_rgba(0,122,255,0.4)]"
             data-testid={`buy-ticket-button-${event.id}`}
           >
             <Ticket size={18} />
