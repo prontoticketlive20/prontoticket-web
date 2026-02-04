@@ -94,6 +94,18 @@ button {
   user-select: none;
 }
 
+/* Event Card Enhancements */
+.group:hover .event-buy-button {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.event-buy-button {
+  opacity: 0;
+  transform: translateX(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
 /* Prevent Text Selection on Interactive Elements */
 button,
 .event-card {
