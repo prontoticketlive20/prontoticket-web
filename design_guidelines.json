@@ -1,0 +1,136 @@
+{
+  "design_system": {
+    "typography": {
+      "font_family": {
+        "heading": "Outfit, sans-serif",
+        "body": "Inter, sans-serif"
+      },
+      "scale": {
+        "h1": "text-5xl md:text-7xl font-bold tracking-tight",
+        "h2": "text-3xl md:text-5xl font-bold tracking-tight",
+        "h3": "text-2xl md:text-3xl font-semibold",
+        "body": "text-base md:text-lg leading-relaxed",
+        "caption": "text-sm text-muted-foreground"
+      }
+    },
+    "colors": {
+      "theme": "dark",
+      "palette": {
+        "primary": {
+          "blue": "#007AFF",
+          "orange": "#FF9500",
+          "gradient": "linear-gradient(135deg, #007AFF 0%, #FF9500 100%)"
+        },
+        "background": {
+          "default": "#0A0A0A",
+          "paper": "#121212",
+          "subtle": "#1E1E1E"
+        },
+        "text": {
+          "primary": "#FFFFFF",
+          "secondary": "#A1A1AA",
+          "muted": "#71717A"
+        },
+        "border": {
+          "default": "#27272A",
+          "active": "#3F3F46"
+        }
+      }
+    },
+    "spacing": {
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "section_padding": "py-16 md:py-24",
+      "element_gap": "gap-6 md:gap-8"
+    },
+    "visual_enhancers": {
+      "radius": "rounded-xl",
+      "shadow": "shadow-lg shadow-black/20",
+      "glassmorphism": "bg-black/40 backdrop-blur-xl border border-white/10",
+      "gradients": {
+        "hero_overlay": "bg-gradient-to-t from-background via-background/80 to-transparent",
+        "card_hover": "hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.3)]"
+      }
+    }
+  },
+  "components": {
+    "Button": {
+      "styles": "rounded-full font-semibold transition-all duration-300 active:scale-95",
+      "variants": {
+        "primary": "bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white hover:brightness-110 shadow-[0_0_20px_rgba(0,122,255,0.4)]",
+        "secondary": "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md border border-white/10",
+        "outline": "border-2 border-white/20 text-white hover:border-white hover:bg-white/5"
+      }
+    },
+    "Card": {
+      "styles": "group relative overflow-hidden rounded-2xl bg-[#121212] border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:border-white/20"
+    },
+    "Input": {
+      "styles": "h-12 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all"
+    }
+  },
+  "layout_structure": {
+    "header": {
+      "type": "sticky",
+      "style": "glassmorphism",
+      "elements": ["Logo", "NavLinks", "SignIn", "GetTicketsCTA"]
+    },
+    "hero": {
+      "type": "immersive",
+      "elements": ["BackgroundVideo/Image", "GradientOverlay", "Headline", "Subheadline", "SearchBar", "WatermarkLogo"]
+    },
+    "featured_events": {
+      "type": "bento_grid",
+      "columns": "grid-cols-1 md:grid-cols-3",
+      "card_style": "large_image_focus"
+    },
+    "upcoming_events": {
+      "type": "standard_grid",
+      "columns": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+    }
+  },
+  "assets": {
+    "logo": {
+      "url": "https://customer-assets.emergentagent.com/job_df4a73ed-0c0c-4268-9eaf-d95c4450d1cd/artifacts/bgf87i71_PRONTOlive.png",
+      "alt": "ProntoTicketLive Logo"
+    },
+    "images": {
+      "hero_bg": "https://images.pexels.com/photos/196652/pexels-photo-196652.jpeg",
+      "events": [
+        {
+          "url": "https://images.unsplash.com/photo-1765278797923-10a027f5c69d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxjb25jZXJ0JTIwY3Jvd2QlMjBsaWdodHMlMjBhdG1vc3BoZXJlfGVufDB8fHx8MTc3MDI0ODM2Nnww&ixlib=rb-4.1.0&q=85",
+          "category": "concert"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1762788109971-29b299b2b4ef?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxjb25jZXJ0JTIwY3Jvd2QlMjBsaWdodHMlMjBhdG1vc3BoZXJlfGVufDB8fHx8MTc3MDI0ODM2Nnww&ixlib=rb-4.1.0&q=85",
+          "category": "festival"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1719650932798-bda508a2b209?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxtdXNpYyUyMGZlc3RpdmFsJTIwc3RhZ2UlMjBwZXJmb3JtYW5jZXxlbnwwfHx8fDE3NzAyNDgzNjd8MA&ixlib=rb-4.1.0&q=85",
+          "category": "performance"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1624929303661-22c5bce0169b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGZlc3RpdmFsJTIwc3RhZ2UlMjBwZXJmb3JtYW5jZXxlbnwwfHx8fDE3NzAyNDgzNjd8MA&ixlib=rb-4.1.0&q=85",
+          "category": "dj"
+        }
+      ]
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. SETUP: Install 'lucide-react' for icons. Use 'Outfit' font from Google Fonts for headings and 'Inter' for body.",
+    "2. THEME: Force DARK MODE by default. The app should feel like a night concert.",
+    "3. HERO: Use the 'hero_bg' image with a heavy gradient overlay so text is readable. Place the Logo as a watermark (opacity 10-20%) behind the main text or in a corner.",
+    "4. SEARCH: Create a prominent search bar in the Hero section. It should look like a premium glass element.",
+    "5. CARDS: Event cards should have a high-quality image, date badge (floating), title, venue, and a 'Buy Ticket' button that appears/highlights on hover.",
+    "6. NAVIGATION: Sticky header with glassmorphism. Links: Eventos, Sedes (Venues), Nosotros (About), Contacto.",
+    "7. FOOTER: Simple dark footer with contact info and policies.",
+    "8. RESPONSIVE: Ensure the grid collapses to 1 column on mobile. Touch targets must be 44px+.",
+    "9. DATA-TESTID: Add data-testid attributes to all interactive elements (buttons, inputs, links)."
+  ],
+  "universal_guidelines": [
+    "Do not use generic centered layouts everywhere. Use asymmetry where possible.",
+    "Use 2-3x more spacing than typical designs.",
+    "Every interaction needs micro-animations (hover, focus, active).",
+    "Use 'sonner' for toasts if needed.",
+    "Do not use 'transition: all'. Animate specific properties."
+  ]
+}
