@@ -20,7 +20,7 @@ const Hero = () => {
         <img
           src="https://customer-assets.emergentagent.com/job_df4a73ed-0c0c-4268-9eaf-d95c4450d1cd/artifacts/bgf87i71_PRONTOlive.png"
           alt="ProntoTicketLive Watermark"
-          className="w-[60%] max-w-2xl opacity-10"
+          className="w-[60%] max-w-2xl opacity-15"
         />
       </div>
 
