@@ -9,6 +9,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: #0A0A0A;
     color: #FFFFFF;
+    letter-spacing: -0.01em;
 }
 
 code {
@@ -18,6 +19,7 @@ code {
 
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
 }
 
 @layer base {
