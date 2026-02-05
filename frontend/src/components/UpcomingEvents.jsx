@@ -79,14 +79,14 @@ const UpcomingEvents = () => {
   ];
 
   return (
-    <section className="py-16 md:py-24 bg-gradient-to-b from-[#0A0A0A] to-[#121212]">
+    <section className="py-12 md:py-16 bg-gradient-to-b from-[#0A0A0A] to-[#121212]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
-            <Clock className="text-[#007AFF]" size={32} />
+            <Clock className="text-[#007AFF]" size={28} />
             <h2 
-              className="text-3xl md:text-5xl font-bold text-white"
+              className="text-3xl md:text-4xl font-bold text-white"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Próximos Eventos
@@ -95,16 +95,16 @@ const UpcomingEvents = () => {
         </div>
 
         {/* Upcoming Events Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
           {upcomingEvents.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
         </div>
 
         {/* Load More Button */}
-        <div className="text-center mt-12">
+        <div className="text-center mt-8">
           <button
-            className="px-8 py-3.5 bg-white/10 text-white font-semibold rounded-full transition-all duration-300 hover:bg-white/20 border border-white/10 hover:border-white/30 active:scale-95"
+            className="px-8 py-3 bg-white/10 text-white font-semibold rounded-full transition-all duration-300 hover:bg-white/20 border border-white/10 hover:border-white/30 active:scale-95"
             data-testid="load-more-events-button"
           >
             Cargar Más Eventos

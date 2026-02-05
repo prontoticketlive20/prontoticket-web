@@ -34,14 +34,14 @@ const FeaturedEvents = () => {
   ];
 
   return (
-    <section className="py-16 md:py-24 bg-[#0A0A0A]">
+    <section className="py-12 md:py-16 bg-[#0A0A0A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
-            <Star className="text-[#FF9500]" size={32} fill="#FF9500" />
+            <Star className="text-[#FF9500]" size={28} fill="#FF9500" />
             <h2 
-              className="text-3xl md:text-5xl font-bold text-white"
+              className="text-3xl md:text-4xl font-bold text-white"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Eventos Destacados
@@ -56,14 +56,14 @@ const FeaturedEvents = () => {
         </div>
 
         {/* Featured Events Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
           {featuredEvents.map((event) => (
             <EventCard key={event.id} event={event} featured={true} />
           ))}
         </div>
 
         {/* Mobile View All Button */}
-        <div className="md:hidden mt-8 text-center">
+        <div className="md:hidden mt-6 text-center">
           <button 
             className="text-[#007AFF] hover:text-[#0056b3] font-semibold transition-colors duration-200"
             data-testid="mobile-view-all-featured-button"
