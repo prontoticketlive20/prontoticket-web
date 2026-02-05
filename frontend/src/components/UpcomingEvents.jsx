@@ -82,11 +82,11 @@ const UpcomingEvents = () => {
     <section className="py-12 md:py-16 bg-gradient-to-b from-[#0A0A0A] to-[#121212]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <Clock className="text-[#007AFF]" size={28} />
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center space-x-4">
+            <Clock className="text-[#007AFF]" size={28} strokeWidth={2} />
             <h2 
-              className="text-3xl md:text-4xl font-bold text-white"
+              className="text-3xl md:text-4xl font-bold text-white tracking-tight"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Próximos Eventos

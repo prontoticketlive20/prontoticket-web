@@ -37,21 +37,22 @@ const FeaturedEvents = () => {
     <section className="py-12 md:py-16 bg-[#0A0A0A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <Star className="text-[#FF9500]" size={28} fill="#FF9500" />
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center space-x-4">
+            <Star className="text-[#FF9500]" size={28} fill="#FF9500" strokeWidth={2} />
             <h2 
-              className="text-3xl md:text-4xl font-bold text-white"
+              className="text-3xl md:text-4xl font-bold text-white tracking-tight"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Eventos Destacados
             </h2>
           </div>
           <button 
-            className="hidden md:block text-[#007AFF] hover:text-[#0056b3] font-semibold transition-colors duration-200"
+            className="hidden md:flex items-center space-x-2 text-[#007AFF] hover:text-[#0056b3] text-sm font-semibold transition-colors duration-200 tracking-wide"
             data-testid="view-all-featured-button"
           >
-            Ver todos →
+            <span>Ver todos</span>
+            <span>→</span>
           </button>
         </div>
 

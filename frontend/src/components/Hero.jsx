@@ -28,14 +28,14 @@ const Hero = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20 pb-16">
         <div className="space-y-8">
           {/* Headline */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <h1 
-              className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white animate-fade-in"
+              className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white animate-fade-in leading-[1.1]"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Fácil, Rápido y Seguro
             </h1>
-            <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto leading-relaxed tracking-wide">
               Tu plataforma de confianza para comprar tickets de los mejores eventos en vivo. 
               Disfruta de tus artistas favoritos sin complicaciones.
             </p>
@@ -47,18 +47,18 @@ const Hero = () => {
           </div>
 
           {/* Stats or Trust Indicators */}
-          <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl mx-auto pt-12">
+          <div className="grid grid-cols-3 gap-6 md:gap-12 max-w-3xl mx-auto pt-16">
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-[#007AFF]" style={{ fontFamily: "'Outfit', sans-serif" }}>500K+</div>
-              <div className="text-sm md:text-base text-white/60 mt-1">Tickets Vendidos</div>
+              <div className="text-4xl md:text-5xl font-bold text-[#007AFF] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>500K+</div>
+              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Tickets Vendidos</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-[#FF9500]" style={{ fontFamily: "'Outfit', sans-serif" }}>1,200+</div>
-              <div className="text-sm md:text-base text-white/60 mt-1">Eventos Activos</div>
+              <div className="text-4xl md:text-5xl font-bold text-[#FF9500] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>1,200+</div>
+              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Eventos Activos</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-[#007AFF]" style={{ fontFamily: "'Outfit', sans-serif" }}>98%</div>
-              <div className="text-sm md:text-base text-white/60 mt-1">Satisfacción</div>
+              <div className="text-4xl md:text-5xl font-bold text-[#007AFF] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>98%</div>
+              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Satisfacción</div>
             </div>
           </div>
         </div>
