@@ -53,10 +53,10 @@ const EventCard = ({ event, featured = false }) => {
         </div>
 
         {/* Price and Button */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <div className="text-xs text-white/40">Desde</div>
-            <div className="text-xl font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="flex items-baseline space-x-1.5">
+            <div className="text-xs text-white/50 font-medium">Desde</div>
+            <div className="text-2xl font-bold text-[#FF9500]" style={{ fontFamily: "'Outfit', sans-serif" }}>
               ${event.price}
             </div>
           </div>
