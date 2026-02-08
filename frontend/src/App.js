@@ -6,6 +6,7 @@ import Hero from "./components/Hero";
 import FeaturedEvents from "./components/FeaturedEvents";
 import UpcomingEvents from "./components/UpcomingEvents";
 import Footer from "./components/Footer";
+import EventDetailPage from "./components/EventDetailPage";
 
 const Home = () => {
   return (
@@ -25,6 +26,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/evento/:id" element={<EventDetailPage />} />
         </Routes>
       </BrowserRouter>
     </div>

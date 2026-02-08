@@ -1,10 +1,26 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Ticket } from 'lucide-react';
 
 const EventCard = ({ event, featured = false }) => {
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    // Extract numeric ID from event.id (e.g., 'featured-1' -> '1')
+    const eventId = event.id.split('-').pop();
+    navigate(`/evento/${eventId}`);
+  };
+
+  const handleBuyClick = (e) => {
+    e.stopPropagation();
+    const eventId = event.id.split('-').pop();
+    navigate(`/evento/${eventId}`);
+  };
+
   return (
     <div 
-      className={`group relative overflow-hidden rounded-2xl bg-[#121212] border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_0_40px_-10px_rgba(0,122,255,0.4)] ${
+      onClick={handleCardClick}
+      className={`group relative overflow-hidden rounded-2xl bg-[#121212] border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_0_40px_-10px_rgba(0,122,255,0.4)] cursor-pointer ${
         featured ? 'h-full' : ''
       }`}
       data-testid={`event-card-${event.id}`}
@@ -61,6 +77,7 @@ const EventCard = ({ event, featured = false }) => {
             </div>
           </div>
           <button
+            onClick={handleBuyClick}
             className="event-buy-button flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-[13px] font-semibold rounded-full transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(0,122,255,0.5)] active:scale-95 shadow-lg"
             data-testid={`buy-ticket-button-${event.id}`}
           >
