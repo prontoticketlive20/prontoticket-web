@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { X, Minus, Plus, Ticket, Check } from 'lucide-react';
+import { getTicketOptions } from '../data/mockEvents';
 
 const TicketSelection = ({ event, onClose }) => {
   const [selectedTickets, setSelectedTickets] = useState({});
-  const [step, setStep] = useState(1); // 1: selection, 2: confirmation
+  const [step, setStep] = useState(1);
 
-  // Determine if event has seating or general admission
   const hasSeating = event.type === 'seated';
-  const options = hasSeating ? event.sections : event.ticketTypes;
+  const options = getTicketOptions(event.id);
 
   const handleQuantityChange = (itemId, change) => {
     setSelectedTickets(prev => {
@@ -15,8 +15,9 @@ const TicketSelection = ({ event, onClose }) => {
       const newQuantity = Math.max(0, Math.min(10, current + change));
       
       if (newQuantity === 0) {
-        const { [itemId]: removed, ...rest } = prev;
-        return rest;
+        const newState = { ...prev };
+        delete newState[itemId];
+        return newState;
       }
       
       return { ...prev, [itemId]: newQuantity };
@@ -28,10 +29,14 @@ const TicketSelection = ({ event, onClose }) => {
   };
 
   const getTotalPrice = () => {
-    return Object.entries(selectedTickets).reduce((sum, [itemId, qty]) => {
+    let total = 0;
+    for (const itemId in selectedTickets) {
       const item = options.find(o => o.id === itemId);
-      return sum + (item ? item.price * qty : 0);
-    }, 0);
+      if (item) {
+        total += item.price * selectedTickets[itemId];
+      }
+    }
+    return total;
   };
 
   const handleContinue = () => {
@@ -74,7 +79,6 @@ const TicketSelection = ({ event, onClose }) => {
                   : 'Selecciona el tipo y cantidad de entradas que deseas.'}
               </p>
 
-              {/* Ticket/Section Options */}
               {options.map((item) => (
                 <div 
                   key={item.id}
@@ -94,7 +98,6 @@ const TicketSelection = ({ event, onClose }) => {
                       </div>
                     </div>
 
-                    {/* Quantity Selector */}
                     {item.available > 0 && (
                       <div className="flex items-center space-x-3">
                         <button
@@ -120,16 +123,11 @@ const TicketSelection = ({ event, onClose }) => {
                         </button>
                       </div>
                     )}
-
-                    {item.available === 0 && (
-                      <div className="text-white/30 font-semibold text-sm">Agotado</div>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            // Step 2: Confirmation
             <div className="space-y-6">
               <div className="bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
@@ -138,8 +136,10 @@ const TicketSelection = ({ event, onClose }) => {
                 </h3>
                 
                 <div className="space-y-3">
-                  {Object.entries(selectedTickets).map(([itemId, qty]) => {
+                  {Object.keys(selectedTickets).map((itemId) => {
+                    const qty = selectedTickets[itemId];
                     const item = options.find(o => o.id === itemId);
+                    if (!item) return null;
                     return (
                       <div key={itemId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
                         <div>

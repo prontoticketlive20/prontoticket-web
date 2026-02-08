@@ -4,13 +4,14 @@ import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
 import { Calendar, MapPin, Clock, Users, Info, AlertCircle } from 'lucide-react';
-import { mockEvents } from '../data/mockEvents';
+import { mockEvents, getEventPolicies } from '../data/mockEvents';
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   
   const event = mockEvents[id] || mockEvents['1'];
+  const policies = getEventPolicies(id || '1');
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
@@ -125,7 +126,7 @@ const EventDetailPage = () => {
                 <span>Políticas del evento</span>
               </h3>
               <ul className="space-y-2">
-                {event.policies.map((policy, index) => (
+                {policies.map((policy, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <span className="text-[#007AFF] mt-1">•</span>
                     <span className="text-white/70 text-sm">{policy}</span>
