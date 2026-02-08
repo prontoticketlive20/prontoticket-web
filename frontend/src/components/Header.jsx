@@ -1,17 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Globe } from 'lucide-react';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [language, setLanguage] = useState('es');
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
+    
+    // Load saved language preference
+    const savedLanguage = localStorage.getItem('preferredLanguage') || 'es';
+    setLanguage(savedLanguage);
+    
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLanguageChange = (lang) => {
+    setLanguage(lang);
+    localStorage.setItem('preferredLanguage', lang);
+    // Aquí se implementaría el cambio de idioma global
+  };
 
   const navLinks = [
     { name: 'Eventos', href: '#eventos' },
@@ -55,8 +67,47 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Desktop Actions */}
+          {/* Desktop Actions + Language Selector */}
           <div className="hidden md:flex items-center space-x-4">
+            {/* Language Selector */}
+            <div className="relative group">
+              <button
+                className="flex items-center space-x-2 px-3 py-2 text-white/70 hover:text-white rounded-lg hover:bg-white/5 transition-all duration-200"
+                data-testid="language-selector-button"
+              >
+                <Globe size={16} strokeWidth={2} />
+                <span className="text-sm font-medium">{language === 'es' ? 'ES' : 'EN'}</span>
+              </button>
+              
+              {/* Dropdown */}
+              <div className="absolute right-0 top-full mt-2 w-32 bg-[#121212] rounded-xl border border-white/10 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <button
+                  onClick={() => handleLanguageChange('es')}
+                  className={`w-full px-4 py-2.5 text-left text-sm transition-colors duration-200 rounded-t-xl ${
+                    language === 'es' 
+                      ? 'text-[#007AFF] bg-[#007AFF]/10 font-semibold' 
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                  data-testid="language-option-es"
+                >
+                  Español
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('en')}
+                  className={`w-full px-4 py-2.5 text-left text-sm transition-colors duration-200 rounded-b-xl ${
+                    language === 'en' 
+                      ? 'text-[#007AFF] bg-[#007AFF]/10 font-semibold' 
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                  data-testid="language-option-en"
+                >
+                  English
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-6 bg-white/10" />
+
             <button
               className="px-5 py-2.5 text-white/80 font-semibold hover:text-white rounded-full transition-all duration-300 text-sm tracking-wide"
               data-testid="sign-in-button"
@@ -96,6 +147,39 @@ const Header = () => {
                   {link.name}
                 </a>
               ))}
+              
+              {/* Mobile Language Selector */}
+              <div className="px-4 pt-2 pb-4 border-t border-white/10">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Globe size={16} className="text-white/60" strokeWidth={2} />
+                  <span className="text-white/60 text-sm font-medium">Idioma</span>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleLanguageChange('es')}
+                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                      language === 'es'
+                        ? 'bg-[#007AFF] text-white'
+                        : 'bg-white/5 text-white/70 hover:bg-white/10'
+                    }`}
+                    data-testid="mobile-language-es"
+                  >
+                    Español
+                  </button>
+                  <button
+                    onClick={() => handleLanguageChange('en')}
+                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                      language === 'en'
+                        ? 'bg-[#007AFF] text-white'
+                        : 'bg-white/5 text-white/70 hover:bg-white/10'
+                    }`}
+                    data-testid="mobile-language-en"
+                  >
+                    English
+                  </button>
+                </div>
+              </div>
+
               <div className="flex flex-col space-y-2 px-4 pt-4">
                 <button
                   className="px-6 py-2.5 text-white font-semibold hover:bg-white/10 rounded-full transition-all duration-300 border border-white/20 text-sm"
