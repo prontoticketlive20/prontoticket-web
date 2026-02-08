@@ -3,63 +3,52 @@ import SearchBar from './SearchBar';
 
 const Hero = () => {
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
+    <div className="relative h-[45vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+      {/* Background Image with Concert Scene */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1766019463317-1cc801c15e61?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxsaXZlJTIwY29uY2VydCUyMHN0YWdlJTIwbGlnaHRzJTIwY3Jvd2QlMjBhdG1vc3BoZXJlfGVufDB8fHx8MTc3MDI0ODMyMnww&ixlib=rb-4.1.0&q=85')`
+          backgroundImage: `url('https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=2000')`
         }}
       />
       
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent" />
+      {/* Dark overlay for contrast */}
+      <div className="absolute inset-0 bg-black/40" />
       
-      {/* Watermark Logo */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* Watermark Logo - Subtle integration among lights */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08]">
         <img
           src="https://customer-assets.emergentagent.com/job_df4a73ed-0c0c-4268-9eaf-d95c4450d1cd/artifacts/bgf87i71_PRONTOlive.png"
           alt="ProntoTicketLive Watermark"
-          className="w-[60%] max-w-2xl opacity-15"
+          className="w-[50%] max-w-xl"
+          style={{ filter: 'brightness(1.2)' }}
         />
       </div>
+      
+      {/* Smooth bottom gradient blur that fades to black */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20 pb-16">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
         <div className="space-y-8">
-          {/* Headline */}
-          <div className="space-y-5">
+          {/* Main Headline */}
+          <div className="space-y-3">
             <h1 
-              className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white animate-fade-in leading-[1.1]"
+              className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white leading-[1.1] text-shadow-premium"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              Fácil, Rápido y Seguro
+              Compra entradas para los mejores eventos
             </h1>
-            <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto leading-relaxed tracking-wide">
-              Tu plataforma de confianza para comprar tickets de los mejores eventos en vivo. 
-              Disfruta de tus artistas favoritos sin complicaciones.
+            
+            {/* Subheadline */}
+            <p className="text-xl md:text-2xl font-semibold text-white/90 tracking-wide">
+              Fácil, rápido y seguro
             </p>
           </div>
 
           {/* Search Bar */}
-          <div className="pt-8">
+          <div className="pt-6">
             <SearchBar />
-          </div>
-
-          {/* Stats or Trust Indicators */}
-          <div className="grid grid-cols-3 gap-6 md:gap-12 max-w-3xl mx-auto pt-16">
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-[#007AFF] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>500K+</div>
-              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Tickets Vendidos</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-[#FF9500] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>1,200+</div>
-              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Eventos Activos</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-[#007AFF] tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>98%</div>
-              <div className="text-xs md:text-sm text-white/60 tracking-wide uppercase font-medium">Satisfacción</div>
-            </div>
           </div>
         </div>
       </div>

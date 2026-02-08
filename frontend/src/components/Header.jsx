@@ -23,7 +23,7 @@ const Header = () => {
   return (
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-black/60 backdrop-blur-xl border-b border-white/10' : 'bg-transparent'
+        isScrolled ? 'bg-black shadow-lg shadow-black/50' : 'bg-black/95'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +47,7 @@ const Header = () => {
               <a
                 key={link.name}
                 href={link.href}
-                className="text-white/80 hover:text-white transition-colors duration-200 font-medium"
+                className="text-white/70 hover:text-white transition-colors duration-200 font-medium text-sm tracking-wide"
                 data-testid={`nav-link-${link.name.toLowerCase()}`}
               >
                 {link.name}
@@ -58,13 +58,13 @@ const Header = () => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
             <button
-              className="px-6 py-2.5 text-white font-semibold hover:bg-white/10 rounded-full transition-all duration-300 border border-white/20 hover:border-white/40"
+              className="px-5 py-2.5 text-white/80 font-semibold hover:text-white rounded-full transition-all duration-300 text-sm tracking-wide"
               data-testid="sign-in-button"
             >
               Iniciar Sesión
             </button>
             <button
-              className="px-6 py-2.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold rounded-full transition-all duration-300 hover:brightness-110 shadow-[0_0_20px_rgba(0,122,255,0.4)] hover:shadow-[0_0_30px_rgba(0,122,255,0.6)] active:scale-95"
+              className="px-6 py-2.5 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg shadow-[#FF9500]/30 hover:shadow-[#FF9500]/50 active:scale-95 text-sm tracking-wide"
               data-testid="get-tickets-button"
             >
               Comprar Tickets
@@ -83,13 +83,13 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 bg-black/80 backdrop-blur-xl border-t border-white/10">
+          <div className="md:hidden py-4 bg-black/95 border-t border-white/10">
             <nav className="flex flex-col space-y-4">
               {navLinks.map((link) => (
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-white/80 hover:text-white transition-colors duration-200 font-medium px-4 py-2"
+                  className="text-white/70 hover:text-white transition-colors duration-200 font-medium px-4 py-2 text-sm"
                   onClick={() => setIsMobileMenuOpen(false)}
                   data-testid={`mobile-nav-link-${link.name.toLowerCase()}`}
                 >
@@ -98,13 +98,13 @@ const Header = () => {
               ))}
               <div className="flex flex-col space-y-2 px-4 pt-4">
                 <button
-                  className="px-6 py-2.5 text-white font-semibold hover:bg-white/10 rounded-full transition-all duration-300 border border-white/20"
+                  className="px-6 py-2.5 text-white font-semibold hover:bg-white/10 rounded-full transition-all duration-300 border border-white/20 text-sm"
                   data-testid="mobile-sign-in-button"
                 >
                   Iniciar Sesión
                 </button>
                 <button
-                  className="px-6 py-2.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold rounded-full transition-all duration-300 hover:brightness-110"
+                  className="px-6 py-2.5 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg text-sm"
                   data-testid="mobile-get-tickets-button"
                 >
                   Comprar Tickets
