@@ -1,11 +1,11 @@
 import React from 'react';
-import { Search, MapPin, Calendar } from 'lucide-react';
+import { Search, MapPin, Calendar, Globe } from 'lucide-react';
 
 const SearchBar = () => {
   return (
     <div className="w-full max-w-5xl mx-auto">
       <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-3 shadow-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Event Name */}
           <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
             <Search className="text-[#007AFF] flex-shrink-0" size={18} strokeWidth={2.5} />
@@ -17,9 +17,20 @@ const SearchBar = () => {
             />
           </div>
 
+          {/* País */}
+          <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
+            <Globe className="text-[#FF9500] flex-shrink-0" size={18} strokeWidth={2.5} />
+            <input
+              type="text"
+              placeholder="País"
+              className="bg-transparent text-white text-sm placeholder:text-white/40 outline-none w-full tracking-wide"
+              data-testid="search-input-country"
+            />
+          </div>
+
           {/* City */}
           <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
-            <MapPin className="text-[#FF9500] flex-shrink-0" size={18} strokeWidth={2.5} />
+            <MapPin className="text-[#007AFF] flex-shrink-0" size={18} strokeWidth={2.5} />
             <input
               type="text"
               placeholder="Ciudad"
@@ -30,7 +41,7 @@ const SearchBar = () => {
 
           {/* Venue or Date */}
           <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
-            <Calendar className="text-[#007AFF] flex-shrink-0" size={18} strokeWidth={2.5} />
+            <Calendar className="text-[#FF9500] flex-shrink-0" size={18} strokeWidth={2.5} />
             <input
               type="text"
               placeholder="Sede o fecha"
