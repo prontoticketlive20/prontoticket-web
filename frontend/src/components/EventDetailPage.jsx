@@ -130,7 +130,7 @@ const EventDetailPage = () => {
             </div>
 
             {/* Policies */}
-            <div className="space-y-4">
+            <div className="space-y-4 mb-8 pb-8 border-b border-white/10">
               <h3 
                 className="text-xl font-bold text-white tracking-tight flex items-center space-x-2"
                 style={{ fontFamily: "'Outfit', sans-serif" }}
@@ -146,6 +146,26 @@ const EventDetailPage = () => {
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* Promotional Video */}
+            <div className="space-y-4">
+              <h3 
+                className="text-xl font-bold text-white tracking-tight"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
+                Video promocional del evento
+              </h3>
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1E1E1E] border border-white/10">
+                <iframe
+                  src={`https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&showinfo=0`}
+                  title="Video promocional del evento"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full"
+                  data-testid="event-promo-video"
+                />
+              </div>
             </div>
             </div>
           </div>
