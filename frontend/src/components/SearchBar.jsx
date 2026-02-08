@@ -1,40 +1,51 @@
 import React from 'react';
-import { Search, MapPin } from 'lucide-react';
+import { Search, MapPin, Calendar } from 'lucide-react';
 
 const SearchBar = () => {
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="bg-white rounded-2xl p-2 shadow-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {/* Event/Artist/Venue */}
-          <div className="flex items-center space-x-3 bg-gray-50 rounded-xl px-5 py-4 hover:bg-gray-100 transition-all duration-200">
-            <Search className="text-[#007AFF] flex-shrink-0" size={20} strokeWidth={2.5} />
+      <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-3 shadow-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Event Name */}
+          <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
+            <Search className="text-[#007AFF] flex-shrink-0" size={18} strokeWidth={2.5} />
             <input
               type="text"
-              placeholder="Evento, artista o sede"
-              className="bg-transparent text-gray-900 text-base placeholder:text-gray-400 outline-none w-full font-medium"
+              placeholder="Nombre del evento"
+              className="bg-transparent text-white text-sm placeholder:text-white/40 outline-none w-full tracking-wide"
               data-testid="search-input-event"
             />
           </div>
 
-          {/* City/Country */}
-          <div className="flex items-center space-x-3 bg-gray-50 rounded-xl px-5 py-4 hover:bg-gray-100 transition-all duration-200">
-            <MapPin className="text-[#FF9500] flex-shrink-0" size={20} strokeWidth={2.5} />
+          {/* City */}
+          <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
+            <MapPin className="text-[#FF9500] flex-shrink-0" size={18} strokeWidth={2.5} />
             <input
               type="text"
-              placeholder="Ciudad o país"
-              className="bg-transparent text-gray-900 text-base placeholder:text-gray-400 outline-none w-full font-medium"
+              placeholder="Ciudad"
+              className="bg-transparent text-white text-sm placeholder:text-white/40 outline-none w-full tracking-wide"
               data-testid="search-input-city"
+            />
+          </div>
+
+          {/* Venue or Date */}
+          <div className="flex items-center space-x-3 bg-white/5 rounded-xl px-4 py-3.5 hover:bg-white/10 transition-all duration-200 border border-white/10">
+            <Calendar className="text-[#007AFF] flex-shrink-0" size={18} strokeWidth={2.5} />
+            <input
+              type="text"
+              placeholder="Sede o fecha"
+              className="bg-transparent text-white text-sm placeholder:text-white/40 outline-none w-full tracking-wide"
+              data-testid="search-input-venue"
             />
           </div>
         </div>
 
         {/* Search Button */}
         <button
-          className="w-full mt-2 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-xl transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-xl active:scale-[0.98] tracking-wide"
+          className="w-full mt-3 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-sm font-semibold rounded-xl transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[0_8px_30px_rgba(0,122,255,0.5)] active:scale-[0.98] tracking-wide"
           data-testid="search-button"
         >
-          Buscar eventos
+          Buscar Eventos
         </button>
       </div>
     </div>
