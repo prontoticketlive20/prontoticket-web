@@ -29,17 +29,30 @@ const EventDetailPage = () => {
       {/* Event Content */}
       <div className="relative -mt-32 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-[#121212] rounded-3xl border border-white/10 p-8 md:p-12 shadow-2xl">
+          <div className="bg-[#121212] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
             
-            {/* Event Header */}
-            <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
-              <h1 
-                className="text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight"
-                style={{ fontFamily: "'Outfit', sans-serif" }}
-                data-testid="event-title"
-              >
-                {event.title}
-              </h1>
+            {/* Event Cover Image */}
+            <div className="relative w-full aspect-[21/9] overflow-hidden">
+              <img 
+                src={event.image} 
+                alt={event.title}
+                className="w-full h-full object-cover"
+              />
+              {/* Subtle dark overlay */}
+              <div className="absolute inset-0 bg-black/20" />
+            </div>
+
+            {/* Event Content */}
+            <div className="p-8 md:p-12">
+              {/* Event Header */}
+              <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
+                <h1 
+                  className="text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight"
+                  style={{ fontFamily: "'Outfit', sans-serif" }}
+                  data-testid="event-title"
+                >
+                  {event.title}
+                </h1>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-start space-x-3">
@@ -133,6 +146,7 @@ const EventDetailPage = () => {
                   </li>
                 ))}
               </ul>
+            </div>
             </div>
           </div>
 
