@@ -12,7 +12,11 @@ const EVENT_1 = {
   description: 'Disfruta del festival de verano más esperado del año con los mejores artistas nacionales e internacionales.',
   ageLimit: '18+',
   doors: '17:00',
-  duration: '6 horas'
+  duration: '6 horas',
+  producerContact: {
+    email: 'info@festivalsverano.com',
+    phone: '+52 (55) 1234-5678'
+  }
 };
 
 const EVENT_2 = {
@@ -28,7 +32,11 @@ const EVENT_2 = {
   description: 'Una velada espectacular de teatro y música en vivo.',
   ageLimit: 'Todas las edades',
   doors: '19:00',
-  duration: '2.5 horas'
+  duration: '2.5 horas',
+  producerContact: {
+    email: 'contacto@teatrometropolitan.mx',
+    phone: '+52 (55) 8765-4321'
+  }
 };
 
 export const mockEvents = {

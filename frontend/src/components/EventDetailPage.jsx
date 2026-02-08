@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
-import { Calendar, MapPin, Clock, Users, Info, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Info, AlertCircle, Mail, Phone } from 'lucide-react';
 import { mockEvents, getEventPolicies } from '../data/mockEvents';
 
 const EventDetailPage = () => {
@@ -147,6 +147,35 @@ const EventDetailPage = () => {
                 ))}
               </ul>
             </div>
+
+            {/* Producer Contact */}
+            {event.producerContact && (
+              <div className="space-y-3 mb-8 pb-8 border-b border-white/10">
+                <p className="text-sm text-white/60 tracking-wide">
+                  ¿Quieres contactar o preguntar algo al productor del evento?
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <Mail size={16} className="text-[#007AFF] flex-shrink-0" strokeWidth={2} />
+                    <a 
+                      href={`mailto:${event.producerContact.email}`}
+                      className="text-white/70 hover:text-[#007AFF] transition-colors duration-200 text-sm"
+                    >
+                      {event.producerContact.email}
+                    </a>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone size={16} className="text-[#FF9500] flex-shrink-0" strokeWidth={2} />
+                    <a 
+                      href={`tel:${event.producerContact.phone}`}
+                      className="text-white/70 hover:text-[#FF9500] transition-colors duration-200 text-sm"
+                    >
+                      {event.producerContact.phone}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Promotional Video */}
             <div className="space-y-4">
