@@ -7,6 +7,7 @@ import FeaturedEvents from "./components/FeaturedEvents";
 import UpcomingEvents from "./components/UpcomingEvents";
 import Footer from "./components/Footer";
 import EventDetailPage from "./components/EventDetailPage";
+import SeatsSelectionPage from "./components/SeatsSelectionPage";
 
 const Home = () => {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/evento/:id" element={<EventDetailPage />} />
+          <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
         </Routes>
       </BrowserRouter>
     </div>
