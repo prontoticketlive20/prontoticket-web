@@ -16,7 +16,15 @@ const EVENT_1 = {
   producerContact: {
     email: 'info@festivalsverano.com',
     phone: '+52 (55) 1234-5678'
-  }
+  },
+  functions: [
+    {
+      id: 'func-1',
+      date: '15 JUN 2025',
+      time: '18:00',
+      availability: 'Disponible'
+    }
+  ]
 };
 
 const EVENT_2 = {
@@ -36,7 +44,33 @@ const EVENT_2 = {
   producerContact: {
     email: 'contacto@teatrometropolitan.mx',
     phone: '+52 (55) 8765-4321'
-  }
+  },
+  functions: [
+    {
+      id: 'func-1',
+      date: '28 JUL 2025',
+      time: '15:00',
+      availability: 'Disponible'
+    },
+    {
+      id: 'func-2',
+      date: '28 JUL 2025',
+      time: '20:00',
+      availability: 'Disponible'
+    },
+    {
+      id: 'func-3',
+      date: '29 JUL 2025',
+      time: '15:00',
+      availability: 'Pocas entradas'
+    },
+    {
+      id: 'func-4',
+      date: '29 JUL 2025',
+      time: '20:00',
+      availability: 'Disponible'
+    }
+  ]
 };
 
 export const mockEvents = {
