@@ -307,8 +307,9 @@ const EventDetailPage = () => {
 
       <Footer />
 
-      {/* Ticket Selection Modal - ONLY for general events */}
-      {showTicketSelection && !isSeatedEvent && (
+      {/* Ticket Selection Modal - ONLY for general events with valid saleType */}
+      {/* This ensures only ONE purchase flow is ever rendered */}
+      {showTicketSelection && isGeneralEvent && hasValidSaleType && (
         <TicketSelection 
           event={event}
           onClose={() => setShowTicketSelection(false)}
