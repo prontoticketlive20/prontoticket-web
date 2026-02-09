@@ -1,98 +1,94 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { Calendar, Clock, MapPin, Ticket, AlertTriangle, ChevronLeft, CreditCard, Globe, Building2 } from 'lucide-react';
-
-// Currency configuration by country
-const CURRENCY_BY_COUNTRY = {
-  'México': { code: 'MXN', symbol: '$', name: 'Peso Mexicano' },
-  'Estados Unidos': { code: 'USD', symbol: '$', name: 'Dólar Estadounidense' },
-  'España': { code: 'EUR', symbol: '€', name: 'Euro' },
-  'Argentina': { code: 'ARS', symbol: '$', name: 'Peso Argentino' },
-  'Colombia': { code: 'COP', symbol: '$', name: 'Peso Colombiano' },
-  'Chile': { code: 'CLP', symbol: '$', name: 'Peso Chileno' },
-  'Perú': { code: 'PEN', symbol: 'S/', name: 'Sol Peruano' }
-};
-
-// Inline mock data to avoid babel plugin issues
-const MOCK_EVENT_DATA = {
-  '1': {
-    id: '1',
-    title: 'Festival Músical Verano 2025',
-    type: 'general',
-    date: '15 JUN 2025',
-    time: '18:00',
-    venue: 'Estadio Nacional',
-    city: 'Ciudad de México',
-    country: 'México',
-    image: 'https://images.unsplash.com/photo-1765278797923-10a027f5c69d?w=1200',
-    selectedFunction: null,
-    isMultiFunction: false
-  },
-  '2': {
-    id: '2',
-    title: 'Teatro: Noche de Gala',
-    type: 'seated',
-    date: '28 JUL 2025',
-    time: '20:00',
-    venue: 'Teatro Metropolitan',
-    city: 'Ciudad de México',
-    country: 'México',
-    image: 'https://images.unsplash.com/photo-1719650932800-ebb72adb2d2a?w=1200',
-    selectedFunction: { date: '28 JUL 2025', time: '20:00' },
-    isMultiFunction: true
-  },
-  '3': {
-    id: '3',
-    title: 'Concierto Internacional',
-    type: 'general',
-    date: '10 AGO 2025',
-    time: '21:00',
-    venue: 'Madison Square Garden',
-    city: 'Nueva York',
-    country: 'Estados Unidos',
-    image: 'https://images.unsplash.com/photo-1765278797923-10a027f5c69d?w=1200',
-    selectedFunction: null,
-    isMultiFunction: false
-  }
-};
+import { Calendar, Clock, MapPin, Ticket, AlertTriangle, ChevronLeft, CreditCard, Globe, Building2, ShoppingCart } from 'lucide-react';
+import { usePurchase } from '../context/PurchaseContext';
+import { mockEvents } from '../data/mockEvents';
 
 const PurchaseSummaryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Get event data with fallback
-  const event = MOCK_EVENT_DATA[id] || MOCK_EVENT_DATA['1'];
-  const isSeatedEvent = event.type === 'seated';
-  
-  // Get currency based on country
-  const currency = CURRENCY_BY_COUNTRY[event.country] || CURRENCY_BY_COUNTRY['México'];
+  const { 
+    selectedEvent,
+    selectedFunction,
+    selectedTickets,
+    selectedSeats,
+    selectEvent,
+    getPurchaseSummary,
+    formatPrice
+  } = usePurchase();
 
-  // Mock purchase data based on event type
-  const tickets = isSeatedEvent 
-    ? [{ type: 'VIP', quantity: 1, price: 1499, section: 'Platea A', row: '5', seat: 'A12' }]
-    : [
-        { type: 'General', quantity: 2, price: 899, section: null, row: null, seat: null },
-        { type: 'VIP', quantity: 1, price: 1499, section: null, row: null, seat: null }
-      ];
+  // If no event in context, load from mock (fallback for direct URL access)
+  useEffect(() => {
+    if (!selectedEvent && id) {
+      const event = mockEvents[id];
+      if (event) {
+        selectEvent(event);
+      }
+    }
+  }, [id, selectedEvent, selectEvent]);
 
-  // Price calculations
-  const subtotal = tickets.reduce((sum, t) => sum + (t.price * t.quantity), 0);
-  const serviceFee = 150;
-  const tax = Math.round(subtotal * 0.16);
-  const total = subtotal + serviceFee + tax;
+  // Get purchase summary from context
+  const summary = getPurchaseSummary();
   
-  // Format price with currency symbol
-  const formatPrice = (amount) => `${currency.symbol}${amount.toLocaleString()}`;
+  // Use event from context or fallback to mock
+  const event = selectedEvent || mockEvents[id] || mockEvents['1'];
+  const isSeatedEvent = event?.type === 'seated';
+  const hasMultipleFunctions = event?.functions && event.functions.length > 1;
+  
+  // Determine what to show based on event type
+  const hasTicketSelections = selectedTickets && selectedTickets.length > 0;
+  const hasSeatSelections = selectedSeats && selectedSeats.length > 0;
+  const hasSelections = isSeatedEvent ? hasSeatSelections : hasTicketSelections;
 
   const handleContinueToPayment = () => {
     alert('Redirigiendo al procesador de pagos...');
   };
 
   const handleGoBack = () => {
-    navigate(`/evento/${id}`);
+    if (isSeatedEvent) {
+      navigate(`/evento/${id}/asientos`);
+    } else {
+      navigate(`/evento/${id}`);
+    }
   };
+
+  // Empty state when no selections
+  if (!hasSelections) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A]" data-testid="purchase-summary-page">
+        <Header />
+        <div className="pt-32 pb-20">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-[#121212] rounded-2xl border border-white/10 p-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <ShoppingCart size={32} className="text-white/40" />
+              </div>
+              <h2 
+                className="text-2xl font-bold text-white mb-2"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
+                No hay selecciones
+              </h2>
+              <p className="text-white/60 mb-6">
+                Parece que aún no has seleccionado entradas o asientos.
+              </p>
+              <button
+                onClick={() => navigate(`/evento/${id}`)}
+                className="px-6 py-3 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110"
+                data-testid="go-to-event-button"
+              >
+                Ir al evento
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]" data-testid="purchase-summary-page">
@@ -142,21 +138,29 @@ const PurchaseSummaryPage = () => {
                       </h3>
 
                       <div className="space-y-1.5">
+                        {/* Date */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <Calendar size={14} className="text-[#007AFF] flex-shrink-0" />
-                          <span data-testid="event-date">{event.date}</span>
+                          <span data-testid="event-date">
+                            {selectedFunction?.date || event.date}
+                          </span>
                         </div>
 
+                        {/* Time */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <Clock size={14} className="text-[#FF9500] flex-shrink-0" />
-                          <span data-testid="event-time">{event.time} hrs</span>
+                          <span data-testid="event-time">
+                            {selectedFunction?.time || event.time} hrs
+                          </span>
                         </div>
 
+                        {/* Venue */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <Building2 size={14} className="text-[#007AFF] flex-shrink-0" />
                           <span data-testid="event-venue">{event.venue}</span>
                         </div>
 
+                        {/* City & Country */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <MapPin size={14} className="text-[#FF9500] flex-shrink-0" />
                           <span data-testid="event-city">{event.city}, {event.country}</span>
@@ -164,11 +168,11 @@ const PurchaseSummaryPage = () => {
                       </div>
 
                       {/* Selected Function - Only for multi-function events */}
-                      {event.isMultiFunction && event.selectedFunction && (
+                      {hasMultipleFunctions && selectedFunction && (
                         <div className="pt-2 mt-2 border-t border-white/10">
                           <span className="text-xs text-white/50 uppercase tracking-wide">Función seleccionada</span>
                           <div className="text-sm text-white font-semibold" data-testid="selected-function">
-                            {event.selectedFunction.date} - {event.selectedFunction.time} hrs
+                            {selectedFunction.date} - {selectedFunction.time} hrs
                           </div>
                         </div>
                       )}
@@ -188,52 +192,77 @@ const PurchaseSummaryPage = () => {
                 </h2>
 
                 <div className="space-y-4">
-                  {tickets.map((ticket, index) => (
-                    <div 
-                      key={index}
-                      className="p-4 bg-[#1E1E1E] rounded-xl border border-white/5"
-                      data-testid={`ticket-item-${index}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="text-white font-bold text-sm sm:text-base">{ticket.type}</h3>
-                          <p className="text-white/60 text-xs sm:text-sm">Cantidad: {ticket.quantity}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-[#FF9500] font-bold text-base sm:text-lg">
-                            {formatPrice(ticket.price * ticket.quantity)}
+                  {/* Show seats for seated events */}
+                  {isSeatedEvent && hasSeatSelections ? (
+                    selectedSeats.map((seat, index) => (
+                      <div 
+                        key={seat.id || index}
+                        className="p-4 bg-[#1E1E1E] rounded-xl border border-white/5"
+                        data-testid={`ticket-item-${index}`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="text-white font-bold text-sm sm:text-base">
+                              Asiento {seat.number || seat.seat}
+                            </h3>
+                            <p className="text-white/60 text-xs sm:text-sm">Cantidad: 1</p>
                           </div>
-                          <div className="text-white/50 text-xs">
-                            {formatPrice(ticket.price)} c/u
+                          <div className="text-right">
+                            <div className="text-[#FF9500] font-bold text-base sm:text-lg">
+                              {formatPrice(seat.price)}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Seat info or Free Assignment */}
-                      {isSeatedEvent && ticket.section ? (
+                        {/* Seat details */}
                         <div className="pt-3 mt-3 border-t border-white/10">
                           <div className="grid grid-cols-3 gap-2 text-sm">
                             <div>
                               <span className="text-white/50 text-xs block">Sección</span>
-                              <div className="text-white font-semibold text-sm">{ticket.section}</div>
+                              <div className="text-white font-semibold text-sm">{seat.section}</div>
                             </div>
                             <div>
                               <span className="text-white/50 text-xs block">Fila</span>
-                              <div className="text-white font-semibold text-sm">{ticket.row}</div>
+                              <div className="text-white font-semibold text-sm">{seat.row}</div>
                             </div>
                             <div>
                               <span className="text-white/50 text-xs block">Asiento</span>
-                              <div className="text-white font-semibold text-sm">{ticket.seat}</div>
+                              <div className="text-white font-semibold text-sm">{seat.number || seat.seat}</div>
                             </div>
                           </div>
                         </div>
-                      ) : (
+                      </div>
+                    ))
+                  ) : (
+                    /* Show tickets for general events */
+                    selectedTickets.filter(t => t.quantity > 0).map((ticket, index) => (
+                      <div 
+                        key={ticket.id || index}
+                        className="p-4 bg-[#1E1E1E] rounded-xl border border-white/5"
+                        data-testid={`ticket-item-${index}`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="text-white font-bold text-sm sm:text-base">{ticket.type || ticket.name}</h3>
+                            <p className="text-white/60 text-xs sm:text-sm">Cantidad: {ticket.quantity}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[#FF9500] font-bold text-base sm:text-lg">
+                              {formatPrice(ticket.price * ticket.quantity)}
+                            </div>
+                            <div className="text-white/50 text-xs">
+                              {formatPrice(ticket.price)} c/u
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Free assignment for general tickets */}
                         <div className="pt-3 mt-3 border-t border-white/10">
                           <span className="text-white/70 text-sm italic" data-testid="free-assignment">Libre asignación</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -263,7 +292,7 @@ const PurchaseSummaryPage = () => {
                     <Globe size={14} className="text-[#007AFF]" />
                     <span className="text-white/60 text-xs">Moneda:</span>
                     <span className="text-white text-xs font-semibold" data-testid="currency-indicator">
-                      {currency.code} ({currency.name})
+                      {summary.currency.code} ({summary.currency.name})
                     </span>
                   </div>
 
@@ -271,17 +300,23 @@ const PurchaseSummaryPage = () => {
                   <div className="space-y-3 sm:space-y-4 mb-5 sm:mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">Entradas</span>
-                      <span className="text-white font-semibold" data-testid="subtotal-price">{formatPrice(subtotal)}</span>
+                      <span className="text-white font-semibold" data-testid="subtotal-price">
+                        {formatPrice(summary.subtotal)}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">Cargo por servicio</span>
-                      <span className="text-white font-semibold" data-testid="service-fee">{formatPrice(serviceFee)}</span>
+                      <span className="text-white font-semibold" data-testid="service-fee">
+                        {formatPrice(summary.serviceFee)}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/70">IVA (16%)</span>
-                      <span className="text-white font-semibold" data-testid="tax-amount">{formatPrice(tax)}</span>
+                      <span className="text-white/70">Impuestos ({Math.round(summary.taxRate * 100)}%)</span>
+                      <span className="text-white font-semibold" data-testid="tax-amount">
+                        {formatPrice(summary.tax)}
+                      </span>
                     </div>
 
                     {/* Total - Emphasized */}
@@ -294,9 +329,11 @@ const PurchaseSummaryPage = () => {
                             style={{ fontFamily: "'Outfit', sans-serif" }}
                             data-testid="total-price"
                           >
-                            {formatPrice(total)}
+                            {formatPrice(summary.total)}
                           </div>
-                          <div className="text-white/50 text-xs mt-1" data-testid="currency-code">{currency.code}</div>
+                          <div className="text-white/50 text-xs mt-1" data-testid="currency-code">
+                            {summary.currency.code}
+                          </div>
                         </div>
                       </div>
                     </div>
