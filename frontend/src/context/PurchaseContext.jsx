@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
+// Valid sale types - only these are allowed
+const VALID_SALE_TYPES = ['seated', 'general'];
+
 // Currency configuration by country
 const CURRENCY_BY_COUNTRY = {
   'México': { code: 'MXN', symbol: '$', name: 'Peso Mexicano' },
@@ -40,14 +43,26 @@ export const PurchaseProvider = ({ children }) => {
   // Service fee
   const [serviceFee] = useState(150);
 
-  // Set the current event
+  // Validate saleType helper
+  const isValidSaleType = useCallback((saleType) => {
+    return VALID_SALE_TYPES.includes(saleType);
+  }, []);
+
+  // Set the current event with validation
   const selectEvent = useCallback((event) => {
+    if (event && !isValidSaleType(event.saleType)) {
+      console.error(
+        `[ProntoTicketLive Context] Invalid saleType for event "${event.title}".`,
+        `\nReceived: "${event.saleType}"`,
+        `\nExpected: "seated" | "general"`
+      );
+    }
     setSelectedEvent(event);
     // Reset selections when changing event
     setSelectedFunction(null);
     setSelectedTickets([]);
     setSelectedSeats([]);
-  }, []);
+  }, [isValidSaleType]);
 
   // Set the selected function
   const selectFunction = useCallback((func) => {
