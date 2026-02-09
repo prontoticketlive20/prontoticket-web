@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import EventDetailPage from "./components/EventDetailPage";
 import SeatsSelectionPage from "./components/SeatsSelectionPage";
 import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
+import CheckoutPage from "./components/CheckoutPage";
 
 const Home = () => {
   return (
