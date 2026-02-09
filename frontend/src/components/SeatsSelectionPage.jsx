@@ -25,10 +25,12 @@ const SeatsSelectionPage = () => {
     removeSeat, 
     selectedSeats, 
     formatPrice,
-    serviceFee: contextServiceFee
+    serviceFee: contextServiceFee,
+    getStoredEventId
   } = usePurchase();
   
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Validate saleType
   const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
@@ -36,8 +38,29 @@ const SeatsSelectionPage = () => {
   const hasMultipleFunctions = event.functions && event.functions.length > 1;
   const hasSingleFunction = event.functions && event.functions.length === 1;
 
+  // Initialize: Set event in context and check for stored state
+  useEffect(() => {
+    const storedEventId = getStoredEventId();
+    
+    // If returning to the same event (e.g., back from summary), restore state
+    if (storedEventId === id) {
+      selectEvent(event);
+      setIsInitialized(true);
+    } else if (!storedEventId) {
+      // Fresh visit
+      selectEvent(event);
+      setIsInitialized(true);
+    } else {
+      // Different event - redirect to stored event or reset
+      selectEvent(event);
+      setIsInitialized(true);
+    }
+  }, [id, event, selectEvent, getStoredEventId]);
+
   // Redirect if this is not a seated event or saleType is invalid
   useEffect(() => {
+    if (!isInitialized) return;
+    
     if (!hasValidSaleType || !isSeatedEvent) {
       console.error(
         `[ProntoTicketLive] SeatsSelectionPage: Invalid access.`,
@@ -48,14 +71,13 @@ const SeatsSelectionPage = () => {
       navigate(`/evento/${id}`);
       return;
     }
-  }, [event, id, navigate, hasValidSaleType, isSeatedEvent]);
+  }, [event, id, navigate, hasValidSaleType, isSeatedEvent, isInitialized]);
 
   // Separate effect for function validation - only for multi-function events
-  // Use a small delay to allow context to sync from navigation
   useEffect(() => {
-    if (!hasMultipleFunctions) return;
+    if (!isInitialized || !hasMultipleFunctions) return;
     
-    // Give context time to sync after navigation
+    // Give context time to restore from storage
     const timeout = setTimeout(() => {
       if (!selectedFunction) {
         console.error(
@@ -64,15 +86,10 @@ const SeatsSelectionPage = () => {
         );
         navigate(`/evento/${id}`);
       }
-    }, 100);
+    }, 150);
 
     return () => clearTimeout(timeout);
-  }, [hasMultipleFunctions, selectedFunction, id, navigate]);
-
-  // Set event in context when component mounts
-  useEffect(() => {
-    selectEvent(event);
-  }, [id, event, selectEvent]);
+  }, [hasMultipleFunctions, selectedFunction, id, navigate, isInitialized]);
 
   // Auto-select function if event has only one
   useEffect(() => {
