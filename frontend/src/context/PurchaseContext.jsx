@@ -31,10 +31,10 @@ export const PurchaseProvider = ({ children }) => {
   // Selected function (for multi-function events)
   const [selectedFunction, setSelectedFunction] = useState(null);
   
-  // Selected tickets array: [{ id, type, name, price, quantity }]
+  // Selected tickets array: [{ id, type, name, price, quantity }] - for general events
   const [selectedTickets, setSelectedTickets] = useState([]);
   
-  // Selected seats array: [{ id, section, row, seat, price }]
+  // Selected seats array: [{ id, section, row, seat, price }] - for seated events
   const [selectedSeats, setSelectedSeats] = useState([]);
   
   // Service fee
@@ -54,24 +54,22 @@ export const PurchaseProvider = ({ children }) => {
     setSelectedFunction(func);
   }, []);
 
-  // Update tickets selection
+  // Update tickets selection (for general events only)
   const updateTickets = useCallback((tickets) => {
-    // tickets should be array of { id, type/name, price, quantity }
     setSelectedTickets(tickets);
   }, []);
 
-  // Update seats selection
+  // Update seats selection (for seated events only)
   const updateSeats = useCallback((seats) => {
-    // seats should be array of { id, section, row, seat/number, price }
     setSelectedSeats(seats);
   }, []);
 
-  // Add a single seat
+  // Add a single seat (for seated events)
   const addSeat = useCallback((seat) => {
     setSelectedSeats(prev => [...prev, seat]);
   }, []);
 
-  // Remove a seat by id
+  // Remove a seat by id (for seated events)
   const removeSeat = useCallback((seatId) => {
     setSelectedSeats(prev => prev.filter(s => s.id !== seatId));
   }, []);
@@ -100,27 +98,26 @@ export const PurchaseProvider = ({ children }) => {
     return TAX_RATES[selectedEvent.country] || TAX_RATES['México'];
   }, [selectedEvent]);
 
-  // Calculate subtotal from tickets
+  // Calculate subtotal from tickets (general events)
   const getTicketsSubtotal = useCallback(() => {
     return selectedTickets.reduce((sum, ticket) => {
       return sum + (ticket.price * ticket.quantity);
     }, 0);
   }, [selectedTickets]);
 
-  // Calculate subtotal from seats
+  // Calculate subtotal from seats (seated events)
   const getSeatsSubtotal = useCallback(() => {
     return selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
   }, [selectedSeats]);
 
-  // Get total subtotal (tickets + seats)
+  // Get total subtotal based on saleType
   const getSubtotal = useCallback(() => {
-    const ticketsTotal = getTicketsSubtotal();
-    const seatsTotal = getSeatsSubtotal();
-    // If event is seated, use seats. Otherwise use tickets
+    // saleType = "seated" -> use seats only
+    // saleType = "general" -> use tickets only
     if (selectedEvent?.saleType === 'seated') {
-      return seatsTotal;
+      return getSeatsSubtotal();
     }
-    return ticketsTotal;
+    return getTicketsSubtotal();
   }, [selectedEvent, getTicketsSubtotal, getSeatsSubtotal]);
 
   // Calculate tax
@@ -144,13 +141,10 @@ export const PurchaseProvider = ({ children }) => {
     return `${currency.symbol}${amount.toLocaleString()}`;
   }, [getCurrency]);
 
-  // Check if purchase is ready (has selections)
+  // Check if purchase is ready (has selections based on saleType)
   const isPurchaseReady = useCallback(() => {
     if (selectedEvent?.saleType === 'seated') {
       return selectedSeats.length > 0;
-    }
-    return selectedTickets.some(t => t.quantity > 0);
-  }, [selectedEvent, selectedSeats, selectedTickets]);
     }
     return selectedTickets.some(t => t.quantity > 0);
   }, [selectedEvent, selectedSeats, selectedTickets]);
@@ -169,7 +163,7 @@ export const PurchaseProvider = ({ children }) => {
       selectedFunction,
       tickets: selectedTickets,
       seats: selectedSeats,
-      isSeatedEvent: selectedEvent?.type === 'seated',
+      isSeatedEvent: selectedEvent?.saleType === 'seated',
       currency,
       taxRate,
       subtotal,
