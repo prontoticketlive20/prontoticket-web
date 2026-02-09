@@ -249,12 +249,12 @@ const SeatsSelectionPage = () => {
                 <div className="space-y-3 pt-4 border-t border-white/10 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-white/60">Subtotal</span>
-                    <span className="text-white font-semibold">${subtotal}</span>
+                    <span className="text-white font-semibold">{formatPrice(subtotal)}</span>
                   </div>
                   {selectedSeats.length > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-white/60">Cargo por servicio</span>
-                      <span className="text-white font-semibold">${serviceFee}</span>
+                      <span className="text-white font-semibold">{formatPrice(contextServiceFee)}</span>
                     </div>
                   )}
                   <div className="flex justify-between pt-3 border-t border-white/5">
@@ -263,19 +263,19 @@ const SeatsSelectionPage = () => {
                       className="text-2xl font-bold text-[#FF9500]" 
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
-                      ${total}
+                      {formatPrice(total)}
                     </span>
                   </div>
                 </div>
 
                 {/* Primary CTA */}
                 <button
-                  onClick={handleContinueToPayment}
+                  onClick={handleContinueToSummary}
                   disabled={selectedSeats.length === 0}
                   className="w-full py-4 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 mb-3"
                   data-testid="continue-to-payment-button"
                 >
-                  Continuar al pago
+                  Ver resumen de compra
                 </button>
 
                 {/* Secondary Action */}
