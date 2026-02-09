@@ -223,13 +223,13 @@ const TicketSelection = ({ event, onClose }) => {
             )}
             
             <button
-              onClick={step === 1 ? handleContinue : () => alert('Procediendo al pago...')}
+              onClick={step === 1 ? handleContinue : handleProceedToPayment}
               disabled={getTotalTickets() === 0}
               className="flex-1 px-6 py-3.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center space-x-2"
               data-testid="continue-button"
             >
               <Ticket size={20} />
-              <span>{step === 1 ? 'Continuar' : 'Ir al pago'}</span>
+              <span>{step === 1 ? 'Continuar' : (hasSeating ? 'Seleccionar asientos' : 'Ver resumen')}</span>
             </button>
           </div>
         </div>
