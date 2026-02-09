@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -6,17 +6,32 @@ import TicketSelection from './TicketSelection';
 import FunctionSelector from './FunctionSelector';
 import { Calendar, MapPin, Clock, Users, Info, AlertCircle, Mail, Phone } from 'lucide-react';
 import { mockEvents, getEventPolicies } from '../data/mockEvents';
+import { usePurchase } from '../context/PurchaseContext';
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
   
+  const { selectEvent, selectFunction: setContextFunction } = usePurchase();
+  
   const event = mockEvents[id] || mockEvents['1'];
   const policies = getEventPolicies(id || '1');
   
   const hasMultipleFunctions = event.functions && event.functions.length > 1;
   const canProceedToTickets = !hasMultipleFunctions || selectedFunction !== null;
+
+  // Set event in context when component mounts or id changes
+  useEffect(() => {
+    selectEvent(event);
+  }, [id, event, selectEvent]);
+
+  // Update context when function is selected
+  useEffect(() => {
+    if (selectedFunction) {
+      setContextFunction(selectedFunction);
+    }
+  }, [selectedFunction, setContextFunction]);
 
   const handleSelectTickets = () => {
     if (canProceedToTickets) {
