@@ -131,6 +131,12 @@ export const getEventPolicies = (eventId) => {
 };
 
 export const getTicketOptions = (eventId) => {
+  // Only return ticket options for general admission events
+  const event = mockEvents[eventId];
+  if (event?.saleType === 'seated') {
+    return []; // No ticket options for seated events
+  }
+  
   if (eventId === '1') {
     return [
       { id: 't1', name: 'General', price: 899, available: 250 },
@@ -138,9 +144,12 @@ export const getTicketOptions = (eventId) => {
       { id: 't3', name: 'Platino', price: 2499, available: 30 }
     ];
   }
-  return [
-    { id: 's1', name: 'Platea A', price: 1200, available: 45 },
-    { id: 's2', name: 'Platea B', price: 950, available: 78 },
-    { id: 's3', name: 'Palco', price: 1800, available: 12 }
-  ];
+  if (eventId === '3') {
+    return [
+      { id: 't1', name: 'General', price: 150, available: 500 },
+      { id: 't2', name: 'VIP', price: 350, available: 100 },
+      { id: 't3', name: 'Backstage', price: 750, available: 20 }
+    ];
+  }
+  return [];
 };
