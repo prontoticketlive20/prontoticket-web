@@ -146,8 +146,11 @@ export const PurchaseProvider = ({ children }) => {
 
   // Check if purchase is ready (has selections)
   const isPurchaseReady = useCallback(() => {
-    if (selectedEvent?.type === 'seated') {
+    if (selectedEvent?.saleType === 'seated') {
       return selectedSeats.length > 0;
+    }
+    return selectedTickets.some(t => t.quantity > 0);
+  }, [selectedEvent, selectedSeats, selectedTickets]);
     }
     return selectedTickets.some(t => t.quantity > 0);
   }, [selectedEvent, selectedSeats, selectedTickets]);
