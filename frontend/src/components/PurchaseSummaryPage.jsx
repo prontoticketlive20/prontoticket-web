@@ -2,7 +2,18 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { Calendar, Clock, MapPin, Ticket, AlertTriangle, ChevronLeft, CreditCard } from 'lucide-react';
+import { Calendar, Clock, MapPin, Ticket, AlertTriangle, ChevronLeft, CreditCard, Globe, Building2 } from 'lucide-react';
+
+// Currency configuration by country
+const CURRENCY_BY_COUNTRY = {
+  'México': { code: 'MXN', symbol: '$', name: 'Peso Mexicano' },
+  'Estados Unidos': { code: 'USD', symbol: '$', name: 'Dólar Estadounidense' },
+  'España': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'Argentina': { code: 'ARS', symbol: '$', name: 'Peso Argentino' },
+  'Colombia': { code: 'COP', symbol: '$', name: 'Peso Colombiano' },
+  'Chile': { code: 'CLP', symbol: '$', name: 'Peso Chileno' },
+  'Perú': { code: 'PEN', symbol: 'S/', name: 'Sol Peruano' }
+};
 
 // Inline mock data to avoid babel plugin issues
 const MOCK_EVENT_DATA = {
@@ -13,9 +24,11 @@ const MOCK_EVENT_DATA = {
     date: '15 JUN 2025',
     time: '18:00',
     venue: 'Estadio Nacional',
-    location: 'Ciudad de México, México',
+    city: 'Ciudad de México',
+    country: 'México',
     image: 'https://images.unsplash.com/photo-1765278797923-10a027f5c69d?w=1200',
-    selectedFunction: null
+    selectedFunction: null,
+    isMultiFunction: false
   },
   '2': {
     id: '2',
@@ -24,9 +37,24 @@ const MOCK_EVENT_DATA = {
     date: '28 JUL 2025',
     time: '20:00',
     venue: 'Teatro Metropolitan',
-    location: 'Ciudad de México, México',
+    city: 'Ciudad de México',
+    country: 'México',
     image: 'https://images.unsplash.com/photo-1719650932800-ebb72adb2d2a?w=1200',
-    selectedFunction: { date: '28 JUL 2025', time: '20:00' }
+    selectedFunction: { date: '28 JUL 2025', time: '20:00' },
+    isMultiFunction: true
+  },
+  '3': {
+    id: '3',
+    title: 'Concierto Internacional',
+    type: 'general',
+    date: '10 AGO 2025',
+    time: '21:00',
+    venue: 'Madison Square Garden',
+    city: 'Nueva York',
+    country: 'Estados Unidos',
+    image: 'https://images.unsplash.com/photo-1765278797923-10a027f5c69d?w=1200',
+    selectedFunction: null,
+    isMultiFunction: false
   }
 };
 
