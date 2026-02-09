@@ -17,18 +17,27 @@ const PurchaseSummaryPage = () => {
     selectedSeats,
     selectEvent,
     getPurchaseSummary,
-    formatPrice
+    formatPrice,
+    getStoredEventId
   } = usePurchase();
 
-  // If no event in context, load from mock (fallback for direct URL access)
+  // Restore event from mock if returning to page (e.g., after refresh or back navigation)
+  // The context will restore function, tickets, and seats from sessionStorage
   useEffect(() => {
+    const storedEventId = getStoredEventId();
+    
+    // If we have a stored event ID that matches the URL, restore the event
     if (!selectedEvent && id) {
       const event = mockEvents[id];
       if (event) {
         selectEvent(event);
       }
     }
-  }, [id, selectedEvent, selectEvent]);
+    // If URL doesn't match stored event, redirect to stored event's summary
+    else if (storedEventId && storedEventId !== id && !selectedEvent) {
+      navigate(`/evento/${storedEventId}/resumen`, { replace: true });
+    }
+  }, [id, selectedEvent, selectEvent, getStoredEventId, navigate]);
 
   // Get purchase summary from context
   const summary = getPurchaseSummary();
