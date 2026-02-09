@@ -19,6 +19,8 @@ const SeatsSelectionPage = () => {
   
   const { 
     selectEvent, 
+    selectedFunction,
+    selectFunction,
     addSeat, 
     removeSeat, 
     selectedSeats, 
@@ -31,6 +33,8 @@ const SeatsSelectionPage = () => {
   // Validate saleType
   const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
   const isSeatedEvent = event.saleType === 'seated';
+  const hasMultipleFunctions = event.functions && event.functions.length > 1;
+  const hasSingleFunction = event.functions && event.functions.length === 1;
 
   // Redirect if this is not a seated event or saleType is invalid
   useEffect(() => {
@@ -42,13 +46,31 @@ const SeatsSelectionPage = () => {
         `\nRedirecting to event page.`
       );
       navigate(`/evento/${id}`);
+      return;
     }
-  }, [event, id, navigate, hasValidSaleType, isSeatedEvent]);
+    
+    // Redirect if multi-function event has no function selected
+    if (hasMultipleFunctions && !selectedFunction) {
+      console.error(
+        `[ProntoTicketLive] SeatsSelectionPage: No function selected for multi-function event.`,
+        `\nRedirecting to event page to select a function.`
+      );
+      navigate(`/evento/${id}`);
+    }
+  }, [event, id, navigate, hasValidSaleType, isSeatedEvent, hasMultipleFunctions, selectedFunction]);
 
   // Set event in context when component mounts
   useEffect(() => {
     selectEvent(event);
   }, [id, event, selectEvent]);
+
+  // Auto-select function if event has only one
+  useEffect(() => {
+    if (hasSingleFunction && !selectedFunction) {
+      const singleFunc = event.functions[0];
+      selectFunction(singleFunc);
+    }
+  }, [hasSingleFunction, selectedFunction, event.functions, selectFunction]);
 
   // Timer countdown
   useEffect(() => {
