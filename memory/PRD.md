@@ -111,8 +111,15 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 
 ## Mock Data
 All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
-- Event 1: Festival Musical (general admission)
-- Event 2: Teatro Noche de Gala (assigned seating, multi-function)
+
+**Events with saleType property:**
+- Event 1: Festival Musical (saleType = "general") - Ticket selection modal only
+- Event 2: Teatro Noche de Gala (saleType = "seated") - Seat map only
+- Event 3: Concierto Internacional (saleType = "general") - Ticket selection modal only
+
+**Purchase Flow Rules:**
+- `saleType = "seated"`: Shows ONLY seat map flow, NO ticket selectors
+- `saleType = "general"`: Shows ONLY ticket type/quantity selection, NO seat map
 
 ---
 
