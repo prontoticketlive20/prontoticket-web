@@ -4,13 +4,16 @@ import { X, Minus, Plus, Ticket, Check } from 'lucide-react';
 import { getTicketOptions } from '../data/mockEvents';
 import { usePurchase } from '../context/PurchaseContext';
 
+// This component is ONLY for general admission events (saleType = "general")
+// Seated events should NOT use this component - they go directly to seat selection
+
 const TicketSelection = ({ event, onClose }) => {
   const navigate = useNavigate();
-  const { updateTickets, formatPrice } = usePurchase();
+  const { updateTickets } = usePurchase();
   const [selectedTickets, setSelectedTickets] = useState({});
   const [step, setStep] = useState(1);
 
-  const hasSeating = event.type === 'seated';
+  // Get ticket options (only available for general events)
   const options = getTicketOptions(event.id);
 
   const handleQuantityChange = (itemId, change) => {
@@ -49,7 +52,7 @@ const TicketSelection = ({ event, onClose }) => {
     }
   };
 
-  const handleProceedToPayment = () => {
+  const handleProceedToSummary = () => {
     // Convert selected tickets to array format for context
     const ticketsArray = Object.keys(selectedTickets).map(itemId => {
       const item = options.find(o => o.id === itemId);
