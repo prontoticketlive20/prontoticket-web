@@ -5,24 +5,47 @@ import Footer from './Footer';
 import { Calendar, Clock, MapPin, Ticket, AlertTriangle, ChevronLeft, CreditCard } from 'lucide-react';
 import { mockEvents } from '../data/mockEvents';
 
+// Mock purchase data helper
+const getMockPurchaseData = (eventType) => {
+  const hasSeating = eventType === 'seated';
+  
+  if (hasSeating) {
+    return {
+      tickets: [
+        { type: 'VIP', quantity: 1, price: 1499, seat: { section: 'Platea A', row: '5', number: 'A12' } }
+      ],
+      hasSeating: true
+    };
+  }
+  
+  return {
+    tickets: [
+      { type: 'General', quantity: 2, price: 899, seat: null },
+      { type: 'VIP', quantity: 1, price: 1499, seat: null }
+    ],
+    hasSeating: false
+  };
+};
+
 const PurchaseSummaryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const event = mockEvents[id] || mockEvents['1'];
 
-  // Mock purchase data (en producción vendría del estado global o API)
-  const purchaseData = {
-    selectedFunction: event.functions && event.functions.length > 1 ? event.functions[1] : null,
-    tickets: [
-      { type: 'General', quantity: 2, price: 899, seat: null },
-      { type: 'VIP', quantity: 1, price: 1499, seat: { section: 'Platea A', row: '5', number: 'A12' } }
-    ],
-    hasSeating: event.type === 'seated'
+  const purchaseData = getMockPurchaseData(event.type);
+  const selectedFunction = event.functions && event.functions.length > 1 ? event.functions[1] : null;
+
+  const calculateSubtotal = () => {
+    let sum = 0;
+    for (const ticket of purchaseData.tickets) {
+      sum += ticket.price * ticket.quantity;
+    }
+    return sum;
   };
 
-  const subtotal = purchaseData.tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
+  const subtotal = calculateSubtotal();
   const serviceFee = 150;
-  const tax = Math.round(subtotal * 0.16); // 16% IVA
+  const tax = Math.round(subtotal * 0.16);
   const total = subtotal + serviceFee + tax;
 
   const handleContinueToPayment = () => {
@@ -67,14 +90,12 @@ const PurchaseSummaryPage = () => {
                   </h2>
 
                   <div className="flex gap-4">
-                    {/* Event Thumbnail */}
                     <img 
                       src={event.image}
                       alt={event.title}
                       className="w-24 h-24 rounded-xl object-cover flex-shrink-0"
                     />
 
-                    {/* Event Info */}
                     <div className="flex-1 space-y-2">
                       <h3 className="text-white font-bold text-lg leading-tight">
                         {event.title}
@@ -97,11 +118,11 @@ const PurchaseSummaryPage = () => {
                         </div>
                       </div>
 
-                      {purchaseData.selectedFunction && (
+                      {selectedFunction && (
                         <div className="pt-2 mt-2 border-t border-white/10">
                           <span className="text-xs text-white/50 uppercase tracking-wide">Función seleccionada</span>
                           <div className="text-sm text-white font-semibold">
-                            {purchaseData.selectedFunction.date} - {purchaseData.selectedFunction.time} hrs
+                            {selectedFunction.date} - {selectedFunction.time} hrs
                           </div>
                         </div>
                       )}
@@ -141,30 +162,23 @@ const PurchaseSummaryPage = () => {
                         </div>
                       </div>
 
-                      {/* Seat Info */}
-                      {purchaseData.hasSeating ? (
-                        ticket.seat ? (
-                          <div className="pt-3 mt-3 border-t border-white/10">
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div>
-                                <span className="text-white/50 text-xs">Sección</span>
-                                <div className="text-white font-semibold">{ticket.seat.section}</div>
-                              </div>
-                              <div>
-                                <span className="text-white/50 text-xs">Fila</span>
-                                <div className="text-white font-semibold">{ticket.seat.row}</div>
-                              </div>
-                              <div>
-                                <span className="text-white/50 text-xs">Asiento</span>
-                                <div className="text-white font-semibold">{ticket.seat.number}</div>
-                              </div>
+                      {purchaseData.hasSeating && ticket.seat ? (
+                        <div className="pt-3 mt-3 border-t border-white/10">
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <span className="text-white/50 text-xs">Sección</span>
+                              <div className="text-white font-semibold">{ticket.seat.section}</div>
+                            </div>
+                            <div>
+                              <span className="text-white/50 text-xs">Fila</span>
+                              <div className="text-white font-semibold">{ticket.seat.row}</div>
+                            </div>
+                            <div>
+                              <span className="text-white/50 text-xs">Asiento</span>
+                              <div className="text-white font-semibold">{ticket.seat.number}</div>
                             </div>
                           </div>
-                        ) : (
-                          <div className="pt-3 mt-3 border-t border-white/10">
-                            <span className="text-white/70 text-sm italic">Libre asignación</span>
-                          </div>
-                        )
+                        </div>
                       ) : (
                         <div className="pt-3 mt-3 border-t border-white/10">
                           <span className="text-white/70 text-sm italic">Libre asignación</span>
@@ -198,7 +212,6 @@ const PurchaseSummaryPage = () => {
                     Desglose de precio
                   </h2>
 
-                  {/* Price Breakdown */}
                   <div className="space-y-4 mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">Entradas</span>
@@ -231,7 +244,6 @@ const PurchaseSummaryPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="space-y-3">
                     <button
                       onClick={handleContinueToPayment}
