@@ -93,6 +93,8 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 │   ├── SeatsSelectionPage.jsx
 │   ├── TicketSelection.jsx
 │   └── PurchaseSummaryPage.jsx
+├── context/
+│   └── PurchaseContext.jsx  <- NEW: State management for purchase flow
 ├── data/
 │   └── mockEvents.js
 ├── App.js
