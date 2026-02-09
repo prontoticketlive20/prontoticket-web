@@ -65,6 +65,9 @@ const PurchaseSummaryPage = () => {
   // Get event data with fallback
   const event = MOCK_EVENT_DATA[id] || MOCK_EVENT_DATA['1'];
   const isSeatedEvent = event.type === 'seated';
+  
+  // Get currency based on country
+  const currency = CURRENCY_BY_COUNTRY[event.country] || CURRENCY_BY_COUNTRY['México'];
 
   // Mock purchase data based on event type
   const tickets = isSeatedEvent 
@@ -79,6 +82,9 @@ const PurchaseSummaryPage = () => {
   const serviceFee = 150;
   const tax = Math.round(subtotal * 0.16);
   const total = subtotal + serviceFee + tax;
+  
+  // Format price with currency symbol
+  const formatPrice = (amount) => `${currency.symbol}${amount.toLocaleString()}`;
 
   const handleContinueToPayment = () => {
     alert('Redirigiendo al procesador de pagos...');
