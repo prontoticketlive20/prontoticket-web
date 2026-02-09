@@ -1,8 +1,10 @@
 // Mock event data
+// saleType: "seated" = Seat map only | "general" = Ticket selection only
+
 const EVENT_1 = {
   id: '1',
   title: 'Festival Músical Verano 2025',
-  type: 'general',
+  saleType: 'general', // Shows ticket type & quantity selection ONLY
   date: '15 JUN 2025',
   time: '18:00',
   venue: 'Estadio Nacional',
@@ -32,7 +34,7 @@ const EVENT_1 = {
 const EVENT_2 = {
   id: '2',
   title: 'Teatro: Noche de Gala',
-  type: 'seated',
+  saleType: 'seated', // Shows seat map ONLY
   date: '28 JUL 2025',
   time: '20:00',
   venue: 'Teatro Metropolitan',
@@ -80,7 +82,7 @@ const EVENT_2 = {
 const EVENT_3 = {
   id: '3',
   title: 'Concierto Internacional',
-  type: 'general',
+  saleType: 'general', // Shows ticket type & quantity selection ONLY
   date: '10 AGO 2025',
   time: '21:00',
   venue: 'Madison Square Garden',
