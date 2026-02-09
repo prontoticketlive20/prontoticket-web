@@ -75,6 +75,11 @@ const EventDetailPage = () => {
     
     if (!canProceed) return;
     
+    // Ensure function is set in context before navigation
+    if (selectedFunction) {
+      setContextFunction(selectedFunction);
+    }
+    
     // ONLY ONE flow can execute based on saleType
     if (isSeatedEvent) {
       // Seated events: Go directly to seat selection (no ticket modal)
