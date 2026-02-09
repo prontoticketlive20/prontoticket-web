@@ -112,6 +112,7 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - `/evento/:id` - Event Detail Page
 - `/evento/:id/asientos` - Seat Selection Page
 - `/evento/:id/resumen` - Purchase Summary Page
+- `/evento/:id/checkout` - Checkout Page (NEW)
 
 ---
 
