@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Minus, Plus, Ticket, Check } from 'lucide-react';
 import { getTicketOptions } from '../data/mockEvents';
+import { usePurchase } from '../context/PurchaseContext';
 
 const TicketSelection = ({ event, onClose }) => {
+  const navigate = useNavigate();
+  const { updateTickets, formatPrice } = usePurchase();
   const [selectedTickets, setSelectedTickets] = useState({});
   const [step, setStep] = useState(1);
 
@@ -42,6 +46,35 @@ const TicketSelection = ({ event, onClose }) => {
   const handleContinue = () => {
     if (getTotalTickets() > 0) {
       setStep(2);
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    // Convert selected tickets to array format for context
+    const ticketsArray = Object.keys(selectedTickets).map(itemId => {
+      const item = options.find(o => o.id === itemId);
+      return {
+        id: itemId,
+        type: item.name,
+        name: item.name,
+        price: item.price,
+        quantity: selectedTickets[itemId]
+      };
+    }).filter(t => t.quantity > 0);
+
+    // Update context with selected tickets
+    updateTickets(ticketsArray);
+
+    // Close modal
+    onClose();
+
+    // Navigate based on event type
+    if (hasSeating) {
+      // For seated events, go to seat selection
+      navigate(`/evento/${event.id}/asientos`);
+    } else {
+      // For general events, go directly to summary
+      navigate(`/evento/${event.id}/resumen`);
     }
   };
 
