@@ -35,10 +35,12 @@ const PurchaseSummaryPage = () => {
   
   // Use event from context or fallback to mock
   const event = selectedEvent || mockEvents[id] || mockEvents['1'];
-  const isSeatedEvent = event?.type === 'seated';
+  
+  // Determine event sale type: "seated" or "general"
+  const isSeatedEvent = event?.saleType === 'seated';
   const hasMultipleFunctions = event?.functions && event.functions.length > 1;
   
-  // Determine what to show based on event type
+  // Determine what to show based on saleType
   const hasTicketSelections = selectedTickets && selectedTickets.length > 0;
   const hasSeatSelections = selectedSeats && selectedSeats.length > 0;
   const hasSelections = isSeatedEvent ? hasSeatSelections : hasTicketSelections;
@@ -49,8 +51,10 @@ const PurchaseSummaryPage = () => {
 
   const handleGoBack = () => {
     if (isSeatedEvent) {
+      // Seated events: go back to seat selection
       navigate(`/evento/${id}/asientos`);
     } else {
+      // General events: go back to event detail (ticket modal)
       navigate(`/evento/${id}`);
     }
   };
