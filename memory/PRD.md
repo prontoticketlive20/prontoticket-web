@@ -120,6 +120,15 @@ All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
 **Purchase Flow Rules:**
 - `saleType = "seated"`: Shows ONLY seat map flow, NO ticket selectors
 - `saleType = "general"`: Shows ONLY ticket type/quantity selection, NO seat map
+- **Invalid/missing saleType**: Shows developer warning, blocks purchase
+
+**saleType Validation:**
+- Valid values: `"seated"` | `"general"`
+- If missing or invalid:
+  - Console error with event details
+  - Visual warning banner on event page
+  - Purchase button disabled
+  - Flow completely blocked
 
 ---
 
