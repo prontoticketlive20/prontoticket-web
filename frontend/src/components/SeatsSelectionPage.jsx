@@ -228,15 +228,21 @@ const SeatsSelectionPage = () => {
                     <p className="text-white/70 text-lg mb-2">
                       Aquí se mostrará el mapa interactivo de asientos
                     </p>
-                    <p className="text-white/40 text-sm">
+                    <p className="text-white/40 text-sm mb-1">
                       (Integración con Seats.io)
                     </p>
+                    {selectedFunction && (
+                      <p className="text-[#007AFF] text-xs">
+                        Cargando asientos para: {selectedFunction.date} - {selectedFunction.time}
+                      </p>
+                    )}
                   </div>
 
                   {/* Mock selection button for demo */}
                   <button
                     onClick={mockAddSeat}
-                    className="px-6 py-2 bg-[#007AFF] hover:bg-[#0056b3] text-white text-sm font-semibold rounded-full transition-all duration-200"
+                    disabled={!canSelectSeats}
+                    className="px-6 py-2 bg-[#007AFF] hover:bg-[#0056b3] text-white text-sm font-semibold rounded-full transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Simular selección de asiento
                   </button>
