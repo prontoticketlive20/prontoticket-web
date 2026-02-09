@@ -55,22 +55,27 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - **Empty state** when no selections made
 - Fully responsive (desktop and mobile)
 
-### ✅ Purchase State Persistence (Added - Feb 9, 2026)
-- **SessionStorage** used for state persistence (`prontoticket_purchase_state`)
-- Persisted data:
-  - eventId
-  - selectedFunction (functionId, date, time)
-  - selectedTickets (type, quantity, price)
-  - selectedSeats (section, row, seat, price)
-  - timestamp
-- State preserved across:
-  - Page refresh
-  - Browser back/forward navigation
-  - Direct URL navigation
-  - Returning from checkout to summary/seats
-- State cleared when:
-  - Switching to a different event
-  - Calling `clearPurchase()` explicitly
+### ✅ Checkout Page (Added - Feb 9, 2026)
+**Left Column - Buyer Information:**
+- User state detection (logged in / guest)
+- Pre-fills form if logged in (First Name, Last Name, Email, Phone)
+- All fields remain EDITABLE (not read-only)
+- Guest checkout option (checkbox only visible if not logged in)
+- Mandatory "Accept Terms and Conditions" checkbox
+- Payment button disabled until terms accepted
+- Form validation with error messages
+
+**Right Column - Order Summary:**
+- Event summary (image, title, date, time, venue)
+- Selected function badge for multi-function events
+- Tickets/seats breakdown
+- Price summary (Subtotal, Service Fee, Tax, Total)
+- Currency indicator
+
+**Behavior:**
+- Edited data applies only to this purchase
+- Does NOT overwrite user profile
+- Preserves purchase state on navigation
 
 ---
 
