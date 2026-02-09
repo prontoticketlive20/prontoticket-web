@@ -226,14 +226,14 @@ const SeatsSelectionPage = () => {
                       >
                         <div className="flex-1">
                           <div className="text-white font-semibold text-sm">
-                            Asiento {seat.number}
+                            Asiento {seat.number || seat.seat}
                           </div>
-                          <div className="text-white/50 text-xs">{seat.section}</div>
+                          <div className="text-white/50 text-xs">{seat.section} - Fila {seat.row}</div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <span className="text-[#FF9500] font-bold">${seat.price}</span>
+                          <span className="text-[#FF9500] font-bold">{formatPrice(seat.price)}</span>
                           <button
-                            onClick={() => removeSeat(seat.id)}
+                            onClick={() => handleRemoveSeat(seat.id)}
                             className="p-1 hover:bg-white/10 rounded-full transition-colors"
                             data-testid={`remove-seat-${seat.id}`}
                           >
