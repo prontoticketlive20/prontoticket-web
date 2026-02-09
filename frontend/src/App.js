@@ -26,14 +26,16 @@ const Home = () => {
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/evento/:id" element={<EventDetailPage />} />
-          <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
-          <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
-        </Routes>
-      </BrowserRouter>
+      <PurchaseProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/evento/:id" element={<EventDetailPage />} />
+            <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
+            <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
+          </Routes>
+        </BrowserRouter>
+      </PurchaseProvider>
     </div>
   );
 }
