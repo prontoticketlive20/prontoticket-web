@@ -36,12 +36,14 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 
 ### ✅ Purchase Summary Page (Completed - Feb 9, 2026)
 - Event summary with thumbnail, date, time, venue
-- Selected function display (for multi-date events)
+- **City and country** displayed separately
+- Selected function display (only for multi-function events)
 - Ticket details with type, quantity, and pricing
 - Seat information (section, row, seat) for seated events
 - "Libre asignación" indicator for general admission
 - Itemized price breakdown (Entradas, Service Fee, Tax)
-- Emphasized Total price display
+- **Currency indicator based on selected country** (MXN, USD, EUR, etc.)
+- Emphasized Total price display with currency code
 - "Continuar al pago" primary action button
 - "Volver y modificar selección" secondary link
 - Policy reminder notice (non-refundable tickets)
