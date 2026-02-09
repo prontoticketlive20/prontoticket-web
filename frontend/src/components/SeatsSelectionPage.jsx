@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { Calendar, MapPin, Clock, X, ChevronLeft } from 'lucide-react';
+import { Calendar, MapPin, Clock, X, ChevronLeft, AlertCircle } from 'lucide-react';
 import { mockEvents } from '../data/mockEvents';
 import { usePurchase } from '../context/PurchaseContext';
+
+// This page is ONLY for seated events (saleType = "seated")
+// General events should NOT use this page - they use TicketSelection modal instead
 
 const SeatsSelectionPage = () => {
   const { id } = useParams();
@@ -16,12 +19,18 @@ const SeatsSelectionPage = () => {
     addSeat, 
     removeSeat, 
     selectedSeats, 
-    updateSeats,
     formatPrice,
     serviceFee: contextServiceFee
   } = usePurchase();
   
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
+
+  // Redirect if this is not a seated event
+  useEffect(() => {
+    if (event.saleType !== 'seated') {
+      navigate(`/evento/${id}`);
+    }
+  }, [event, id, navigate]);
 
   // Set event in context when component mounts
   useEffect(() => {
