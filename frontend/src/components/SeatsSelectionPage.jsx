@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { Calendar, MapPin, Clock, X, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, X, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { mockEvents } from '../data/mockEvents';
 import { usePurchase } from '../context/PurchaseContext';
+
+// Valid sale types
+const VALID_SALE_TYPES = ['seated', 'general'];
 
 // This page is ONLY for seated events (saleType = "seated")
 // General events should NOT use this page - they use TicketSelection modal instead
@@ -25,12 +28,22 @@ const SeatsSelectionPage = () => {
   
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
 
-  // Redirect if this is not a seated event
+  // Validate saleType
+  const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
+  const isSeatedEvent = event.saleType === 'seated';
+
+  // Redirect if this is not a seated event or saleType is invalid
   useEffect(() => {
-    if (event.saleType !== 'seated') {
+    if (!hasValidSaleType || !isSeatedEvent) {
+      console.error(
+        `[ProntoTicketLive] SeatsSelectionPage: Invalid access.`,
+        `\nEvent saleType: "${event.saleType}"`,
+        `\nThis page requires saleType = "seated".`,
+        `\nRedirecting to event page.`
+      );
       navigate(`/evento/${id}`);
     }
-  }, [event, id, navigate]);
+  }, [event, id, navigate, hasValidSaleType, isSeatedEvent]);
 
   // Set event in context when component mounts
   useEffect(() => {
