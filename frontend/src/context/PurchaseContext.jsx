@@ -117,8 +117,8 @@ export const PurchaseProvider = ({ children }) => {
     const ticketsTotal = getTicketsSubtotal();
     const seatsTotal = getSeatsSubtotal();
     // If event is seated, use seats. Otherwise use tickets
-    if (selectedEvent?.type === 'seated') {
-      return seatsTotal > 0 ? seatsTotal : ticketsTotal;
+    if (selectedEvent?.saleType === 'seated') {
+      return seatsTotal;
     }
     return ticketsTotal;
   }, [selectedEvent, getTicketsSubtotal, getSeatsSubtotal]);
