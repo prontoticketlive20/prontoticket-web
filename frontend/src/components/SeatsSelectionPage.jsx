@@ -48,16 +48,26 @@ const SeatsSelectionPage = () => {
       navigate(`/evento/${id}`);
       return;
     }
+  }, [event, id, navigate, hasValidSaleType, isSeatedEvent]);
+
+  // Separate effect for function validation - only for multi-function events
+  // Use a small delay to allow context to sync from navigation
+  useEffect(() => {
+    if (!hasMultipleFunctions) return;
     
-    // Redirect if multi-function event has no function selected
-    if (hasMultipleFunctions && !selectedFunction) {
-      console.error(
-        `[ProntoTicketLive] SeatsSelectionPage: No function selected for multi-function event.`,
-        `\nRedirecting to event page to select a function.`
-      );
-      navigate(`/evento/${id}`);
-    }
-  }, [event, id, navigate, hasValidSaleType, isSeatedEvent, hasMultipleFunctions, selectedFunction]);
+    // Give context time to sync after navigation
+    const timeout = setTimeout(() => {
+      if (!selectedFunction) {
+        console.error(
+          `[ProntoTicketLive] SeatsSelectionPage: No function selected for multi-function event.`,
+          `\nRedirecting to event page to select a function.`
+        );
+        navigate(`/evento/${id}`);
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [hasMultipleFunctions, selectedFunction, id, navigate]);
 
   // Set event in context when component mounts
   useEffect(() => {
