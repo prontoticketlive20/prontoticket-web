@@ -34,20 +34,37 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - Section/row/seat selection interface
 - Responsive layout
 
-### ✅ Purchase Summary Page (Completed - Feb 9, 2026)
+### ✅ Purchase Summary Page (Updated - Feb 9, 2026)
+- **Now uses DYNAMIC DATA** from the purchase flow context
+- Reads selected event, function, tickets, and seats from React Context
 - Event summary with thumbnail, date, time, venue
 - **City and country** displayed separately
 - Selected function display (only for multi-function events)
-- Ticket details with type, quantity, and pricing
-- Seat information (section, row, seat) for seated events
+- Ticket details with type, quantity, and pricing (dynamic)
+- Seat information (section, row, seat) for seated events (dynamic)
 - "Libre asignación" indicator for general admission
-- Itemized price breakdown (Entradas, Service Fee, Tax)
-- **Currency indicator based on selected country** (MXN, USD, EUR, etc.)
+- Itemized price breakdown calculated dynamically:
+  - Tickets/Seats subtotal
+  - Service fee ($150)
+  - Tax calculated by country (16% MXN, 8% USD, etc.)
+- **Currency indicator based on event country** (MXN, USD, EUR, etc.)
 - Emphasized Total price display with currency code
 - "Continuar al pago" primary action button
-- "Volver y modificar selección" secondary link
+- "Volver y modificar selección" secondary link (navigates back appropriately)
 - Policy reminder notice (non-refundable tickets)
+- **Empty state** when no selections made
 - Fully responsive (desktop and mobile)
+
+### ✅ Purchase Context System (New - Feb 9, 2026)
+- Created `/app/frontend/src/context/PurchaseContext.jsx`
+- Manages state across the entire purchase flow:
+  - Selected event
+  - Selected function (for multi-date events)
+  - Selected tickets (type, quantity, price)
+  - Selected seats (section, row, seat, price)
+- Provides computed values: subtotal, tax, total, currency
+- Currency and tax rate based on event country
+- Format price utility function
 
 ---
 
