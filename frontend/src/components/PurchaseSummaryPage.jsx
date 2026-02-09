@@ -258,21 +258,30 @@ const PurchaseSummaryPage = () => {
                     Desglose de precio
                   </h2>
 
+                  {/* Currency Indicator */}
+                  <div className="flex items-center space-x-2 mb-4 pb-4 border-b border-white/10">
+                    <Globe size={14} className="text-[#007AFF]" />
+                    <span className="text-white/60 text-xs">Moneda:</span>
+                    <span className="text-white text-xs font-semibold" data-testid="currency-indicator">
+                      {currency.code} ({currency.name})
+                    </span>
+                  </div>
+
                   {/* Price Items */}
                   <div className="space-y-3 sm:space-y-4 mb-5 sm:mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">Entradas</span>
-                      <span className="text-white font-semibold" data-testid="subtotal-price">${subtotal.toLocaleString()}</span>
+                      <span className="text-white font-semibold" data-testid="subtotal-price">{formatPrice(subtotal)}</span>
                     </div>
 
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">Cargo por servicio</span>
-                      <span className="text-white font-semibold" data-testid="service-fee">${serviceFee.toLocaleString()}</span>
+                      <span className="text-white font-semibold" data-testid="service-fee">{formatPrice(serviceFee)}</span>
                     </div>
 
                     <div className="flex justify-between text-sm">
                       <span className="text-white/70">IVA (16%)</span>
-                      <span className="text-white font-semibold" data-testid="tax-amount">${tax.toLocaleString()}</span>
+                      <span className="text-white font-semibold" data-testid="tax-amount">{formatPrice(tax)}</span>
                     </div>
 
                     {/* Total - Emphasized */}
@@ -285,9 +294,9 @@ const PurchaseSummaryPage = () => {
                             style={{ fontFamily: "'Outfit', sans-serif" }}
                             data-testid="total-price"
                           >
-                            ${total.toLocaleString()}
+                            {formatPrice(total)}
                           </div>
-                          <div className="text-white/50 text-xs mt-1">MXN</div>
+                          <div className="text-white/50 text-xs mt-1" data-testid="currency-code">{currency.code}</div>
                         </div>
                       </div>
                     </div>
