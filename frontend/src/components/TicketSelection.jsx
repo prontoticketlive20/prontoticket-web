@@ -71,14 +71,8 @@ const TicketSelection = ({ event, onClose }) => {
     // Close modal
     onClose();
 
-    // Navigate based on event type
-    if (hasSeating) {
-      // For seated events, go to seat selection
-      navigate(`/evento/${event.id}/asientos`);
-    } else {
-      // For general events, go directly to summary
-      navigate(`/evento/${event.id}/resumen`);
-    }
+    // General events go directly to purchase summary
+    navigate(`/evento/${event.id}/resumen`);
   };
 
   return (
