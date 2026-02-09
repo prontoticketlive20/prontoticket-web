@@ -107,6 +107,7 @@ const SeatsSelectionPage = () => {
   };
 
   // Mock function to simulate seat selection (would be triggered by Seats.io)
+  // In real implementation, seats would be loaded for the specific selectedFunction.id
   const mockAddSeat = () => {
     const seatNumber = Math.floor(Math.random() * 20) + 1;
     const row = String.fromCharCode(65 + Math.floor(Math.random() * 5)); // A-E
@@ -116,7 +117,9 @@ const SeatsSelectionPage = () => {
       seat: `${row}${seatNumber}`,
       section: 'Platea A',
       row: row,
-      price: 1200
+      price: 1200,
+      // Include function reference for seat validation
+      functionId: selectedFunction?.id || null
     };
     addSeat(mockSeat);
   };
@@ -124,6 +127,9 @@ const SeatsSelectionPage = () => {
   const handleRemoveSeat = (seatId) => {
     removeSeat(seatId);
   };
+
+  // Block seat selection if no function is selected (for multi-function events)
+  const canSelectSeats = !hasMultipleFunctions || selectedFunction !== null;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
