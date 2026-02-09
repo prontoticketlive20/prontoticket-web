@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
@@ -10,6 +10,7 @@ import { usePurchase } from '../context/PurchaseContext';
 
 const EventDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
   
@@ -18,8 +19,10 @@ const EventDetailPage = () => {
   const event = mockEvents[id] || mockEvents['1'];
   const policies = getEventPolicies(id || '1');
   
+  // Determine sale type: "seated" or "general"
+  const isSeatedEvent = event.saleType === 'seated';
   const hasMultipleFunctions = event.functions && event.functions.length > 1;
-  const canProceedToTickets = !hasMultipleFunctions || selectedFunction !== null;
+  const canProceed = !hasMultipleFunctions || selectedFunction !== null;
 
   // Set event in context when component mounts or id changes
   useEffect(() => {
@@ -34,7 +37,13 @@ const EventDetailPage = () => {
   }, [selectedFunction, setContextFunction]);
 
   const handleSelectTickets = () => {
-    if (canProceedToTickets) {
+    if (!canProceed) return;
+    
+    if (isSeatedEvent) {
+      // Seated events: Go directly to seat selection (no ticket modal)
+      navigate(`/evento/${id}/asientos`);
+    } else {
+      // General events: Show ticket type/quantity selection modal
       setShowTicketSelection(true);
     }
   };
