@@ -115,11 +115,11 @@ const EventDetailPage = () => {
                   </div>
                   <button
                     onClick={handleSelectTickets}
-                    disabled={!canProceedToTickets}
+                    disabled={!canProceed}
                     className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[0_8px_30px_rgba(0,122,255,0.6)] active:scale-95 tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
                     data-testid="select-tickets-button"
                   >
-                    Seleccionar entradas
+                    {isSeatedEvent ? 'Seleccionar asientos' : 'Seleccionar entradas'}
                   </button>
                 </div>
               </div>
@@ -131,7 +131,7 @@ const EventDetailPage = () => {
                   selectedFunction={selectedFunction}
                   onSelectFunction={setSelectedFunction}
                 />
-              )}
+              )}}
 
               {/* Description */}
               <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
