@@ -153,12 +153,18 @@ const PurchaseSummaryPage = () => {
                         </div>
 
                         <div className="flex items-center space-x-2 text-sm text-white/70">
-                          <MapPin size={14} className="text-[#007AFF] flex-shrink-0" />
+                          <Building2 size={14} className="text-[#007AFF] flex-shrink-0" />
                           <span data-testid="event-venue">{event.venue}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-2 text-sm text-white/70">
+                          <MapPin size={14} className="text-[#FF9500] flex-shrink-0" />
+                          <span data-testid="event-city">{event.city}, {event.country}</span>
                         </div>
                       </div>
 
-                      {event.selectedFunction && (
+                      {/* Selected Function - Only for multi-function events */}
+                      {event.isMultiFunction && event.selectedFunction && (
                         <div className="pt-2 mt-2 border-t border-white/10">
                           <span className="text-xs text-white/50 uppercase tracking-wide">Función seleccionada</span>
                           <div className="text-sm text-white font-semibold" data-testid="selected-function">
