@@ -13,13 +13,13 @@ const FunctionSelector = ({ functions, selectedFunction, onSelectFunction }) => 
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {functions.map((func) => {
-          const isSelected = selectedFunction === func.id;
+          const isSelected = selectedFunction?.id === func.id;
           const isLowAvailability = func.availability === 'Pocas entradas';
           
           return (
             <button
               key={func.id}
-              onClick={() => onSelectFunction(func.id)}
+              onClick={() => onSelectFunction(func)}
               className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
                 isSelected
                   ? 'border-[#007AFF] bg-[#007AFF]/10'
