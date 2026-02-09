@@ -40,9 +40,19 @@ const EventDetailPage = () => {
   }, [event, hasValidSaleType]);
   
   const hasMultipleFunctions = event.functions && event.functions.length > 1;
+  const hasSingleFunction = event.functions && event.functions.length === 1;
   
-  // Can only proceed if saleType is valid AND (no multiple functions OR function selected)
-  const canProceed = hasValidSaleType && (!hasMultipleFunctions || selectedFunction !== null);
+  // Auto-select function if event has only one
+  useEffect(() => {
+    if (hasSingleFunction && !selectedFunction) {
+      const singleFunc = event.functions[0];
+      setSelectedFunction(singleFunc);
+      setContextFunction(singleFunc);
+    }
+  }, [hasSingleFunction, selectedFunction, event.functions, setContextFunction]);
+  
+  // Can only proceed if saleType is valid AND (single function auto-selected OR function manually selected)
+  const canProceed = hasValidSaleType && (hasSingleFunction || selectedFunction !== null);
 
   // Set event in context when component mounts or id changes
   useEffect(() => {
