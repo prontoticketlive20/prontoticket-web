@@ -6,6 +6,8 @@ const EVENT_1 = {
   date: '15 JUN 2025',
   time: '18:00',
   venue: 'Estadio Nacional',
+  city: 'Ciudad de México',
+  country: 'México',
   location: 'Ciudad de México, México',
   startingPrice: 899,
   image: 'https://images.unsplash.com/photo-1765278797923-10a027f5c69d?w=1200',
@@ -34,6 +36,8 @@ const EVENT_2 = {
   date: '28 JUL 2025',
   time: '20:00',
   venue: 'Teatro Metropolitan',
+  city: 'Ciudad de México',
+  country: 'México',
   location: 'Ciudad de México, México',
   startingPrice: 450,
   image: 'https://images.unsplash.com/photo-1719650932800-ebb72adb2d2a?w=1200',
@@ -73,9 +77,40 @@ const EVENT_2 = {
   ]
 };
 
+const EVENT_3 = {
+  id: '3',
+  title: 'Concierto Internacional',
+  type: 'general',
+  date: '10 AGO 2025',
+  time: '21:00',
+  venue: 'Madison Square Garden',
+  city: 'Nueva York',
+  country: 'Estados Unidos',
+  location: 'Nueva York, Estados Unidos',
+  startingPrice: 150,
+  image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=1200',
+  description: 'Un concierto épico con artistas internacionales en el icónico Madison Square Garden.',
+  ageLimit: 'Todas las edades',
+  doors: '19:00',
+  duration: '4 horas',
+  producerContact: {
+    email: 'info@msgconcerts.com',
+    phone: '+1 (212) 555-1234'
+  },
+  functions: [
+    {
+      id: 'func-1',
+      date: '10 AGO 2025',
+      time: '21:00',
+      availability: 'Disponible'
+    }
+  ]
+};
+
 export const mockEvents = {
   '1': EVENT_1,
-  '2': EVENT_2
+  '2': EVENT_2,
+  '3': EVENT_3
 };
 
 export const getEventPolicies = (eventId) => {
