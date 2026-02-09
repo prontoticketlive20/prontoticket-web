@@ -55,7 +55,8 @@ const PurchaseSummaryPage = () => {
   const hasSelections = isSeatedEvent ? hasSeatSelections : hasTicketSelections;
 
   const handleContinueToPayment = () => {
-    alert('Redirigiendo al procesador de pagos...');
+    // Navigate to checkout page
+    navigate(`/evento/${id}/checkout`);
   };
 
   const handleGoBack = () => {
