@@ -201,10 +201,10 @@ const PurchaseSummaryPage = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-[#FF9500] font-bold text-base sm:text-lg">
-                            ${(ticket.price * ticket.quantity).toLocaleString()}
+                            {formatPrice(ticket.price * ticket.quantity)}
                           </div>
                           <div className="text-white/50 text-xs">
-                            ${ticket.price.toLocaleString()} c/u
+                            {formatPrice(ticket.price)} c/u
                           </div>
                         </div>
                       </div>
