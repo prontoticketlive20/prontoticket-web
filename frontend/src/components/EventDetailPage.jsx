@@ -4,9 +4,12 @@ import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
 import FunctionSelector from './FunctionSelector';
-import { Calendar, MapPin, Clock, Users, Info, AlertCircle, Mail, Phone } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Info, AlertCircle, Mail, Phone, AlertTriangle } from 'lucide-react';
 import { mockEvents, getEventPolicies } from '../data/mockEvents';
 import { usePurchase } from '../context/PurchaseContext';
+
+// Valid sale types
+const VALID_SALE_TYPES = ['seated', 'general'];
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -19,10 +22,27 @@ const EventDetailPage = () => {
   const event = mockEvents[id] || mockEvents['1'];
   const policies = getEventPolicies(id || '1');
   
-  // Determine sale type: "seated" or "general"
+  // Validate saleType
+  const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
   const isSeatedEvent = event.saleType === 'seated';
+  const isGeneralEvent = event.saleType === 'general';
+  
+  // Developer warning for invalid saleType
+  useEffect(() => {
+    if (!hasValidSaleType) {
+      console.error(
+        `[ProntoTicketLive] Invalid or missing saleType for event "${event.title}" (ID: ${event.id}).`,
+        `\nReceived: "${event.saleType}"`,
+        `\nExpected: "seated" | "general"`,
+        `\nPurchase flow is BLOCKED until this is fixed.`
+      );
+    }
+  }, [event, hasValidSaleType]);
+  
   const hasMultipleFunctions = event.functions && event.functions.length > 1;
-  const canProceed = !hasMultipleFunctions || selectedFunction !== null;
+  
+  // Can only proceed if saleType is valid AND (no multiple functions OR function selected)
+  const canProceed = hasValidSaleType && (!hasMultipleFunctions || selectedFunction !== null);
 
   // Set event in context when component mounts or id changes
   useEffect(() => {
@@ -37,12 +57,19 @@ const EventDetailPage = () => {
   }, [selectedFunction, setContextFunction]);
 
   const handleSelectTickets = () => {
+    // Block if saleType is invalid
+    if (!hasValidSaleType) {
+      console.error('[ProntoTicketLive] Purchase blocked: Invalid saleType');
+      return;
+    }
+    
     if (!canProceed) return;
     
+    // ONLY ONE flow can execute based on saleType
     if (isSeatedEvent) {
       // Seated events: Go directly to seat selection (no ticket modal)
       navigate(`/evento/${id}/asientos`);
-    } else {
+    } else if (isGeneralEvent) {
       // General events: Show ticket type/quantity selection modal
       setShowTicketSelection(true);
     }
