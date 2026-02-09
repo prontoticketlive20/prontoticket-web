@@ -109,10 +109,42 @@ const EVENT_3 = {
   ]
 };
 
+// Test event with INVALID saleType - for developer testing
+const EVENT_INVALID = {
+  id: '99',
+  title: 'Evento de Prueba (saleType inválido)',
+  saleType: 'invalid_type', // This should trigger warning
+  date: '01 ENE 2026',
+  time: '20:00',
+  venue: 'Test Venue',
+  city: 'Test City',
+  country: 'México',
+  location: 'Test City, México',
+  startingPrice: 100,
+  image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=1200',
+  description: 'Este evento tiene un saleType inválido para probar la validación.',
+  ageLimit: 'Todas las edades',
+  doors: '19:00',
+  duration: '2 horas',
+  producerContact: {
+    email: 'test@test.com',
+    phone: '+52 (55) 0000-0000'
+  },
+  functions: [
+    {
+      id: 'func-1',
+      date: '01 ENE 2026',
+      time: '20:00',
+      availability: 'Disponible'
+    }
+  ]
+};
+
 export const mockEvents = {
   '1': EVENT_1,
   '2': EVENT_2,
-  '3': EVENT_3
+  '3': EVENT_3,
+  '99': EVENT_INVALID
 };
 
 export const getEventPolicies = (eventId) => {
