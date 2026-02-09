@@ -149,16 +149,35 @@ const EventDetailPage = () => {
                     {isSeatedEvent ? 'Seleccionar asientos' : 'Seleccionar entradas'}
                   </button>
                 </div>
+
+                {/* Developer Warning - Invalid saleType */}
+                {!hasValidSaleType && (
+                  <div 
+                    className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start space-x-3"
+                    data-testid="invalid-saletype-warning"
+                  >
+                    <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-red-400 font-bold text-sm">⚠️ Developer Warning</p>
+                      <p className="text-red-300/80 text-xs mt-1">
+                        Invalid or missing <code className="bg-red-500/30 px-1 rounded">saleType</code> for this event.
+                        Expected: <code className="bg-red-500/30 px-1 rounded">"seated"</code> or <code className="bg-red-500/30 px-1 rounded">"general"</code>.
+                        Received: <code className="bg-red-500/30 px-1 rounded">"{event.saleType || 'undefined'}"</code>.
+                        Purchase flow is blocked.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Function Selector - Only shown for multi-function events */}
-              {hasMultipleFunctions && (
+              {/* Function Selector - Only shown for multi-function events with valid saleType */}
+              {hasValidSaleType && hasMultipleFunctions && (
                 <FunctionSelector
                   functions={event.functions}
                   selectedFunction={selectedFunction}
                   onSelectFunction={setSelectedFunction}
                 />
-              )}}
+              )}
 
               {/* Description */}
               <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
