@@ -34,6 +34,7 @@ function App() {
             <Route path="/evento/:id" element={<EventDetailPage />} />
             <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
             <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
+            <Route path="/evento/:id/checkout" element={<CheckoutPage />} />
           </Routes>
         </BrowserRouter>
       </PurchaseProvider>
