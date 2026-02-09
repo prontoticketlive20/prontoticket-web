@@ -147,11 +147,16 @@ const SeatsSelectionPage = () => {
                   <h2 className="text-white font-bold text-sm sm:text-base line-clamp-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                     {event.title}
                   </h2>
+                  {/* Display selected function date/time */}
                   <div className="flex items-center space-x-2 text-white/60 text-xs sm:text-sm mt-0.5">
                     <Calendar size={14} />
-                    <span>{event.date}</span>
+                    <span data-testid="selected-function-date">
+                      {selectedFunction?.date || event.date}
+                    </span>
                     <span>•</span>
-                    <span>{event.time}</span>
+                    <span data-testid="selected-function-time">
+                      {selectedFunction?.time || event.time} hrs
+                    </span>
                   </div>
                 </div>
                 
@@ -170,6 +175,21 @@ const SeatsSelectionPage = () => {
               </span>
             </div>
           </div>
+          
+          {/* Selected Function Badge - Only show for multi-function events */}
+          {hasMultipleFunctions && selectedFunction && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="flex items-center space-x-2">
+                <span className="text-white/50 text-xs uppercase tracking-wide">Función:</span>
+                <span 
+                  className="text-[#007AFF] text-sm font-semibold"
+                  data-testid="selected-function-badge"
+                >
+                  {selectedFunction.date} - {selectedFunction.time} hrs
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
