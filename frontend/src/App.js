@@ -8,6 +8,7 @@ import UpcomingEvents from "./components/UpcomingEvents";
 import Footer from "./components/Footer";
 import EventDetailPage from "./components/EventDetailPage";
 import SeatsSelectionPage from "./components/SeatsSelectionPage";
+import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
 
 const Home = () => {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/evento/:id" element={<EventDetailPage />} />
           <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
+          <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
         </Routes>
       </BrowserRouter>
     </div>
