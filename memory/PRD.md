@@ -55,16 +55,20 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - **Empty state** when no selections made
 - Fully responsive (desktop and mobile)
 
-### ✅ Purchase Context System (New - Feb 9, 2026)
-- Created `/app/frontend/src/context/PurchaseContext.jsx`
-- Manages state across the entire purchase flow:
-  - Selected event
-  - Selected function (for multi-date events)
-  - Selected tickets (type, quantity, price)
-  - Selected seats (section, row, seat, price)
-- Provides computed values: subtotal, tax, total, currency
-- Currency and tax rate based on event country
-- Format price utility function
+### ✅ Multi-Function Event Flow (Fixed - Feb 9, 2026)
+- **selectedFunction** (date + time + functionId) persists across all pages
+- Context only resets selections when switching to a DIFFERENT event
+- Single-function events auto-select their function
+- Multi-function events require manual selection before proceeding
+
+**Flow consistency:**
+1. EventDetailPage: Stores selectedFunction in context on selection
+2. SeatsSelectionPage: Displays function in header + badge, loads seats for functionId
+3. PurchaseSummaryPage: Uses selectedFunction.date/time instead of event defaults
+
+**Validation:**
+- SeatsSelectionPage blocks access without selectedFunction for multi-function events
+- Redirects to event page if function not selected
 
 ---
 
