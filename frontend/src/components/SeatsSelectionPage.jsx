@@ -4,15 +4,29 @@ import Header from './Header';
 import Footer from './Footer';
 import { Calendar, MapPin, Clock, X, ChevronLeft } from 'lucide-react';
 import { mockEvents } from '../data/mockEvents';
+import { usePurchase } from '../context/PurchaseContext';
 
 const SeatsSelectionPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const event = mockEvents[id] || mockEvents['1'];
   
-  // Mock selected seats state
-  const [selectedSeats, setSelectedSeats] = useState([]);
+  const { 
+    selectEvent, 
+    addSeat, 
+    removeSeat, 
+    selectedSeats, 
+    updateSeats,
+    formatPrice,
+    serviceFee: contextServiceFee
+  } = usePurchase();
+  
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
+
+  // Set event in context when component mounts
+  useEffect(() => {
+    selectEvent(event);
+  }, [id, event, selectEvent]);
 
   // Timer countdown
   useEffect(() => {
@@ -35,33 +49,36 @@ const SeatsSelectionPage = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const serviceFee = 50;
   const subtotal = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  const total = subtotal + (selectedSeats.length > 0 ? serviceFee : 0);
+  const total = subtotal + (selectedSeats.length > 0 ? contextServiceFee : 0);
 
   const handleBackToEvent = () => {
     navigate(`/evento/${id}`);
   };
 
-  const handleContinueToPayment = () => {
+  const handleContinueToSummary = () => {
     if (selectedSeats.length > 0) {
-      alert('Redirigiendo al pago...');
+      navigate(`/evento/${id}/resumen`);
     }
   };
 
   // Mock function to simulate seat selection (would be triggered by Seats.io)
   const mockAddSeat = () => {
+    const seatNumber = Math.floor(Math.random() * 20) + 1;
+    const row = String.fromCharCode(65 + Math.floor(Math.random() * 5)); // A-E
     const mockSeat = {
       id: `seat-${Date.now()}`,
-      number: `A${Math.floor(Math.random() * 20) + 1}`,
+      number: `${row}${seatNumber}`,
+      seat: `${row}${seatNumber}`,
       section: 'Platea A',
+      row: row,
       price: 1200
     };
-    setSelectedSeats(prev => [...prev, mockSeat]);
+    addSeat(mockSeat);
   };
 
-  const removeSeat = (seatId) => {
-    setSelectedSeats(prev => prev.filter(seat => seat.id !== seatId));
+  const handleRemoveSeat = (seatId) => {
+    removeSeat(seatId);
   };
 
   return (
