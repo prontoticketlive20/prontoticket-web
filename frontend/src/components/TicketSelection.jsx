@@ -104,9 +104,7 @@ const TicketSelection = ({ event, onClose }) => {
           {step === 1 ? (
             <div className="space-y-4">
               <p className="text-white/70 text-sm mb-6">
-                {hasSeating 
-                  ? 'Selecciona la sección y cantidad de entradas que deseas.' 
-                  : 'Selecciona el tipo y cantidad de entradas que deseas.'}
+                Selecciona el tipo y cantidad de entradas que deseas.
               </p>
 
               {options.map((item) => (
