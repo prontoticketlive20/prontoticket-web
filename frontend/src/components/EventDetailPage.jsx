@@ -247,11 +247,11 @@ const EventDetailPage = () => {
           <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-white/10 p-4 z-40">
             <button
               onClick={handleSelectTickets}
-              disabled={!canProceedToTickets}
+              disabled={!canProceed}
               className="w-full px-8 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-full shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="mobile-select-tickets-button"
             >
-              Seleccionar entradas
+              {isSeatedEvent ? 'Seleccionar asientos' : 'Seleccionar entradas'}
             </button>
           </div>
         </div>
@@ -261,7 +261,8 @@ const EventDetailPage = () => {
 
       <Footer />
 
-      {showTicketSelection && (
+      {/* Ticket Selection Modal - ONLY for general events */}
+      {showTicketSelection && !isSeatedEvent && (
         <TicketSelection 
           event={event}
           onClose={() => setShowTicketSelection(false)}
