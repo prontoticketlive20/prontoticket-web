@@ -49,6 +49,7 @@ export const PurchaseProvider = ({ children }) => {
   }, []);
 
   // Set the current event with validation
+  // Only reset selections if the event ID changes
   const selectEvent = useCallback((event) => {
     if (event && !isValidSaleType(event.saleType)) {
       console.error(
@@ -57,11 +58,16 @@ export const PurchaseProvider = ({ children }) => {
         `\nExpected: "seated" | "general"`
       );
     }
-    setSelectedEvent(event);
-    // Reset selections when changing event
-    setSelectedFunction(null);
-    setSelectedTickets([]);
-    setSelectedSeats([]);
+    
+    setSelectedEvent(prevEvent => {
+      // Only reset selections if switching to a different event
+      if (!prevEvent || prevEvent.id !== event?.id) {
+        setSelectedFunction(null);
+        setSelectedTickets([]);
+        setSelectedSeats([]);
+      }
+      return event;
+    });
   }, [isValidSaleType]);
 
   // Set the selected function
