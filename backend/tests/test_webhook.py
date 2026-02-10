@@ -176,7 +176,7 @@ async def test_webhook_flow():
     assert parsed["ticket_id"] == test_ticket.id, "Ticket ID mismatch"
     assert parsed["order_id"] == test_ticket.order_id, "Order ID mismatch"
     
-    print(f"   ✓ QR data format: PRONTO|ticket_id|order_id|event_id|qr_code")
+    print("   ✓ QR data format: PRONTO|ticket_id|order_id|event_id|qr_code")
     print(f"   ✓ Parsed successfully: {parsed['prefix']}")
     
     # Cleanup
