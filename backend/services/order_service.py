@@ -168,15 +168,27 @@ async def generate_tickets_for_order(
     order: Order
 ) -> List[Ticket]:
     """
-    Generate tickets for a paid order.
+    Generate tickets for a paid order after webhook confirmation.
+    
+    IMPORTANT: This is the ONLY place where real tickets and QR codes are generated.
+    - Frontend QR codes are temporary/mock for UI preview only
+    - Real QR codes are generated HERE after Stripe webhook confirms payment
+    - Each ticket gets its own unique QR code (one QR per entry/seat)
+    
     Creates one ticket per quantity in each order item.
     For seated events, creates one ticket per seat.
     
-    This function should only be called after payment confirmation
-    and with idempotency check.
+    This function should only be called:
+    1. After payment_intent.succeeded webhook is received
+    2. After verifying payment amount matches order total
+    3. With idempotency check (tickets_generated flag)
+    
+    QR Code Format: PRONTO|{ticket_id}|{order_id}|{event_id}|{unique_qr_code}
     """
     tickets: List[Ticket] = []
     ticket_number = 1
+    
+    logger.info(f"Generating tickets for order {order.id} with {len(order.items)} item types")
     
     for item in order.items:
         # For seated events, create one ticket per seat
