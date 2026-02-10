@@ -191,6 +191,100 @@ const ConfirmationPage = () => {
               )}
             </div>
 
+            {/* QR Code Section */}
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <div className="flex flex-col items-center">
+                {/* Mock QR Code */}
+                <div className="bg-white p-3 rounded-xl mb-3" data-testid="ticket-qr-code">
+                  <svg 
+                    width="120" 
+                    height="120" 
+                    viewBox="0 0 120 120" 
+                    className="w-28 h-28 sm:w-32 sm:h-32"
+                  >
+                    {/* QR Code Pattern - Mock visual */}
+                    <rect width="120" height="120" fill="white"/>
+                    {/* Position detection patterns (corners) */}
+                    <rect x="8" y="8" width="28" height="28" fill="black"/>
+                    <rect x="12" y="12" width="20" height="20" fill="white"/>
+                    <rect x="16" y="16" width="12" height="12" fill="black"/>
+                    
+                    <rect x="84" y="8" width="28" height="28" fill="black"/>
+                    <rect x="88" y="12" width="20" height="20" fill="white"/>
+                    <rect x="92" y="16" width="12" height="12" fill="black"/>
+                    
+                    <rect x="8" y="84" width="28" height="28" fill="black"/>
+                    <rect x="12" y="88" width="20" height="20" fill="white"/>
+                    <rect x="16" y="92" width="12" height="12" fill="black"/>
+                    
+                    {/* Data modules - random pattern for mock */}
+                    <rect x="44" y="8" width="8" height="8" fill="black"/>
+                    <rect x="56" y="8" width="8" height="8" fill="black"/>
+                    <rect x="68" y="8" width="8" height="8" fill="black"/>
+                    
+                    <rect x="44" y="20" width="8" height="8" fill="black"/>
+                    <rect x="60" y="20" width="8" height="8" fill="black"/>
+                    
+                    <rect x="8" y="44" width="8" height="8" fill="black"/>
+                    <rect x="20" y="44" width="8" height="8" fill="black"/>
+                    <rect x="8" y="56" width="8" height="8" fill="black"/>
+                    <rect x="24" y="56" width="8" height="8" fill="black"/>
+                    <rect x="8" y="68" width="8" height="8" fill="black"/>
+                    <rect x="20" y="68" width="8" height="8" fill="black"/>
+                    
+                    {/* Center area data */}
+                    <rect x="44" y="44" width="8" height="8" fill="black"/>
+                    <rect x="56" y="44" width="8" height="8" fill="black"/>
+                    <rect x="68" y="44" width="8" height="8" fill="black"/>
+                    <rect x="48" y="52" width="8" height="8" fill="black"/>
+                    <rect x="64" y="52" width="8" height="8" fill="black"/>
+                    <rect x="44" y="60" width="8" height="8" fill="black"/>
+                    <rect x="60" y="60" width="8" height="8" fill="black"/>
+                    <rect x="52" y="68" width="8" height="8" fill="black"/>
+                    <rect x="68" y="68" width="8" height="8" fill="black"/>
+                    
+                    {/* Right side data */}
+                    <rect x="84" y="44" width="8" height="8" fill="black"/>
+                    <rect x="96" y="44" width="8" height="8" fill="black"/>
+                    <rect x="104" y="44" width="8" height="8" fill="black"/>
+                    <rect x="88" y="56" width="8" height="8" fill="black"/>
+                    <rect x="104" y="56" width="8" height="8" fill="black"/>
+                    <rect x="84" y="68" width="8" height="8" fill="black"/>
+                    <rect x="100" y="68" width="8" height="8" fill="black"/>
+                    
+                    {/* Bottom area data */}
+                    <rect x="44" y="84" width="8" height="8" fill="black"/>
+                    <rect x="60" y="84" width="8" height="8" fill="black"/>
+                    <rect x="72" y="84" width="8" height="8" fill="black"/>
+                    <rect x="52" y="92" width="8" height="8" fill="black"/>
+                    <rect x="68" y="92" width="8" height="8" fill="black"/>
+                    <rect x="84" y="92" width="8" height="8" fill="black"/>
+                    <rect x="44" y="100" width="8" height="8" fill="black"/>
+                    <rect x="56" y="100" width="8" height="8" fill="black"/>
+                    <rect x="76" y="100" width="8" height="8" fill="black"/>
+                    <rect x="92" y="100" width="8" height="8" fill="black"/>
+                    <rect x="104" y="100" width="8" height="8" fill="black"/>
+                    
+                    {/* Timing patterns */}
+                    <rect x="44" y="32" width="8" height="4" fill="black"/>
+                    <rect x="60" y="32" width="8" height="4" fill="black"/>
+                    <rect x="32" y="44" width="4" height="8" fill="black"/>
+                    <rect x="32" y="60" width="4" height="8" fill="black"/>
+                  </svg>
+                </div>
+                
+                {/* QR Instructions */}
+                <p className="text-white/60 text-xs sm:text-sm text-center max-w-xs">
+                  Presenta este código QR en la entrada del evento
+                </p>
+                
+                {/* Order reference under QR */}
+                <p className="text-white/40 text-xs mt-2 font-mono">
+                  {orderId}
+                </p>
+              </div>
+            </div>
+
             {/* Total */}
             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-baseline">
               <span className="text-white font-bold">Total pagado</span>
