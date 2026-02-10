@@ -142,8 +142,25 @@ const EventDetailPage = () => {
                   <div className="flex items-start space-x-3">
                     <MapPin className="text-[#FF9500] flex-shrink-0 mt-1" size={20} strokeWidth={2} />
                     <div>
-                      <div className="text-white font-semibold">{event.venue}</div>
-                      <div className="text-white/60 text-sm">{event.location}</div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.location}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-white font-semibold hover:text-[#007AFF] transition-colors duration-200"
+                        title="Abrir en Google Maps"
+                        data-testid="venue-maps-link"
+                      >
+                        {event.venue}
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.location}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-white/60 text-sm hover:text-[#007AFF] transition-colors duration-200 block"
+                        title="Abrir en Google Maps"
+                      >
+                        {event.location}
+                      </a>
                     </div>
                   </div>
                 </div>
