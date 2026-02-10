@@ -138,7 +138,16 @@ const ConfirmationPage = () => {
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-white/70">
                     <MapPin size={14} className="text-[#007AFF]" />
-                    <span>{event.venue}, {event.city}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.city}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[#007AFF] transition-colors duration-200"
+                      title="Abrir en Google Maps"
+                      data-testid="venue-maps-link"
+                    >
+                      {event.venue}, {event.city}
+                    </a>
                   </div>
                 </div>
               </div>
