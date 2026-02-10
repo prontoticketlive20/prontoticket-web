@@ -9,6 +9,14 @@ from .order import (
     TicketValidation,
     WebhookEvent
 )
+from .staff import (
+    Staff,
+    StaffRole,
+    StaffLogin,
+    StaffSession,
+    ScanLog,
+    ScanStats
+)
 
 __all__ = [
     "Order",
@@ -18,5 +26,11 @@ __all__ = [
     "Ticket",
     "TicketStatus",
     "TicketValidation",
-    "WebhookEvent"
+    "WebhookEvent",
+    "Staff",
+    "StaffRole",
+    "StaffLogin",
+    "StaffSession",
+    "ScanLog",
+    "ScanStats"
 ]
