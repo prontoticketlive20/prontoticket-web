@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
 from typing import List, Optional
 import stripe
 import os
@@ -19,7 +20,8 @@ from services.order_service import (
     get_tickets_by_order,
     update_order_payment_intent,
     validate_ticket,
-    mark_ticket_as_used
+    mark_ticket_as_used,
+    scan_and_validate_ticket
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,13 @@ def set_database(database: AsyncIOMotorDatabase):
     """Set the database reference for the orders router."""
     global db
     db = database
+
+
+# Request models
+class ScanTicketRequest(BaseModel):
+    """Request body for scanning a ticket QR code."""
+    qr_data: str  # Raw QR code data from scanner
+    event_id: str  # Event ID to validate against
 
 
 @router.post("", response_model=dict)
