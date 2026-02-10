@@ -11,6 +11,7 @@ import EventDetailPage from "./components/EventDetailPage";
 import SeatsSelectionPage from "./components/SeatsSelectionPage";
 import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
 import CheckoutPage from "./components/CheckoutPage";
+import ConfirmationPage from "./components/ConfirmationPage";
 
 const Home = () => {
   return (
