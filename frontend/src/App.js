@@ -41,6 +41,7 @@ function App() {
     <div className="App">
       <PurchaseProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/evento/:id" element={<EventDetailPage />} />
