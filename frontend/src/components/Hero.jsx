@@ -3,7 +3,7 @@ import SearchBar from './SearchBar';
 
 const Hero = () => {
   return (
-    <div className="relative h-[45vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+    <div className="relative min-h-[600px] sm:min-h-[550px] md:h-[45vh] md:min-h-[500px] flex items-center justify-center overflow-hidden pt-20">
       {/* Background Image with Concert Scene */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
