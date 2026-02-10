@@ -122,8 +122,72 @@ const ConfirmationPage = () => {
             </h2>
 
             <div className="flex gap-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-[#007AFF]/20 to-[#FF9500]/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <QrCode size={40} className="text-white/60" />
+              {/* QR Code for Event Details */}
+              <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center flex-shrink-0 p-1.5" data-testid="event-qr-code">
+                <svg 
+                  width="80" 
+                  height="80" 
+                  viewBox="0 0 120 120" 
+                  className="w-full h-full"
+                >
+                  <rect width="120" height="120" fill="white"/>
+                  {/* Position detection patterns */}
+                  <rect x="8" y="8" width="28" height="28" fill="black"/>
+                  <rect x="12" y="12" width="20" height="20" fill="white"/>
+                  <rect x="16" y="16" width="12" height="12" fill="black"/>
+                  
+                  <rect x="84" y="8" width="28" height="28" fill="black"/>
+                  <rect x="88" y="12" width="20" height="20" fill="white"/>
+                  <rect x="92" y="16" width="12" height="12" fill="black"/>
+                  
+                  <rect x="8" y="84" width="28" height="28" fill="black"/>
+                  <rect x="12" y="88" width="20" height="20" fill="white"/>
+                  <rect x="16" y="92" width="12" height="12" fill="black"/>
+                  
+                  {/* Data modules */}
+                  <rect x="44" y="8" width="8" height="8" fill="black"/>
+                  <rect x="56" y="8" width="8" height="8" fill="black"/>
+                  <rect x="68" y="8" width="8" height="8" fill="black"/>
+                  <rect x="44" y="20" width="8" height="8" fill="black"/>
+                  <rect x="60" y="20" width="8" height="8" fill="black"/>
+                  <rect x="8" y="44" width="8" height="8" fill="black"/>
+                  <rect x="20" y="44" width="8" height="8" fill="black"/>
+                  <rect x="8" y="56" width="8" height="8" fill="black"/>
+                  <rect x="24" y="56" width="8" height="8" fill="black"/>
+                  <rect x="8" y="68" width="8" height="8" fill="black"/>
+                  <rect x="20" y="68" width="8" height="8" fill="black"/>
+                  <rect x="44" y="44" width="8" height="8" fill="black"/>
+                  <rect x="56" y="44" width="8" height="8" fill="black"/>
+                  <rect x="68" y="44" width="8" height="8" fill="black"/>
+                  <rect x="48" y="52" width="8" height="8" fill="black"/>
+                  <rect x="64" y="52" width="8" height="8" fill="black"/>
+                  <rect x="44" y="60" width="8" height="8" fill="black"/>
+                  <rect x="60" y="60" width="8" height="8" fill="black"/>
+                  <rect x="52" y="68" width="8" height="8" fill="black"/>
+                  <rect x="68" y="68" width="8" height="8" fill="black"/>
+                  <rect x="84" y="44" width="8" height="8" fill="black"/>
+                  <rect x="96" y="44" width="8" height="8" fill="black"/>
+                  <rect x="104" y="44" width="8" height="8" fill="black"/>
+                  <rect x="88" y="56" width="8" height="8" fill="black"/>
+                  <rect x="104" y="56" width="8" height="8" fill="black"/>
+                  <rect x="84" y="68" width="8" height="8" fill="black"/>
+                  <rect x="100" y="68" width="8" height="8" fill="black"/>
+                  <rect x="44" y="84" width="8" height="8" fill="black"/>
+                  <rect x="60" y="84" width="8" height="8" fill="black"/>
+                  <rect x="72" y="84" width="8" height="8" fill="black"/>
+                  <rect x="52" y="92" width="8" height="8" fill="black"/>
+                  <rect x="68" y="92" width="8" height="8" fill="black"/>
+                  <rect x="84" y="92" width="8" height="8" fill="black"/>
+                  <rect x="44" y="100" width="8" height="8" fill="black"/>
+                  <rect x="56" y="100" width="8" height="8" fill="black"/>
+                  <rect x="76" y="100" width="8" height="8" fill="black"/>
+                  <rect x="92" y="100" width="8" height="8" fill="black"/>
+                  <rect x="104" y="100" width="8" height="8" fill="black"/>
+                  <rect x="44" y="32" width="8" height="4" fill="black"/>
+                  <rect x="60" y="32" width="8" height="4" fill="black"/>
+                  <rect x="32" y="44" width="4" height="8" fill="black"/>
+                  <rect x="32" y="60" width="4" height="8" fill="black"/>
+                </svg>
               </div>
               <div className="flex-1">
                 <h3 className="text-white font-bold text-base sm:text-lg mb-2">{event.title}</h3>
