@@ -434,3 +434,207 @@ async def mark_ticket_as_used(
         return True
     
     return False
+
+
+async def scan_and_validate_ticket(
+    db: AsyncIOMotorDatabase,
+    qr_data: str,
+    event_id: str
+) -> dict:
+    """
+    Complete QR code scan and validation flow.
+    
+    This is the main entry point for venue staff scanning tickets.
+    It handles the complete flow:
+    1. Parse QR code data
+    2. Verify cryptographic signature (for v2 QR codes)
+    3. Retrieve ticket from database
+    4. Validate ticket status and event
+    5. Atomically mark ticket as used (idempotent)
+    6. Return access granted/denied result
+    
+    Args:
+        db: Database connection
+        qr_data: Raw QR code string scanned from ticket
+        event_id: Event ID to validate against
+    
+    Returns:
+        Dictionary with validation result:
+        - access_granted: bool
+        - message: str
+        - ticket_info: dict (if valid)
+        - scan_timestamp: str
+    """
+    from services.qr_service import parse_signed_ticket_qr_data, verify_ticket_qr_signature
+    
+    scan_timestamp = datetime.now(timezone.utc)
+    
+    # Step 1: Parse QR code data
+    parsed = parse_signed_ticket_qr_data(qr_data)
+    
+    if not parsed:
+        logger.warning(f"Invalid QR format scanned at event {event_id}")
+        return {
+            "access_granted": False,
+            "message": "Código QR inválido - formato no reconocido",
+            "error_code": "INVALID_QR_FORMAT",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    ticket_id = parsed.get("ticket_id")
+    qr_event_id = parsed.get("event_id")
+    unique_code = parsed.get("unique_code")
+    is_signed = parsed.get("is_signed", False)
+    
+    # Step 2: Verify event ID matches (quick check before DB lookup)
+    if qr_event_id and qr_event_id != event_id:
+        logger.warning(f"QR for event {qr_event_id} scanned at event {event_id}")
+        return {
+            "access_granted": False,
+            "message": "Este ticket no es para este evento",
+            "error_code": "WRONG_EVENT",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 3: Retrieve ticket from database using the unique_code
+    ticket_doc = await db.tickets.find_one(
+        {"qr_code": unique_code},
+        {"_id": 0}
+    )
+    
+    if not ticket_doc:
+        logger.warning(f"Ticket not found for QR code at event {event_id}")
+        return {
+            "access_granted": False,
+            "message": "Ticket no encontrado en el sistema",
+            "error_code": "TICKET_NOT_FOUND",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Convert datetime fields
+    if isinstance(ticket_doc.get('created_at'), str):
+        ticket_doc['created_at'] = datetime.fromisoformat(ticket_doc['created_at'])
+    if ticket_doc.get('used_at') and isinstance(ticket_doc['used_at'], str):
+        ticket_doc['used_at'] = datetime.fromisoformat(ticket_doc['used_at'])
+    
+    ticket = Ticket(**ticket_doc)
+    
+    # Step 4: Verify cryptographic signature (for v2 QR codes)
+    if is_signed:
+        sig_valid, sig_message = verify_ticket_qr_signature(qr_data, ticket.order_id)
+        if not sig_valid:
+            logger.warning(f"Invalid signature for ticket {ticket_id}")
+            return {
+                "access_granted": False,
+                "message": "Firma de seguridad inválida - posible ticket falsificado",
+                "error_code": "INVALID_SIGNATURE",
+                "scan_timestamp": scan_timestamp.isoformat()
+            }
+    
+    # Step 5: Verify ticket ID matches
+    if ticket.id != ticket_id:
+        logger.warning(f"Ticket ID mismatch: QR has {ticket_id}, DB has {ticket.id}")
+        return {
+            "access_granted": False,
+            "message": "Error de validación - IDs no coinciden",
+            "error_code": "ID_MISMATCH",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 6: Verify event matches (double check with DB data)
+    if ticket.event_id != event_id:
+        return {
+            "access_granted": False,
+            "message": "Este ticket no es para este evento",
+            "error_code": "WRONG_EVENT",
+            "ticket_event": ticket.event_id,
+            "scanned_at_event": event_id,
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 7: Check if ticket is already used (IDEMPOTENT CHECK)
+    if ticket.status == TicketStatus.USED:
+        logger.info(f"Already used ticket {ticket_id} scanned again at event {event_id}")
+        return {
+            "access_granted": False,
+            "message": "ACCESO DENEGADO - Este ticket ya fue utilizado",
+            "error_code": "ALREADY_USED",
+            "first_scan_at": ticket.used_at.isoformat() if ticket.used_at else None,
+            "ticket_info": {
+                "ticket_id": ticket.id,
+                "ticket_type": ticket.ticket_type,
+                "holder_name": f"{ticket.holder_first_name} {ticket.holder_last_name}"
+            },
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 8: Check other invalid statuses
+    if ticket.status == TicketStatus.CANCELLED:
+        return {
+            "access_granted": False,
+            "message": "ACCESO DENEGADO - Este ticket ha sido cancelado",
+            "error_code": "TICKET_CANCELLED",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    if ticket.status == TicketStatus.EXPIRED:
+        return {
+            "access_granted": False,
+            "message": "ACCESO DENEGADO - Este ticket ha expirado",
+            "error_code": "TICKET_EXPIRED",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 9: ATOMIC operation - Mark ticket as used (IDEMPOTENT)
+    # Using findOneAndUpdate with condition ensures only one request succeeds
+    result = await db.tickets.find_one_and_update(
+        {
+            "id": ticket_id,
+            "status": TicketStatus.VALID.value  # Only update if still VALID
+        },
+        {
+            "$set": {
+                "status": TicketStatus.USED.value,
+                "used_at": scan_timestamp.isoformat(),
+                "scanned_at": scan_timestamp.isoformat()
+            }
+        },
+        return_document=False  # Return original document
+    )
+    
+    if result is None:
+        # Another request already marked this ticket as used (race condition handled)
+        logger.info(f"Race condition: ticket {ticket_id} was marked used by another request")
+        return {
+            "access_granted": False,
+            "message": "ACCESO DENEGADO - Este ticket acaba de ser utilizado",
+            "error_code": "RACE_CONDITION_USED",
+            "scan_timestamp": scan_timestamp.isoformat()
+        }
+    
+    # Step 10: SUCCESS - Access granted
+    logger.info(f"ACCESS GRANTED: Ticket {ticket_id} for {ticket.holder_first_name} {ticket.holder_last_name}")
+    
+    return {
+        "access_granted": True,
+        "message": "✓ ACCESO PERMITIDO",
+        "ticket_info": {
+            "ticket_id": ticket.id,
+            "ticket_number": ticket.ticket_number,
+            "ticket_type": ticket.ticket_type,
+            "holder_name": f"{ticket.holder_first_name} {ticket.holder_last_name}",
+            "holder_email": ticket.holder_email,
+            "event_title": ticket.event_title,
+            "event_date": ticket.event_date,
+            "event_time": ticket.event_time,
+            "venue": ticket.venue,
+            "seat_info": {
+                "section": ticket.section,
+                "row": ticket.row,
+                "seat": ticket.seat_number
+            } if ticket.seat_id else None
+        },
+        "scan_timestamp": scan_timestamp.isoformat(),
+        "signature_verified": is_signed
+    }
+
