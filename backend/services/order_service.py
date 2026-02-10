@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import logging
 import uuid
 
@@ -12,7 +12,12 @@ from models.order import (
     Ticket, 
     TicketStatus
 )
-from services.qr_service import generate_qr_code, generate_ticket_qr_data
+from services.qr_service import (
+    generate_qr_code, 
+    generate_signed_ticket_qr_data,
+    parse_signed_ticket_qr_data,
+    verify_ticket_qr_signature
+)
 
 logger = logging.getLogger(__name__)
 
