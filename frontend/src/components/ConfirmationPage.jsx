@@ -1,12 +1,305 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 import Header from './Header';
 import Footer from './Footer';
 import { 
   Calendar, Clock, MapPin, Ticket, CheckCircle2, Download, 
-  Mail, User, QrCode, Copy, Check
+  Mail, User, QrCode, Copy, Check, Loader2
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
+
+// QR Code SVG as base64 for PDF
+const generateQRCodeDataUrl = () => {
+  const svgString = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+      <rect width="120" height="120" fill="white"/>
+      <rect x="8" y="8" width="28" height="28" fill="black"/>
+      <rect x="12" y="12" width="20" height="20" fill="white"/>
+      <rect x="16" y="16" width="12" height="12" fill="black"/>
+      <rect x="84" y="8" width="28" height="28" fill="black"/>
+      <rect x="88" y="12" width="20" height="20" fill="white"/>
+      <rect x="92" y="16" width="12" height="12" fill="black"/>
+      <rect x="8" y="84" width="28" height="28" fill="black"/>
+      <rect x="12" y="88" width="20" height="20" fill="white"/>
+      <rect x="16" y="92" width="12" height="12" fill="black"/>
+      <rect x="44" y="8" width="8" height="8" fill="black"/>
+      <rect x="56" y="8" width="8" height="8" fill="black"/>
+      <rect x="68" y="8" width="8" height="8" fill="black"/>
+      <rect x="44" y="20" width="8" height="8" fill="black"/>
+      <rect x="60" y="20" width="8" height="8" fill="black"/>
+      <rect x="8" y="44" width="8" height="8" fill="black"/>
+      <rect x="20" y="44" width="8" height="8" fill="black"/>
+      <rect x="8" y="56" width="8" height="8" fill="black"/>
+      <rect x="24" y="56" width="8" height="8" fill="black"/>
+      <rect x="8" y="68" width="8" height="8" fill="black"/>
+      <rect x="20" y="68" width="8" height="8" fill="black"/>
+      <rect x="44" y="44" width="8" height="8" fill="black"/>
+      <rect x="56" y="44" width="8" height="8" fill="black"/>
+      <rect x="68" y="44" width="8" height="8" fill="black"/>
+      <rect x="48" y="52" width="8" height="8" fill="black"/>
+      <rect x="64" y="52" width="8" height="8" fill="black"/>
+      <rect x="44" y="60" width="8" height="8" fill="black"/>
+      <rect x="60" y="60" width="8" height="8" fill="black"/>
+      <rect x="52" y="68" width="8" height="8" fill="black"/>
+      <rect x="68" y="68" width="8" height="8" fill="black"/>
+      <rect x="84" y="44" width="8" height="8" fill="black"/>
+      <rect x="96" y="44" width="8" height="8" fill="black"/>
+      <rect x="104" y="44" width="8" height="8" fill="black"/>
+      <rect x="88" y="56" width="8" height="8" fill="black"/>
+      <rect x="104" y="56" width="8" height="8" fill="black"/>
+      <rect x="84" y="68" width="8" height="8" fill="black"/>
+      <rect x="100" y="68" width="8" height="8" fill="black"/>
+      <rect x="44" y="84" width="8" height="8" fill="black"/>
+      <rect x="60" y="84" width="8" height="8" fill="black"/>
+      <rect x="72" y="84" width="8" height="8" fill="black"/>
+      <rect x="52" y="92" width="8" height="8" fill="black"/>
+      <rect x="68" y="92" width="8" height="8" fill="black"/>
+      <rect x="84" y="92" width="8" height="8" fill="black"/>
+      <rect x="44" y="100" width="8" height="8" fill="black"/>
+      <rect x="56" y="100" width="8" height="8" fill="black"/>
+      <rect x="76" y="100" width="8" height="8" fill="black"/>
+      <rect x="92" y="100" width="8" height="8" fill="black"/>
+      <rect x="104" y="100" width="8" height="8" fill="black"/>
+    </svg>
+  `;
+  return 'data:image/svg+xml;base64,' + btoa(svgString);
+};
+
+// Generate PDF Ticket
+const generateTicketPDF = (data) => {
+  const { event, selectedFunction, tickets, seats, buyer, total, currency, orderId } = data;
+  const isSeatedEvent = seats && seats.length > 0;
+  
+  // Create PDF (A4 size)
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Colors
+  const primaryBlue = [0, 122, 255];
+  const accentOrange = [255, 149, 0];
+  const darkBg = [18, 18, 18];
+  const white = [255, 255, 255];
+  const gray = [150, 150, 150];
+  
+  // Background
+  doc.setFillColor(...darkBg);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+  
+  // Header stripe
+  doc.setFillColor(...primaryBlue);
+  doc.rect(0, 0, pageWidth, 45, 'F');
+  
+  // Logo text (since we can't load external images easily)
+  doc.setTextColor(...white);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRONTO', margin, 22);
+  doc.setTextColor(...accentOrange);
+  doc.text('TICKET', margin + 52, 22);
+  doc.setTextColor(...white);
+  doc.setFontSize(12);
+  doc.text('LIVE', margin + 85, 22);
+  
+  // Tagline
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255, 0.8);
+  doc.text('Fácil, Rápido y Seguro', margin, 35);
+  
+  // Ticket title
+  let yPos = 60;
+  doc.setFontSize(12);
+  doc.setTextColor(...gray);
+  doc.text('ENTRADA ELECTRÓNICA', margin, yPos);
+  
+  // Event name
+  yPos += 12;
+  doc.setFontSize(22);
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'bold');
+  
+  // Handle long event names
+  const eventTitle = event.title || 'Evento';
+  const splitTitle = doc.splitTextToSize(eventTitle, contentWidth);
+  doc.text(splitTitle, margin, yPos);
+  yPos += (splitTitle.length * 8) + 5;
+  
+  // Divider line
+  doc.setDrawColor(...primaryBlue);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 15;
+  
+  // Event details section
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('FECHA Y HORA', margin, yPos);
+  yPos += 6;
+  doc.setFontSize(14);
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'normal');
+  const eventDate = selectedFunction?.date || event.date || 'Por confirmar';
+  const eventTime = selectedFunction?.time || event.time || '';
+  doc.text(`${eventDate} - ${eventTime} hrs`, margin, yPos);
+  
+  // Venue (right side)
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('LUGAR', pageWidth / 2 + 10, yPos - 6);
+  doc.setFontSize(14);
+  doc.setTextColor(...white);
+  const venue = event.venue || 'Por confirmar';
+  const city = event.city || '';
+  doc.text(venue, pageWidth / 2 + 10, yPos);
+  yPos += 6;
+  doc.setFontSize(11);
+  doc.setTextColor(...gray);
+  doc.text(city, pageWidth / 2 + 10, yPos);
+  
+  yPos += 20;
+  
+  // Tickets/Seats section
+  doc.setDrawColor(50, 50, 50);
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+  
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('ENTRADAS', margin, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(12);
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'normal');
+  
+  if (isSeatedEvent) {
+    seats.forEach((seat, index) => {
+      const seatInfo = `${seat.section || 'Sección'} - Fila ${seat.row || '-'}, Asiento ${seat.number || seat.seat || '-'}`;
+      doc.text(seatInfo, margin, yPos);
+      yPos += 7;
+    });
+  } else if (tickets && tickets.length > 0) {
+    tickets.filter(t => t.quantity > 0).forEach((ticket, index) => {
+      const ticketInfo = `${ticket.type || ticket.name || 'General'} x ${ticket.quantity}`;
+      doc.text(ticketInfo, margin, yPos);
+      yPos += 7;
+    });
+  }
+  
+  yPos += 10;
+  
+  // Order info and buyer section
+  doc.setDrawColor(50, 50, 50);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+  
+  // Left column - Order info
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('NÚMERO DE ORDEN', margin, yPos);
+  yPos += 6;
+  doc.setFontSize(14);
+  doc.setTextColor(...accentOrange);
+  doc.setFont('helvetica', 'bold');
+  doc.text(orderId || 'N/A', margin, yPos);
+  
+  // Right column - Buyer info
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('COMPRADOR', pageWidth / 2 + 10, yPos - 6);
+  doc.setFontSize(12);
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'normal');
+  const buyerName = `${buyer?.firstName || ''} ${buyer?.lastName || ''}`.trim() || 'N/A';
+  doc.text(buyerName, pageWidth / 2 + 10, yPos);
+  
+  yPos += 20;
+  
+  // Total section
+  doc.setDrawColor(50, 50, 50);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+  
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('TOTAL PAGADO', margin, yPos);
+  yPos += 8;
+  doc.setFontSize(20);
+  doc.setTextColor(...accentOrange);
+  doc.setFont('helvetica', 'bold');
+  const currencySymbol = currency?.symbol || '$';
+  const totalFormatted = total ? `${currencySymbol}${total.toLocaleString()}` : 'N/A';
+  doc.text(totalFormatted, margin, yPos);
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text(currency?.code || 'MXN', margin + 50, yPos);
+  
+  // QR Code section (bottom)
+  yPos = pageHeight - 90;
+  
+  // QR Code box
+  const qrSize = 50;
+  const qrX = (pageWidth - qrSize) / 2;
+  
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(qrX - 5, yPos - 5, qrSize + 10, qrSize + 10, 3, 3, 'F');
+  
+  // Draw QR pattern manually (simplified version)
+  doc.setFillColor(0, 0, 0);
+  const qrScale = qrSize / 120;
+  const qrPatterns = [
+    // Position detection patterns
+    [8, 8, 28, 28], [84, 8, 28, 28], [8, 84, 28, 28],
+    // Data modules (simplified)
+    [44, 8, 8, 8], [56, 8, 8, 8], [68, 8, 8, 8],
+    [44, 44, 8, 8], [56, 44, 8, 8], [68, 44, 8, 8],
+    [44, 84, 8, 8], [60, 84, 8, 8], [84, 92, 8, 8]
+  ];
+  
+  qrPatterns.forEach(([x, y, w, h]) => {
+    doc.rect(qrX + (x * qrScale), yPos + (y * qrScale), w * qrScale, h * qrScale, 'F');
+  });
+  
+  // Inner white squares for position patterns
+  doc.setFillColor(255, 255, 255);
+  [[12, 12, 20, 20], [88, 12, 20, 20], [12, 88, 20, 20]].forEach(([x, y, w, h]) => {
+    doc.rect(qrX + (x * qrScale), yPos + (y * qrScale), w * qrScale, h * qrScale, 'F');
+  });
+  
+  // Inner black squares
+  doc.setFillColor(0, 0, 0);
+  [[16, 16, 12, 12], [92, 16, 12, 12], [16, 92, 12, 12]].forEach(([x, y, w, h]) => {
+    doc.rect(qrX + (x * qrScale), yPos + (y * qrScale), w * qrScale, h * qrScale, 'F');
+  });
+  
+  // QR instruction text
+  yPos += qrSize + 15;
+  doc.setFontSize(10);
+  doc.setTextColor(...white);
+  doc.setFont('helvetica', 'normal');
+  const qrText = 'Presenta este código QR en la entrada del evento';
+  const textWidth = doc.getTextWidth(qrText);
+  doc.text(qrText, (pageWidth - textWidth) / 2, yPos);
+  
+  // Footer
+  yPos = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setTextColor(...gray);
+  const footerText = 'Este boleto es personal e intransferible. ProntoTicketLive © 2025';
+  const footerWidth = doc.getTextWidth(footerText);
+  doc.text(footerText, (pageWidth - footerWidth) / 2, yPos);
+  
+  return doc;
+};
 
 const ConfirmationPage = () => {
   const { id } = useParams();
@@ -15,6 +308,7 @@ const ConfirmationPage = () => {
   
   const [confirmationData, setConfirmationData] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Load confirmation data from sessionStorage
   useEffect(() => {
@@ -43,9 +337,34 @@ const ConfirmationPage = () => {
     }
   };
 
-  const handleDownloadTickets = () => {
-    // In production, this would download PDF tickets
-    alert('Descargando entradas... (Funcionalidad próximamente)');
+  const handleDownloadTickets = async () => {
+    if (!confirmationData || isGeneratingPDF) return;
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Small delay for UX feedback
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Generate PDF
+      const doc = generateTicketPDF(confirmationData);
+      
+      // Generate filename
+      const eventName = (confirmationData.event?.title || 'Ticket')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 30);
+      const orderId = confirmationData.orderId || 'ticket';
+      const filename = `ProntoTicket_${eventName}_${orderId}.pdf`;
+      
+      // Download PDF
+      doc.save(filename);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error al generar el ticket. Por favor, intenta de nuevo.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   const handleBackToHome = () => {
