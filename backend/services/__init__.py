@@ -17,7 +17,8 @@ from .order_service import (
     generate_tickets_for_order,
     get_tickets_by_order,
     validate_ticket,
-    mark_ticket_as_used
+    mark_ticket_as_used,
+    scan_and_validate_ticket
 )
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "generate_tickets_for_order",
     "get_tickets_by_order",
     "validate_ticket",
-    "mark_ticket_as_used"
+    "mark_ticket_as_used",
+    "scan_and_validate_ticket"
 ]
