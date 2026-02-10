@@ -12,6 +12,7 @@ import SeatsSelectionPage from "./components/SeatsSelectionPage";
 import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
 import CheckoutPage from "./components/CheckoutPage";
 import ConfirmationPage from "./components/ConfirmationPage";
+import CheckInPage from "./components/CheckInPage";
 
 // ScrollToTop component - resets scroll position on route change
 const ScrollToTop = () => {
@@ -49,6 +50,7 @@ function App() {
             <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
             <Route path="/evento/:id/checkout" element={<CheckoutPage />} />
             <Route path="/evento/:id/confirmacion" element={<ConfirmationPage />} />
+            <Route path="/checkin" element={<CheckInPage />} />
           </Routes>
         </BrowserRouter>
       </PurchaseProvider>
