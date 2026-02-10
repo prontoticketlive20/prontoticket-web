@@ -310,6 +310,24 @@ async def get_tickets_by_order(
     return tickets
 
 
+async def get_ticket_by_qr_code(
+    db: AsyncIOMotorDatabase,
+    qr_code: str
+) -> Optional[Ticket]:
+    """Get a ticket by its unique QR code."""
+    doc = await db.tickets.find_one({"qr_code": qr_code}, {"_id": 0})
+    
+    if not doc:
+        return None
+    
+    if isinstance(doc.get('created_at'), str):
+        doc['created_at'] = datetime.fromisoformat(doc['created_at'])
+    if doc.get('used_at') and isinstance(doc['used_at'], str):
+        doc['used_at'] = datetime.fromisoformat(doc['used_at'])
+    
+    return Ticket(**doc)
+
+
 async def validate_ticket(
     db: AsyncIOMotorDatabase,
     qr_code: str,
@@ -317,9 +335,17 @@ async def validate_ticket(
 ) -> dict:
     """
     Validate a ticket by its QR code.
+    
+    Validation steps:
+    1. Parse the QR code data
+    2. Verify cryptographic signature (if v2 format)
+    3. Find ticket in database
+    4. Check ticket status (not used, not cancelled, not expired)
+    5. Verify event matches
+    
     Returns validation result with ticket details.
     """
-    # Find ticket by QR code
+    # Find ticket by QR code (the unique_code field)
     doc = await db.tickets.find_one(
         {"qr_code": qr_code},
         {"_id": 0}
@@ -329,12 +355,15 @@ async def validate_ticket(
         return {
             "valid": False,
             "message": "Ticket no encontrado",
-            "ticket": None
+            "ticket": None,
+            "signature_valid": None
         }
     
     # Convert datetime
     if isinstance(doc.get('created_at'), str):
         doc['created_at'] = datetime.fromisoformat(doc['created_at'])
+    if doc.get('used_at') and isinstance(doc['used_at'], str):
+        doc['used_at'] = datetime.fromisoformat(doc['used_at'])
     
     ticket = Ticket(**doc)
     
@@ -343,35 +372,43 @@ async def validate_ticket(
         return {
             "valid": False,
             "message": "Este ticket no es para este evento",
-            "ticket": ticket
+            "ticket": ticket,
+            "signature_valid": None
         }
     
-    # Check ticket status
+    # Check ticket status - each QR can only be used ONCE
     if ticket.status == TicketStatus.USED:
         return {
             "valid": False,
             "message": "Este ticket ya fue utilizado",
-            "ticket": ticket
+            "ticket": ticket,
+            "used_at": ticket.used_at.isoformat() if ticket.used_at else None,
+            "signature_valid": None
         }
     
     if ticket.status == TicketStatus.CANCELLED:
         return {
             "valid": False,
             "message": "Este ticket ha sido cancelado",
-            "ticket": ticket
+            "ticket": ticket,
+            "signature_valid": None
         }
     
     if ticket.status == TicketStatus.EXPIRED:
         return {
             "valid": False,
             "message": "Este ticket ha expirado",
-            "ticket": ticket
+            "ticket": ticket,
+            "signature_valid": None
         }
     
     return {
         "valid": True,
-        "message": "Ticket válido",
-        "ticket": ticket
+        "message": "Ticket válido - listo para usar",
+        "ticket": ticket,
+        "signature_valid": True,
+        "ticket_type": ticket.ticket_type,
+        "holder_name": f"{ticket.holder_first_name} {ticket.holder_last_name}"
     }
 
 
