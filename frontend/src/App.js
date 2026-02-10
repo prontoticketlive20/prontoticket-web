@@ -2,6 +2,16 @@ import React, { useEffect } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { PurchaseProvider } from "./context/PurchaseContext";
+import Header from "./components/Header";
+import Hero from "./components/Hero";
+import FeaturedEvents from "./components/FeaturedEvents";
+import UpcomingEvents from "./components/UpcomingEvents";
+import Footer from "./components/Footer";
+import EventDetailPage from "./components/EventDetailPage";
+import SeatsSelectionPage from "./components/SeatsSelectionPage";
+import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
+import CheckoutPage from "./components/CheckoutPage";
+import ConfirmationPage from "./components/ConfirmationPage";
 
 // ScrollToTop component - resets scroll position on route change
 const ScrollToTop = () => {
@@ -13,16 +23,6 @@ const ScrollToTop = () => {
 
   return null;
 };
-import Header from "./components/Header";
-import Hero from "./components/Hero";
-import FeaturedEvents from "./components/FeaturedEvents";
-import UpcomingEvents from "./components/UpcomingEvents";
-import Footer from "./components/Footer";
-import EventDetailPage from "./components/EventDetailPage";
-import SeatsSelectionPage from "./components/SeatsSelectionPage";
-import PurchaseSummaryPage from "./components/PurchaseSummaryPage";
-import CheckoutPage from "./components/CheckoutPage";
-import ConfirmationPage from "./components/ConfirmationPage";
 
 const Home = () => {
   return (
