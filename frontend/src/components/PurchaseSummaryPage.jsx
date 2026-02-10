@@ -171,13 +171,31 @@ const PurchaseSummaryPage = () => {
                         {/* Venue */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <Building2 size={14} className="text-[#007AFF] flex-shrink-0" />
-                          <span data-testid="event-venue">{event.venue}</span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.city}, ${event.country}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#007AFF] transition-colors duration-200"
+                            title="Abrir en Google Maps"
+                            data-testid="venue-maps-link"
+                          >
+                            {event.venue}
+                          </a>
                         </div>
 
                         {/* City & Country */}
                         <div className="flex items-center space-x-2 text-sm text-white/70">
                           <MapPin size={14} className="text-[#FF9500] flex-shrink-0" />
-                          <span data-testid="event-city">{event.city}, {event.country}</span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.city}, ${event.country}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#007AFF] transition-colors duration-200"
+                            title="Abrir en Google Maps"
+                            data-testid="city-maps-link"
+                          >
+                            {event.city}, {event.country}
+                          </a>
                         </div>
                       </div>
 
