@@ -15,7 +15,9 @@ from routes import (
     stripe_webhook_router,
     set_webhook_db,
     orders_router,
-    set_orders_db
+    set_orders_db,
+    checkin_router,
+    set_checkin_db
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -29,6 +31,7 @@ db = client[os.environ['DB_NAME']]
 # Set database for routers
 set_webhook_db(db)
 set_orders_db(db)
+set_checkin_db(db)
 
 # Create the main app without a prefix
 app = FastAPI(
