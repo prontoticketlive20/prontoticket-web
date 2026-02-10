@@ -1,3 +1,23 @@
+"""
+Stripe Webhook Handler for ProntoTicketLive
+
+This module handles Stripe webhook events, specifically payment_intent.succeeded.
+
+FLOW:
+1. Frontend creates order with mock payment simulation (for UI preview)
+2. Frontend shows temporary/placeholder QR code for UI purposes
+3. When real Stripe payment is made, webhook is triggered
+4. This handler validates signature and payment amount
+5. Real tickets with unique QR codes are generated (one per entry/seat)
+6. Tickets are stored in database and can be retrieved via API
+
+IMPORTANT:
+- Frontend QR codes are TEMPORARY placeholders for UI preview
+- Real QR codes are generated ONLY after webhook confirmation
+- Each ticket gets its own unique QR code
+- Idempotency ensures tickets are never duplicated
+"""
+
 from fastapi import APIRouter, Request, HTTPException, Header
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import stripe
