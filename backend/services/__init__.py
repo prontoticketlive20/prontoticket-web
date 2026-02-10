@@ -1,5 +1,12 @@
 # Services package
-from .qr_service import generate_qr_code, generate_ticket_qr_data, parse_ticket_qr_data
+from .qr_service import (
+    generate_qr_code, 
+    generate_ticket_qr_data, 
+    parse_ticket_qr_data,
+    generate_signed_ticket_qr_data,
+    parse_signed_ticket_qr_data,
+    verify_ticket_qr_signature
+)
 from .order_service import (
     create_order,
     get_order_by_id,
@@ -17,6 +24,9 @@ __all__ = [
     "generate_qr_code",
     "generate_ticket_qr_data",
     "parse_ticket_qr_data",
+    "generate_signed_ticket_qr_data",
+    "parse_signed_ticket_qr_data",
+    "verify_ticket_qr_signature",
     "create_order",
     "get_order_by_id",
     "get_order_by_payment_intent",
