@@ -263,14 +263,16 @@ async def generate_tickets_for_order(
                     ticket_number=ticket_number
                 )
                 
-                # Generate QR code data
-                qr_data = generate_ticket_qr_data(
+                # Generate SIGNED QR code data (one unique QR per ticket)
+                qr_data = generate_signed_ticket_qr_data(
                     ticket_id=ticket.id,
                     order_id=order.id,
                     event_id=order.event_id,
-                    qr_code=ticket.qr_code
+                    unique_code=ticket.qr_code
                 )
                 ticket.qr_code_data = generate_qr_code(qr_data)
+                
+                logger.info(f"Generated signed QR for ticket {ticket.id} ({item.ticket_type})")
                 
                 tickets.append(ticket)
                 ticket_number += 1
@@ -284,7 +286,7 @@ async def generate_tickets_for_order(
             ticket_docs.append(doc)
         
         await db.tickets.insert_many(ticket_docs)
-        logger.info(f"Generated {len(tickets)} tickets for order {order.id}")
+        logger.info(f"Generated {len(tickets)} signed tickets for order {order.id}")
     
     return tickets
 
