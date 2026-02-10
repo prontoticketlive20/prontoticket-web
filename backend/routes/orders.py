@@ -214,3 +214,51 @@ async def mark_ticket_used_endpoint(ticket_id: str):
         "ticket_id": ticket_id,
         "message": "Ticket marked as used"
     }
+
+
+@router.post("/scan", response_model=dict)
+async def scan_ticket_endpoint(request: ScanTicketRequest):
+    """
+    Scan and validate a ticket QR code.
+    
+    This is the main endpoint for venue staff to scan tickets.
+    It performs a complete validation flow:
+    
+    1. Decodes the QR code data
+    2. Verifies the cryptographic signature
+    3. Retrieves the ticket from database
+    4. Validates ticket status and event
+    5. Atomically marks ticket as USED (idempotent)
+    6. Returns access granted/denied result
+    
+    The operation is idempotent - scanning the same QR twice will:
+    - First scan: Mark as used, return ACCESS GRANTED
+    - Second scan: Return ACCESS DENIED (already used)
+    
+    Request body:
+    - qr_data: Raw QR code string from scanner
+    - event_id: Event ID to validate against
+    
+    Response:
+    - access_granted: bool
+    - message: str (display to staff)
+    - ticket_info: dict (holder name, ticket type, etc.)
+    - error_code: str (for programmatic handling)
+    - scan_timestamp: str (ISO format)
+    """
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+    
+    result = await scan_and_validate_ticket(
+        db=db,
+        qr_data=request.qr_data,
+        event_id=request.event_id
+    )
+    
+    # Log the scan attempt
+    if result.get("access_granted"):
+        logger.info(f"ACCESS GRANTED at event {request.event_id}")
+    else:
+        logger.info(f"ACCESS DENIED at event {request.event_id}: {result.get('error_code')}")
+    
+    return result
