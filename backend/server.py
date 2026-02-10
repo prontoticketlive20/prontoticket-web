@@ -97,6 +97,7 @@ async def get_status_checks():
 # Include routers
 api_router.include_router(orders_router)
 api_router.include_router(stripe_webhook_router)
+api_router.include_router(checkin_router)
 
 # Include the main API router in the app
 app.include_router(api_router)
