@@ -29,7 +29,7 @@ const Hero = () => {
       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8 sm:pt-12 md:pt-20">
         <div className="space-y-8">
           {/* Main Headline */}
           <div className="space-y-3">
