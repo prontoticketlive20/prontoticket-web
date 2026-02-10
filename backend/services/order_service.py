@@ -224,19 +224,22 @@ async def generate_tickets_for_order(
                 ticket_number=ticket_number
             )
             
-            # Generate QR code data
-            qr_data = generate_ticket_qr_data(
+            # Generate SIGNED QR code data (one unique QR per ticket)
+            qr_data = generate_signed_ticket_qr_data(
                 ticket_id=ticket.id,
                 order_id=order.id,
                 event_id=order.event_id,
-                qr_code=ticket.qr_code
+                unique_code=ticket.qr_code
             )
             ticket.qr_code_data = generate_qr_code(qr_data)
+            
+            logger.info(f"Generated signed QR for seated ticket {ticket.id}")
             
             tickets.append(ticket)
             ticket_number += 1
         else:
             # For general admission, create one ticket per quantity
+            # Each ticket gets its own unique signed QR code
             for _ in range(item.quantity):
                 ticket = Ticket(
                     order_id=order.id,
