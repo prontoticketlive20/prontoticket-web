@@ -159,8 +159,8 @@ async def test_webhook_flow():
     assert len(qr_codes) == len(unique_qr_codes), "QR codes should be unique!"
     print(f"   ✓ All {len(qr_codes)} QR codes are unique")
     
-    # 8. Test QR code data parsing
-    print("\n8. Testing QR code data format...")
+    # 8. Test QR code data parsing (v2 signed format)
+    print("\n8. Testing QR code data format (v2 signed)...")
     
     test_ticket = final_tickets[0]
     qr_data = generate_ticket_qr_data(
@@ -173,11 +173,16 @@ async def test_webhook_flow():
     parsed = parse_ticket_qr_data(qr_data)
     
     assert parsed is not None, "Failed to parse QR data"
+    assert parsed["version"] == "v2", "Should be v2 signed format"
     assert parsed["ticket_id"] == test_ticket.id, "Ticket ID mismatch"
-    assert parsed["order_id"] == test_ticket.order_id, "Order ID mismatch"
+    assert parsed["event_id"] == test_ticket.event_id, "Event ID mismatch"
+    assert parsed["is_signed"] == True, "Should be signed"
+    assert "signature" in parsed, "Should have signature"
     
-    print("   ✓ QR data format: PRONTO|ticket_id|order_id|event_id|qr_code")
-    print(f"   ✓ Parsed successfully: {parsed['prefix']}")
+    print(f"   ✓ QR format: PRONTO|v2|ticket_id|event_id|unique_code|timestamp|signature")
+    print(f"   ✓ Version: {parsed['version']}")
+    print(f"   ✓ Signed: {parsed['is_signed']}")
+    print(f"   ✓ Signature: {parsed['signature'][:8]}...")
     
     # Cleanup
     print("\n9. Cleaning up test data...")
