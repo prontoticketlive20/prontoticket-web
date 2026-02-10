@@ -1,7 +1,18 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { PurchaseProvider } from "./context/PurchaseContext";
+
+// ScrollToTop component - resets scroll position on route change
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import FeaturedEvents from "./components/FeaturedEvents";
