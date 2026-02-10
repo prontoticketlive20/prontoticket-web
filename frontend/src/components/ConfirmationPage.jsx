@@ -708,11 +708,21 @@ const ConfirmationPage = () => {
           <div className="space-y-4">
             <button
               onClick={handleDownloadTickets}
-              className="w-full py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg flex items-center justify-center space-x-2"
+              disabled={isGeneratingPDF}
+              className="w-full py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-wait"
               data-testid="download-tickets-button"
             >
-              <Download size={18} />
-              <span>Descargar entradas</span>
+              {isGeneratingPDF ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Generando ticket...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  <span>Descargar entradas</span>
+                </>
+              )}
             </button>
 
             <div className="flex items-center justify-center space-x-2 text-white/60 text-sm">
