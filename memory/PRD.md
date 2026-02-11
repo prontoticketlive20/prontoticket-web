@@ -237,10 +237,35 @@ All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
 
 ---
 
-## Test Results (Feb 10, 2026)
+## Test Results (Dec 2025)
 - **Frontend Success Rate**: 100%
 - **Complete Purchase Flow**: Verified working
-- **Test Report**: `/app/test_reports/iteration_2.json`
+- **QR Generation & Validation**: Verified working (mock)
+- **Staff Check-In System**: Verified working (mock)
+- **Test Report**: `/app/test_reports/iteration_3.json`
+
+---
+
+## Backend Architecture (Implemented but NOT connected to Frontend)
+
+### Backend Stack
+- FastAPI
+- MongoDB (motor async driver)
+- Stripe webhooks
+- JWT authentication for staff
+- HMAC-SHA256 for QR code signing
+
+### Backend Endpoints
+- `POST /api/webhooks/stripe` - Stripe payment confirmation
+- `POST /api/orders` - Create new order
+- `GET /api/orders/{id}/tickets` - Get generated tickets
+- `POST /api/checkin/login` - Staff authentication
+- `POST /api/checkin/scan` - Validate scanned QR
+
+### Backend Test Files
+- `/app/backend/tests/test_webhook.py`
+- `/app/backend/tests/test_signed_qr.py`
+- `/app/backend/tests/test_qr_scan.py`
 
 ---
 
