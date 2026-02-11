@@ -268,9 +268,9 @@ All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
 ## Test Results (Dec 2025)
 - **Frontend Success Rate**: 100%
 - **Complete Purchase Flow**: Verified working
-- **QR Generation & Validation**: Verified working (mock)
-- **Staff Check-In System**: Verified working (mock)
-- **Test Report**: `/app/test_reports/iteration_3.json`
+- **QR Generation & Validation v2**: Verified working (mock) - NEW structure
+- **Staff Check-In System v2**: Verified working (mock) - with function selection
+- **Test Report**: `/app/test_reports/iteration_4.json`
 
 ---
 
