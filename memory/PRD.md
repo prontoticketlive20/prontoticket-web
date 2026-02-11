@@ -206,9 +206,16 @@ All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
 
 ## Prioritized Backlog
 
+### P0 - Critical (Next Steps)
+- **Connect Frontend to Backend**: Replace mock logic with real API calls
+  - Connect purchase flow to `POST /api/orders`
+  - Implement real Stripe payment integration
+  - Fetch real signed QR codes from `GET /api/orders/{id}/tickets`
+  - Connect Check-In scanner to `POST /api/checkin/scan`
+
 ### P1 - High Priority
-- Real Stripe Payment Element integration (requires backend)
 - User authentication system (login/register/profile)
+- Real Seats.io integration for seated events
 
 ### P2 - Medium Priority  
 - Autocomplete functionality in homepage search bar
@@ -217,7 +224,6 @@ All data is hardcoded in `/app/frontend/src/data/mockEvents.js`
 
 ### P3 - Low Priority (Future)
 - Real-time seat availability
-- Seats.io actual integration
 - Email confirmation flow with real emails
 - Multi-language support (currently UI only)
 
