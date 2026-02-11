@@ -95,12 +95,31 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
   - Payment method
   - Total paid with currency
 - Email notification notice
-- Action buttons:
-  - "Descargar boletos" (mock download)
-  - "Compartir" (share functionality)
-  - "Volver al inicio" (clears purchase state)
+- **PDF Ticket Download (jsPDF)**: Generates unique PDF for each ticket
+- **QR Code Generation**: Each ticket has unique QR with JSON data
 - Copy order ID functionality
 - Clears purchase context on successful display
+
+### ✅ Staff Check-In System (Completed - Dec 2025)
+- Web-based ticket scanning interface at `/checkin`
+- Staff login with mock authentication (scanner1/scan123)
+- Event selection screen with 3 mock events
+- Camera-based QR scanner using `@yudiel/react-qr-scanner`
+- Real-time validation feedback:
+  - **Valid**: Green "✓ ACCESO PERMITIDO" (first scan)
+  - **Denied**: Red "ACCESO DENEGADO" (re-scan)
+  - **Invalid**: Yellow warning (wrong format/event)
+- Live statistics: Total, Admitidos, Pendientes
+- Scan history log with timestamps
+
+### ✅ Unified Ticket Service (Completed - Dec 2025)
+- `ticketService.js`: Shared mock logic for ticket generation/validation
+- Ticket ID Format: `TCK-<timestamp>-<random>`
+- Order ID Format: `ORD-<timestamp>`
+- Event ID Format: `EVT-<id>`
+- QR Code Data: JSON `{ ticketId, orderId, eventId }`
+- localStorage persistence for tickets and scan logs
+- Idempotent validation (prevents duplicate check-ins)
 
 ---
 
