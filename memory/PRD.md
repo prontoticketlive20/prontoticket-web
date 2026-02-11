@@ -100,15 +100,24 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - Copy order ID functionality
 - Clears purchase context on successful display
 
-### ✅ Staff Check-In System (Completed - Dec 2025)
+### ✅ Staff Check-In System v2 (Updated - Dec 2025)
 - Web-based ticket scanning interface at `/checkin`
 - Staff login with mock authentication (scanner1/scan123)
 - Event selection screen with 3 mock events
+- **Function selection for multi-function events** (EVT-2 shows 4 functions)
 - Camera-based QR scanner using `@yudiel/react-qr-scanner`
+- **Enhanced validation**: ticketId, eventId, functionId (if applicable)
+- **Detailed scan result display**:
+  - Event name
+  - Function (if multi-function)
+  - Ticket Type
+  - Seat (if seated event)
+  - Holder Name
+  - Status (ADMITIDO/DENEGADO)
 - Real-time validation feedback:
-  - **Valid**: Green "✓ ACCESO PERMITIDO" (first scan)
-  - **Denied**: Red "ACCESO DENEGADO" (re-scan)
-  - **Invalid**: Yellow warning (wrong format/event)
+  - **Valid**: Green "✓ ACCESO PERMITIDO" with full details
+  - **Denied**: Red "ACCESO DENEGADO" with usage timestamp
+  - **Invalid**: Yellow warning (wrong format/event/function)
 - Live statistics: Total, Admitidos, Pendientes
 - Scan history log with timestamps
 
