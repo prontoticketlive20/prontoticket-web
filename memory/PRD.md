@@ -171,6 +171,9 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - **PurchaseContext**: React Context for global purchase state
 - **sessionStorage**: Persists state across page refreshes with key `prontoticket_purchase_state`
 - **Confirmation data**: Stored in sessionStorage with key `prontoticket_confirmation`
+- **Ticket Storage**: localStorage with key `prontoticket_tickets`
+- **Scan Logs**: localStorage with key `prontoticket_scanned`
+- **Staff Session**: localStorage with key `checkin_staff_mock`
 
 ---
 
