@@ -722,35 +722,7 @@ const CheckInPage = () => {
           ) : (
             <div className="space-y-2">
               {scanHistory.map((scan, index) => (
-                <div 
-                  key={index}
-                  className={`p-3 rounded-xl border ${scan.success ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className={`font-semibold ${scan.success ? 'text-green-400' : 'text-red-400'}`}>
-                        {scan.success ? '✓ Admitido' : '✗ ' + scan.message}
-                      </p>
-                      {scan.displayInfo && (
-                        <div className="mt-1 text-sm">
-                          {scan.displayInfo.ticketType && (
-                            <p className="text-white/70">{scan.displayInfo.ticketType}</p>
-                          )}
-                          {scan.displayInfo.seat && (
-                            <p className="text-white/60 text-xs">{scan.displayInfo.seat}</p>
-                          )}
-                          {scan.displayInfo.holderName && (
-                            <p className="text-white/50 text-xs">{scan.displayInfo.holderName}</p>
-                          )}
-                        </div>
-                      )}
-                      {scan.ticketId && (
-                        <p className="text-white/40 text-xs font-mono mt-1 truncate">{scan.ticketId}</p>
-                      )}
-                    </div>
-                    <p className="text-white/40 text-xs flex-shrink-0 ml-2">{scan.time}</p>
-                  </div>
-                </div>
+                <ScanHistoryItem key={index} scan={scan} />
               ))}
             </div>
           )}
