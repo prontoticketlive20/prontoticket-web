@@ -137,6 +137,40 @@ const ResultDisplay = ({ scanResult, scanStatus }) => {
   );
 };
 
+// Separate component for scan history items to avoid babel plugin stack overflow
+const ScanHistoryItem = ({ scan }) => {
+  const info = scan.displayInfo || {};
+  
+  return (
+    <div 
+      className={`p-3 rounded-xl border ${scan.success ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold ${scan.success ? 'text-green-400' : 'text-red-400'}`}>
+            {scan.success ? '✓ Admitido' : '✗ ' + scan.message}
+          </p>
+          {info.ticketType && (
+            <div className="mt-1 text-sm">
+              <p className="text-white/70">{info.ticketType}</p>
+              {info.seat && (
+                <p className="text-white/60 text-xs">{info.seat}</p>
+              )}
+              {info.holderName && (
+                <p className="text-white/50 text-xs">{info.holderName}</p>
+              )}
+            </div>
+          )}
+          {scan.ticketId && (
+            <p className="text-white/40 text-xs font-mono mt-1 truncate">{scan.ticketId}</p>
+          )}
+        </div>
+        <p className="text-white/40 text-xs flex-shrink-0 ml-2">{scan.time}</p>
+      </div>
+    </div>
+  );
+};
+
 // Mock staff accounts
 const MOCK_STAFF = [
   { username: 'admin', password: 'admin123', name: 'Administrador', role: 'admin' },
