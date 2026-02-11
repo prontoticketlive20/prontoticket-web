@@ -585,34 +585,7 @@ const CheckInPage = () => {
           
           <div className="space-y-3">
             {CHECKIN_EVENTS.map((event) => (
-              <button
-                key={event.id}
-                onClick={() => handleSelectEvent(event)}
-                className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-left hover:border-[#007AFF]/50 transition-colors"
-                data-testid={`event-${event.id}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold">{event.title}</h3>
-                    <div className="flex items-center flex-wrap gap-3 mt-2 text-white/60 text-sm">
-                      <span className="flex items-center">
-                        <Calendar size={12} className="mr-1" />
-                        {event.date}
-                      </span>
-                      <span className="flex items-center">
-                        <MapPin size={12} className="mr-1" />
-                        {event.venue}
-                      </span>
-                    </div>
-                    {event.isMultiFunction && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-[#FF9500]/20 text-[#FF9500] text-xs rounded-full">
-                        {event.functions.length} funciones
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight size={20} className="text-white/40" />
-                </div>
-              </button>
+              <EventSelectButton key={event.id} event={event} onSelect={handleSelectEvent} />
             ))}
           </div>
           
