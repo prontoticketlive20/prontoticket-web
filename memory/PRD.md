@@ -164,7 +164,8 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - `/evento/:id/asientos` - Seat Selection Page
 - `/evento/:id/resumen` - Purchase Summary Page
 - `/evento/:id/checkout` - Checkout Page
-- `/evento/:id/confirmacion` - Confirmation Page (NEW)
+- `/evento/:id/confirmacion` - Confirmation Page
+- `/checkin` - Staff Check-In System (NEW)
 
 ### State Management
 - **PurchaseContext**: React Context for global purchase state
