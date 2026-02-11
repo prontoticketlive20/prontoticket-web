@@ -14,6 +14,7 @@ import {
   getFunctionsForEvent,
   initializeDatabase
 } from '../services/ticketService';
+import { MOCK_STAFF, CHECKIN_EVENTS, STATUS_COLORS } from '../data/checkinData';
 
 /**
  * Check-In Page for Staff
@@ -38,14 +39,6 @@ import {
  * - Visual status indicators (green/red/yellow)
  * - Scan logging
  */
-
-// Status colors
-const STATUS_COLORS = {
-  success: 'bg-green-500',
-  denied: 'bg-red-500',
-  warning: 'bg-yellow-500',
-  idle: 'bg-gray-700'
-};
 
 // Separate component to avoid babel plugin stack overflow with deeply nested property access
 const ResultDisplay = ({ scanResult, scanStatus }) => {
