@@ -633,7 +633,7 @@ const CheckInPage = () => {
           <h2 className="text-white font-bold text-lg mb-4">Seleccionar Función</h2>
           
           <div className="space-y-3">
-            {selectedEvent.functions.map((func) => (
+            {(selectedEvent.functions || []).map((func) => (
               <FunctionSelectButton key={func.id} func={func} onSelect={handleSelectFunction} />
             ))}
           </div>
