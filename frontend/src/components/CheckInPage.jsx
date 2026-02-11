@@ -632,25 +632,7 @@ const CheckInPage = () => {
           
           <div className="space-y-3">
             {selectedEvent.functions.map((func) => (
-              <button
-                key={func.id}
-                onClick={() => handleSelectFunction(func)}
-                className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-left hover:border-[#FF9500]/50 transition-colors"
-                data-testid={`function-${func.id}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#FF9500]/20 flex items-center justify-center">
-                      <Clock size={20} className="text-[#FF9500]" />
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold">{func.date}</p>
-                      <p className="text-[#FF9500] text-sm">{func.time} hrs</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={20} className="text-white/40" />
-                </div>
-              </button>
+              <FunctionSelectButton key={func.id} func={func} onSelect={handleSelectFunction} />
             ))}
           </div>
         </div>
