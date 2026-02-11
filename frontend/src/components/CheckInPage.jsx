@@ -171,6 +171,65 @@ const ScanHistoryItem = ({ scan }) => {
   );
 };
 
+// Separate component for event selection buttons
+const EventSelectButton = ({ event, onSelect }) => {
+  const funcCount = event.functions ? event.functions.length : 0;
+  
+  return (
+    <button
+      onClick={() => onSelect(event)}
+      className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-left hover:border-[#007AFF]/50 transition-colors"
+      data-testid={`event-${event.id}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <h3 className="text-white font-semibold">{event.title}</h3>
+          <div className="flex items-center flex-wrap gap-3 mt-2 text-white/60 text-sm">
+            <span className="flex items-center">
+              <Calendar size={12} className="mr-1" />
+              {event.date}
+            </span>
+            <span className="flex items-center">
+              <MapPin size={12} className="mr-1" />
+              {event.venue}
+            </span>
+          </div>
+          {event.isMultiFunction && (
+            <span className="inline-block mt-2 px-2 py-0.5 bg-[#FF9500]/20 text-[#FF9500] text-xs rounded-full">
+              {funcCount} funciones
+            </span>
+          )}
+        </div>
+        <ChevronRight size={20} className="text-white/40" />
+      </div>
+    </button>
+  );
+};
+
+// Separate component for function selection buttons
+const FunctionSelectButton = ({ func, onSelect }) => {
+  return (
+    <button
+      onClick={() => onSelect(func)}
+      className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-left hover:border-[#FF9500]/50 transition-colors"
+      data-testid={`function-${func.id}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-xl bg-[#FF9500]/20 flex items-center justify-center">
+            <Clock size={20} className="text-[#FF9500]" />
+          </div>
+          <div>
+            <p className="text-white font-semibold">{func.date}</p>
+            <p className="text-[#FF9500] text-sm">{func.time} hrs</p>
+          </div>
+        </div>
+        <ChevronRight size={20} className="text-white/40" />
+      </div>
+    </button>
+  );
+};
+
 // Mock staff accounts
 const MOCK_STAFF = [
   { username: 'admin', password: 'admin123', name: 'Administrador', role: 'admin' },
