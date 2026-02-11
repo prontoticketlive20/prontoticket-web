@@ -13,15 +13,26 @@ import {
   generateTicketsForOrder, 
   generateOrderId, 
   generateEventId,
-  getTicketsByOrderId 
+  generateFunctionId,
+  getTicketsByOrderId,
+  createOrder
 } from '../services/ticketService';
 
 /**
  * Confirmation Page
  * 
  * Displays purchase confirmation and generates tickets with QR codes.
- * Each ticket has a unique ticketId and QR code in JSON format:
- * { ticketId: "TCK-xxx", orderId: "ORD-xxx", eventId: "EVT-xxx" }
+ * 
+ * NEW QR Structure:
+ * {
+ *   ticketId: string,
+ *   orderId: string,
+ *   eventId: string,
+ *   functionId: string | null,  // null for single-function events
+ *   ticketTypeId: string,
+ *   seatId: string | null,      // null for general admission
+ *   issuedAt: number
+ * }
  */
 
 const ConfirmationPage = () => {
@@ -42,9 +53,24 @@ const ConfirmationPage = () => {
         const data = JSON.parse(stored);
         setConfirmationData(data);
         
-        // Generate tickets with proper IDs
+        // Generate IDs
         const orderId = data.orderId || generateOrderId();
         const eventId = generateEventId(data.event?.id || id);
+        
+        // Determine function ID
+        // Multi-function event: use selected function ID
+        // Single-function event: functionId = null
+        const isMultiFunction = data.event?.functions?.length > 1;
+        let functionId = null;
+        
+        if (isMultiFunction && data.selectedFunction) {
+          // Find the function index
+          const funcIndex = data.event.functions.findIndex(
+            f => f.id === data.selectedFunction.id || 
+                 (f.date === data.selectedFunction.date && f.time === data.selectedFunction.time)
+          );
+          functionId = generateFunctionId(eventId, funcIndex + 1);
+        }
         
         // Check if tickets already generated for this order
         const existingTickets = getTicketsByOrderId(orderId);
@@ -52,20 +78,34 @@ const ConfirmationPage = () => {
         if (existingTickets.length > 0) {
           setGeneratedTickets(existingTickets);
         } else {
+          // Create order in database
+          createOrder({
+            orderId,
+            eventId,
+            functionId,
+            buyer: data.buyer || { firstName: 'Guest', lastName: '', email: '' },
+            items: data.tickets || [],
+            total: data.total,
+            currency: data.currency?.code || 'MXN',
+            paymentMethod: 'card'
+          });
+          
           // Generate new tickets
           const orderData = {
             orderId,
             eventId,
+            functionId,
             tickets: data.tickets || [],
             seats: data.seats || [],
-            buyer: data.buyer || { firstName: 'Guest', lastName: '', email: '' }
+            buyer: data.buyer || { firstName: 'Guest', lastName: '', email: '' },
+            event: data.event
           };
           
           const tickets = generateTicketsForOrder(orderData);
           setGeneratedTickets(tickets);
           
-          // Update confirmation data with generated order ID
-          const updatedData = { ...data, orderId, eventId };
+          // Update confirmation data with generated IDs
+          const updatedData = { ...data, orderId, eventId, functionId };
           sessionStorage.setItem('prontoticket_confirmation', JSON.stringify(updatedData));
           setConfirmationData(updatedData);
         }
@@ -182,7 +222,7 @@ const ConfirmationPage = () => {
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 15;
     
-    // Event details
+    // Event details - Date/Time
     doc.setFontSize(10);
     doc.setTextColor(...gray);
     doc.text('FECHA Y HORA', margin, yPos);
@@ -208,6 +248,22 @@ const ConfirmationPage = () => {
     
     yPos += 20;
     
+    // Function info (if multi-function)
+    if (ticket.functionId) {
+      doc.setDrawColor(50, 50, 50);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(...gray);
+      doc.text('FUNCIÓN', margin, yPos);
+      yPos += 6;
+      doc.setFontSize(14);
+      doc.setTextColor(...accentOrange);
+      doc.text(`${eventDate} - ${eventTime}`, margin, yPos);
+      yPos += 15;
+    }
+    
     // Ticket type
     doc.setDrawColor(50, 50, 50);
     doc.line(margin, yPos, pageWidth - margin, yPos);
@@ -225,14 +281,14 @@ const ConfirmationPage = () => {
     // Seat info if applicable
     if (ticket.seatInfo) {
       doc.setFontSize(12);
-      doc.setTextColor(...gray);
+      doc.setTextColor(...accentOrange);
       yPos += 8;
       doc.text(`Sección: ${ticket.seatInfo.section} | Fila: ${ticket.seatInfo.row} | Asiento: ${ticket.seatInfo.seat}`, margin, yPos);
     }
     
     yPos += 20;
     
-    // Order and ticket IDs
+    // IDs section
     doc.setDrawColor(50, 50, 50);
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 10;
@@ -242,7 +298,7 @@ const ConfirmationPage = () => {
     doc.text('TICKET ID', margin, yPos);
     doc.text('ORDER ID', pageWidth / 2 + 10, yPos);
     yPos += 6;
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(...accentOrange);
     doc.setFont('helvetica', 'bold');
     doc.text(ticket.ticketId, margin, yPos);
@@ -261,29 +317,12 @@ const ConfirmationPage = () => {
     doc.text(ticket.holderName, margin, yPos);
     
     // QR Code section
-    yPos = 200;
-    
-    // QR Code - Generate from ticket data
-    const qrData = ticket.qrData;
-    
-    // Create a canvas element to render QR code
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 200;
-    canvas.height = 200;
+    yPos = 195;
     
     // White background for QR
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, 200, 200);
-    
-    // We'll use a simple QR pattern placeholder and add the actual data as text
-    // In production, you'd use a QR library that can render to canvas
-    
-    // For now, add QR code as image from SVG
-    const qrSize = 50;
+    const qrSize = 55;
     const qrX = (pageWidth - qrSize) / 2;
     
-    // White background for QR
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(qrX - 5, yPos - 5, qrSize + 10, qrSize + 10, 3, 3, 'F');
     
@@ -333,11 +372,12 @@ const ConfirmationPage = () => {
     const textWidth = doc.getTextWidth(qrText);
     doc.text(qrText, (pageWidth - textWidth) / 2, yPos);
     
-    // QR Data reference (small)
+    // QR Data reference (small, for debugging)
     yPos += 8;
-    doc.setFontSize(6);
-    doc.setTextColor(...gray);
-    const dataRef = `DATA: ${qrData}`;
+    doc.setFontSize(5);
+    doc.setTextColor(80, 80, 80);
+    const qrDataParsed = JSON.parse(ticket.qrData);
+    const dataRef = `ID:${qrDataParsed.ticketId} | EVT:${qrDataParsed.eventId} | TT:${qrDataParsed.ticketTypeId}`;
     const dataWidth = doc.getTextWidth(dataRef);
     doc.text(dataRef, (pageWidth - dataWidth) / 2, yPos);
     
@@ -365,8 +405,9 @@ const ConfirmationPage = () => {
     );
   }
 
-  const { orderId, event, selectedFunction, buyer, total, currency } = confirmationData;
+  const { orderId, event, selectedFunction, buyer, total, currency, functionId } = confirmationData;
   const isSeatedEvent = generatedTickets.some(t => t.seatInfo);
+  const isMultiFunction = event?.functions?.length > 1;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]" data-testid="confirmation-page">
@@ -401,6 +442,7 @@ const ConfirmationPage = () => {
               <button
                 onClick={handleCopyOrderId}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                data-testid="copy-order-id"
               >
                 {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} className="text-white/60" />}
               </button>
@@ -436,6 +478,15 @@ const ConfirmationPage = () => {
                 </a>
               </div>
             </div>
+            
+            {/* Function badge for multi-function events */}
+            {isMultiFunction && selectedFunction && (
+              <div className="mt-4 p-3 bg-[#FF9500]/10 border border-[#FF9500]/20 rounded-xl">
+                <p className="text-[#FF9500] text-sm font-medium">
+                  Función: {selectedFunction.date} - {selectedFunction.time}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Generated Tickets */}
@@ -448,46 +499,68 @@ const ConfirmationPage = () => {
             </div>
 
             <div className="space-y-4">
-              {generatedTickets.map((ticket, index) => (
-                <div 
-                  key={ticket.ticketId}
-                  className="bg-[#1E1E1E] rounded-xl p-4 border border-white/5"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-white font-semibold">
-                        Entrada {ticket.ticketNumber} - {ticket.ticketType}
-                      </p>
-                      {ticket.seatInfo && (
-                        <p className="text-white/60 text-sm">
-                          {ticket.seatInfo.section} - Fila {ticket.seatInfo.row}, Asiento {ticket.seatInfo.seat}
+              {generatedTickets.map((ticket) => {
+                // Parse QR data to show structure
+                const qrParsed = JSON.parse(ticket.qrData);
+                
+                return (
+                  <div 
+                    key={ticket.ticketId}
+                    className="bg-[#1E1E1E] rounded-xl p-4 border border-white/5"
+                    data-testid={`ticket-${ticket.ticketId}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-white font-semibold">
+                          Entrada {ticket.ticketNumber} - {ticket.ticketType}
                         </p>
-                      )}
-                      <p className="text-white/40 text-xs font-mono mt-1">
-                        {ticket.ticketId}
+                        {ticket.seatInfo && (
+                          <p className="text-[#FF9500] text-sm font-medium">
+                            {ticket.seatInfo.section} - Fila {ticket.seatInfo.row}, Asiento {ticket.seatInfo.seat}
+                          </p>
+                        )}
+                        <p className="text-white/40 text-xs font-mono mt-1">
+                          {ticket.ticketId}
+                        </p>
+                      </div>
+                      <span className="text-[#FF9500] font-bold">
+                        {formatPrice(ticket.price)}
+                      </span>
+                    </div>
+                    
+                    {/* QR Code */}
+                    <div className="flex flex-col items-center pt-3 border-t border-white/10">
+                      <div className="bg-white p-2 rounded-lg">
+                        <QRCodeSVG 
+                          value={ticket.qrData}
+                          size={100}
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+                      <p className="text-white/50 text-xs mt-2 text-center">
+                        Presenta este QR en la entrada
                       </p>
+                      
+                      {/* QR Data Preview (collapsed) */}
+                      <details className="mt-2 w-full">
+                        <summary className="text-white/30 text-xs cursor-pointer hover:text-white/50">
+                          Ver datos del QR
+                        </summary>
+                        <div className="mt-2 p-2 bg-black/30 rounded text-xs font-mono text-white/40 overflow-x-auto">
+                          <div>ticketId: {qrParsed.ticketId}</div>
+                          <div>orderId: {qrParsed.orderId}</div>
+                          <div>eventId: {qrParsed.eventId}</div>
+                          <div>functionId: {qrParsed.functionId || 'null'}</div>
+                          <div>ticketTypeId: {qrParsed.ticketTypeId}</div>
+                          <div>seatId: {qrParsed.seatId || 'null'}</div>
+                          <div>issuedAt: {new Date(qrParsed.issuedAt).toLocaleString()}</div>
+                        </div>
+                      </details>
                     </div>
-                    <span className="text-[#FF9500] font-bold">
-                      {formatPrice(ticket.price)}
-                    </span>
                   </div>
-                  
-                  {/* QR Code */}
-                  <div className="flex flex-col items-center pt-3 border-t border-white/10">
-                    <div className="bg-white p-2 rounded-lg">
-                      <QRCodeSVG 
-                        value={ticket.qrData}
-                        size={100}
-                        level="M"
-                        includeMargin={false}
-                      />
-                    </div>
-                    <p className="text-white/50 text-xs mt-2 text-center">
-                      Presenta este QR en la entrada
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Total */}
@@ -547,6 +620,7 @@ const ConfirmationPage = () => {
             <button
               onClick={handleBackToHome}
               className="w-full py-3 text-white/70 hover:text-white font-semibold transition-colors text-sm"
+              data-testid="back-to-home"
             >
               Volver al inicio
             </button>
