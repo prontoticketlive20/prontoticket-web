@@ -3,26 +3,38 @@ import { Scanner } from '@yudiel/react-qr-scanner';
 import { 
   LogIn, LogOut, Camera, CheckCircle2, XCircle, AlertTriangle,
   RefreshCw, Users, Ticket, Calendar, MapPin, ChevronRight,
-  History, BarChart3, User, Shield, CameraOff
+  History, User, Shield, CameraOff, Armchair, Tag, Clock
 } from 'lucide-react';
 import { 
   validateTicket, 
   getScanStats, 
   getStoredTickets,
-  parseQRCodeData
+  parseQRCodeData,
+  getEventFromDB,
+  getFunctionsForEvent,
+  initializeDatabase
 } from '../services/ticketService';
 
 /**
  * Check-In Page for Staff
  * 
- * Validates tickets by scanning QR codes in JSON format:
- * { ticketId: "TCK-xxx", orderId: "ORD-xxx", eventId: "EVT-xxx" }
+ * Validates tickets by scanning QR codes with NEW structure:
+ * {
+ *   ticketId: string,
+ *   orderId: string,
+ *   eventId: string,
+ *   functionId: string | null,
+ *   ticketTypeId: string,
+ *   seatId: string | null,
+ *   issuedAt: number
+ * }
  * 
  * Features:
  * - Staff login (mock)
- * - Event selection
+ * - Event selection with function filter
  * - Camera-based QR scanning
- * - Real-time validation
+ * - Full validation (event, function, ticket status)
+ * - Detailed display: Event, Función, Tipo, Asiento, Estado
  * - Visual status indicators (green/red/yellow)
  * - Scan logging
  */
@@ -42,35 +54,55 @@ const MOCK_STAFF = [
   { username: 'scanner2', password: 'scan123', name: 'Scanner 2', role: 'scanner' }
 ];
 
-// Mock events (matching frontend mock data)
-const MOCK_EVENTS = [
+// Events for check-in (matching database structure)
+const CHECKIN_EVENTS = [
   {
     id: 'EVT-1',
     title: 'Festival Músical Verano 2025',
     date: '15 JUN 2025',
     time: '18:00',
     venue: 'Estadio Nacional',
-    city: 'Ciudad de México'
+    city: 'Ciudad de México',
+    isMultiFunction: false,
+    functions: [
+      { id: 'FUNC-EVT1-1', date: '15 JUN 2025', time: '18:00' }
+    ]
   },
   {
     id: 'EVT-2',
     title: 'Teatro: Noche de Gala',
-    date: '20 JUN 2025',
+    date: '28 JUL 2025',
     time: '20:00',
-    venue: 'Teatro Nacional',
-    city: 'Ciudad de México'
+    venue: 'Teatro Metropolitan',
+    city: 'Ciudad de México',
+    isMultiFunction: true,
+    functions: [
+      { id: 'FUNC-EVT2-1', date: '28 JUL 2025', time: '15:00' },
+      { id: 'FUNC-EVT2-2', date: '28 JUL 2025', time: '20:00' },
+      { id: 'FUNC-EVT2-3', date: '29 JUL 2025', time: '15:00' },
+      { id: 'FUNC-EVT2-4', date: '29 JUL 2025', time: '20:00' }
+    ]
   },
   {
     id: 'EVT-3',
     title: 'Concierto Internacional',
-    date: '25 JUN 2025',
-    time: '19:00',
-    venue: 'Arena México',
-    city: 'Ciudad de México'
+    date: '10 AGO 2025',
+    time: '21:00',
+    venue: 'Madison Square Garden',
+    city: 'Nueva York',
+    isMultiFunction: false,
+    functions: [
+      { id: 'FUNC-EVT3-1', date: '10 AGO 2025', time: '21:00' }
+    ]
   }
 ];
 
 const CheckInPage = () => {
+  // Initialize database on mount
+  useEffect(() => {
+    initializeDatabase();
+  }, []);
+
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staffInfo, setStaffInfo] = useState(null);
@@ -81,8 +113,9 @@ const CheckInPage = () => {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // Event selection
+  // Event & function selection
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedFunction, setSelectedFunction] = useState(null);
   
   // Scanner state
   const [isScanning, setIsScanning] = useState(false);
@@ -99,13 +132,19 @@ const CheckInPage = () => {
   useEffect(() => {
     const savedStaff = localStorage.getItem('checkin_staff_mock');
     const savedEvent = localStorage.getItem('checkin_event_mock');
+    const savedFunction = localStorage.getItem('checkin_function_mock');
     
     if (savedStaff) {
       setStaffInfo(JSON.parse(savedStaff));
       setIsLoggedIn(true);
       
       if (savedEvent) {
-        setSelectedEvent(JSON.parse(savedEvent));
+        const event = JSON.parse(savedEvent);
+        setSelectedEvent(event);
+        
+        if (savedFunction) {
+          setSelectedFunction(JSON.parse(savedFunction));
+        }
       }
     }
   }, []);
@@ -120,7 +159,7 @@ const CheckInPage = () => {
   }, [selectedEvent]);
 
   const updateStats = () => {
-    const currentStats = getScanStats();
+    const currentStats = getScanStats(selectedEvent?.id);
     setStats(currentStats);
   };
 
@@ -129,7 +168,6 @@ const CheckInPage = () => {
     setLoginError('');
     setIsLoggingIn(true);
     
-    // Simulate login delay
     setTimeout(() => {
       const staff = MOCK_STAFF.find(s => s.username === username && s.password === password);
       
@@ -150,16 +188,43 @@ const CheckInPage = () => {
     setIsLoggedIn(false);
     setStaffInfo(null);
     setSelectedEvent(null);
+    setSelectedFunction(null);
     setIsScanning(false);
     setScanResult(null);
     localStorage.removeItem('checkin_staff_mock');
     localStorage.removeItem('checkin_event_mock');
+    localStorage.removeItem('checkin_function_mock');
   };
 
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
     localStorage.setItem('checkin_event_mock', JSON.stringify(event));
+    
+    // If single function event, auto-select the function
+    if (!event.isMultiFunction && event.functions?.length === 1) {
+      setSelectedFunction(event.functions[0]);
+      localStorage.setItem('checkin_function_mock', JSON.stringify(event.functions[0]));
+    } else {
+      setSelectedFunction(null);
+      localStorage.removeItem('checkin_function_mock');
+    }
+    
     updateStats();
+  };
+
+  const handleSelectFunction = (func) => {
+    setSelectedFunction(func);
+    localStorage.setItem('checkin_function_mock', JSON.stringify(func));
+  };
+
+  const handleBackToEvents = () => {
+    setSelectedEvent(null);
+    setSelectedFunction(null);
+    setIsScanning(false);
+    setScanResult(null);
+    setScanHistory([]);
+    localStorage.removeItem('checkin_event_mock');
+    localStorage.removeItem('checkin_function_mock');
   };
 
   const handleScan = useCallback((detectedCodes) => {
@@ -180,7 +245,7 @@ const CheckInPage = () => {
       navigator.vibrate(100);
     }
     
-    // Parse and validate QR
+    // Parse QR to check format
     const parsed = parseQRCodeData(qrData);
     
     if (!parsed) {
@@ -190,13 +255,13 @@ const CheckInPage = () => {
         status: 'invalid',
         message: 'Código QR inválido - formato no reconocido',
         errorCode: 'INVALID_FORMAT',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        displayInfo: null
       });
       setScanStatus('warning');
       
       if (navigator.vibrate) navigator.vibrate(300);
       
-      // Add to history
       addToHistory({
         success: false,
         message: 'QR Inválido',
@@ -208,33 +273,14 @@ const CheckInPage = () => {
       return;
     }
     
-    // Check event ID matches
-    if (selectedEvent && parsed.eventId !== selectedEvent.id) {
-      setScanResult({
-        valid: false,
-        status: 'invalid',
-        message: 'Este ticket no es para este evento',
-        errorCode: 'WRONG_EVENT',
-        ticketId: parsed.ticketId,
-        timestamp: Date.now()
-      });
-      setScanStatus('warning');
-      
-      if (navigator.vibrate) navigator.vibrate(300);
-      
-      addToHistory({
-        success: false,
-        message: 'Evento incorrecto',
-        ticketId: parsed.ticketId,
-        time: new Date().toLocaleTimeString()
-      });
-      
-      setTimeout(() => setScanStatus('idle'), 3000);
-      return;
-    }
+    // Build validation context
+    const validationContext = {
+      expectedEventId: selectedEvent?.id,
+      expectedFunctionId: selectedFunction?.id || null
+    };
     
     // Validate ticket
-    const validation = validateTicket(qrData, selectedEvent?.id);
+    const validation = validateTicket(qrData, validationContext);
     
     setScanResult({
       ...validation,
@@ -249,8 +295,7 @@ const CheckInPage = () => {
         success: true,
         message: 'Admitido',
         ticketId: validation.ticketId,
-        ticketType: validation.ticket?.ticketType,
-        holderName: validation.ticket?.holderName,
+        displayInfo: validation.displayInfo,
         time: new Date().toLocaleTimeString()
       });
     } else if (validation.status === 'used') {
@@ -261,6 +306,7 @@ const CheckInPage = () => {
         success: false,
         message: 'Ya utilizado',
         ticketId: validation.ticketId,
+        displayInfo: validation.displayInfo,
         time: new Date().toLocaleTimeString()
       });
     } else {
@@ -271,6 +317,7 @@ const CheckInPage = () => {
         success: false,
         message: validation.message,
         ticketId: validation.ticketId,
+        displayInfo: validation.displayInfo,
         time: new Date().toLocaleTimeString()
       });
     }
@@ -281,15 +328,17 @@ const CheckInPage = () => {
     // Reset status after delay
     setTimeout(() => {
       setScanStatus('idle');
-    }, 3000);
+    }, 4000);
     
-  }, [selectedEvent, lastScannedQR, scanResult]);
+  }, [selectedEvent, selectedFunction, lastScannedQR, scanResult]);
 
   const addToHistory = (entry) => {
     setScanHistory(prev => [entry, ...prev].slice(0, 50));
   };
 
-  // Login Screen
+  // ============================================
+  // LOGIN SCREEN
+  // ============================================
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
@@ -379,7 +428,9 @@ const CheckInPage = () => {
     );
   }
 
-  // Event Selection Screen
+  // ============================================
+  // EVENT SELECTION SCREEN
+  // ============================================
   if (!selectedEvent) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] p-4">
@@ -398,6 +449,7 @@ const CheckInPage = () => {
           <button
             onClick={handleLogout}
             className="p-2 text-white/60 hover:text-white"
+            data-testid="logout-button"
           >
             <LogOut size={20} />
           </button>
@@ -408,7 +460,7 @@ const CheckInPage = () => {
           <h2 className="text-white font-bold text-lg mb-4">Seleccionar Evento</h2>
           
           <div className="space-y-3">
-            {MOCK_EVENTS.map((event) => (
+            {CHECKIN_EVENTS.map((event) => (
               <button
                 key={event.id}
                 onClick={() => handleSelectEvent(event)}
@@ -418,7 +470,7 @@ const CheckInPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="text-white font-semibold">{event.title}</h3>
-                    <div className="flex items-center space-x-4 mt-2 text-white/60 text-sm">
+                    <div className="flex items-center flex-wrap gap-3 mt-2 text-white/60 text-sm">
                       <span className="flex items-center">
                         <Calendar size={12} className="mr-1" />
                         {event.date}
@@ -428,6 +480,11 @@ const CheckInPage = () => {
                         {event.venue}
                       </span>
                     </div>
+                    {event.isMultiFunction && (
+                      <span className="inline-block mt-2 px-2 py-0.5 bg-[#FF9500]/20 text-[#FF9500] text-xs rounded-full">
+                        {event.functions.length} funciones
+                      </span>
+                    )}
                   </div>
                   <ChevronRight size={20} className="text-white/40" />
                 </div>
@@ -447,7 +504,66 @@ const CheckInPage = () => {
     );
   }
 
-  // Main Scanner Screen
+  // ============================================
+  // FUNCTION SELECTION (for multi-function events)
+  // ============================================
+  if (selectedEvent.isMultiFunction && !selectedFunction) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <button
+              onClick={handleBackToEvents}
+              className="text-[#007AFF] text-sm mb-1 hover:underline"
+            >
+              ← Volver a eventos
+            </button>
+            <h1 className="text-lg font-bold text-white">{selectedEvent.title}</h1>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-2 text-white/60 hover:text-white"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
+        
+        {/* Function Selection */}
+        <div className="mb-6">
+          <h2 className="text-white font-bold text-lg mb-4">Seleccionar Función</h2>
+          
+          <div className="space-y-3">
+            {selectedEvent.functions.map((func) => (
+              <button
+                key={func.id}
+                onClick={() => handleSelectFunction(func)}
+                className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-left hover:border-[#FF9500]/50 transition-colors"
+                data-testid={`function-${func.id}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#FF9500]/20 flex items-center justify-center">
+                      <Clock size={20} className="text-[#FF9500]" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">{func.date}</p>
+                      <p className="text-[#FF9500] text-sm">{func.time} hrs</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={20} className="text-white/40" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // MAIN SCANNER SCREEN
+  // ============================================
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Header */}
@@ -457,24 +573,33 @@ const CheckInPage = () => {
             <h1 className="text-base font-bold text-white truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>
               {selectedEvent.title}
             </h1>
-            <p className="text-white/60 text-xs flex items-center">
-              <User size={10} className="mr-1" />
-              {staffInfo?.name} • {selectedEvent.date}
+            <p className="text-white/60 text-xs flex items-center flex-wrap gap-2">
+              <span className="flex items-center">
+                <User size={10} className="mr-1" />
+                {staffInfo?.name}
+              </span>
+              <span>•</span>
+              <span>{selectedEvent.date}</span>
+              {selectedFunction && selectedEvent.isMultiFunction && (
+                <>
+                  <span>•</span>
+                  <span className="text-[#FF9500]">{selectedFunction.time}</span>
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center space-x-2 flex-shrink-0">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`p-2 rounded-lg transition-colors ${showHistory ? 'bg-[#007AFF] text-white' : 'text-white/60 hover:text-white'}`}
+              data-testid="history-button"
             >
               <History size={18} />
             </button>
             <button
-              onClick={() => {
-                setSelectedEvent(null);
-                localStorage.removeItem('checkin_event_mock');
-              }}
+              onClick={handleBackToEvents}
               className="p-2 text-white/60 hover:text-white"
+              data-testid="back-button"
             >
               <LogOut size={18} />
             </button>
@@ -511,19 +636,29 @@ const CheckInPage = () => {
                   key={index}
                   className={`p-3 rounded-xl border ${scan.success ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
                       <p className={`font-semibold ${scan.success ? 'text-green-400' : 'text-red-400'}`}>
                         {scan.success ? '✓ Admitido' : '✗ ' + scan.message}
                       </p>
-                      {scan.holderName && (
-                        <p className="text-white/70 text-sm">{scan.holderName}</p>
+                      {scan.displayInfo && (
+                        <div className="mt-1 text-sm">
+                          {scan.displayInfo.ticketType && (
+                            <p className="text-white/70">{scan.displayInfo.ticketType}</p>
+                          )}
+                          {scan.displayInfo.seat && (
+                            <p className="text-white/60 text-xs">{scan.displayInfo.seat}</p>
+                          )}
+                          {scan.displayInfo.holderName && (
+                            <p className="text-white/50 text-xs">{scan.displayInfo.holderName}</p>
+                          )}
+                        </div>
                       )}
                       {scan.ticketId && (
-                        <p className="text-white/50 text-xs font-mono">{scan.ticketId}</p>
+                        <p className="text-white/40 text-xs font-mono mt-1 truncate">{scan.ticketId}</p>
                       )}
                     </div>
-                    <p className="text-white/40 text-xs">{scan.time}</p>
+                    <p className="text-white/40 text-xs flex-shrink-0 ml-2">{scan.time}</p>
                   </div>
                 </div>
               ))}
@@ -582,25 +717,101 @@ const CheckInPage = () => {
         )}
       </div>
 
-      {/* Result Panel */}
-      <div className={`p-4 transition-all duration-300 ${STATUS_COLORS[scanStatus]}`}>
-        {scanResult ? (
-          <div className="flex items-center space-x-4">
+      {/* Result Panel - Enhanced Display */}
+      <div className={`transition-all duration-300 ${STATUS_COLORS[scanStatus]}`}>
+        {scanResult && scanResult.displayInfo ? (
+          <div className="p-4">
+            {/* Status Header */}
+            <div className="flex items-center space-x-4 mb-3">
+              <div className="flex-shrink-0">
+                {scanStatus === 'success' && <CheckCircle2 size={48} className="text-white" />}
+                {scanStatus === 'denied' && <XCircle size={48} className="text-white" />}
+                {scanStatus === 'warning' && <AlertTriangle size={48} className="text-white" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-xl">
+                  {scanResult.displayInfo.status}
+                </p>
+                {scanResult.status === 'used' && scanResult.displayInfo.usedAt && (
+                  <p className="text-white/80 text-sm">
+                    Usado: {scanResult.displayInfo.usedAt}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Ticket Details Grid */}
+            <div className="bg-black/20 rounded-xl p-3 space-y-2">
+              {/* Event */}
+              <div className="flex items-center space-x-2">
+                <Calendar size={14} className="text-white/60 flex-shrink-0" />
+                <span className="text-white/60 text-sm">Evento:</span>
+                <span className="text-white text-sm font-medium truncate">
+                  {scanResult.displayInfo.event}
+                </span>
+              </div>
+              
+              {/* Function (if applicable) */}
+              {scanResult.displayInfo.function && (
+                <div className="flex items-center space-x-2">
+                  <Clock size={14} className="text-white/60 flex-shrink-0" />
+                  <span className="text-white/60 text-sm">Función:</span>
+                  <span className="text-white text-sm font-medium">
+                    {scanResult.displayInfo.function}
+                  </span>
+                </div>
+              )}
+              
+              {/* Ticket Type */}
+              <div className="flex items-center space-x-2">
+                <Tag size={14} className="text-white/60 flex-shrink-0" />
+                <span className="text-white/60 text-sm">Tipo:</span>
+                <span className="text-white text-sm font-medium">
+                  {scanResult.displayInfo.ticketType}
+                </span>
+              </div>
+              
+              {/* Seat (if applicable) */}
+              {scanResult.displayInfo.seat && (
+                <div className="flex items-center space-x-2">
+                  <Armchair size={14} className="text-white/60 flex-shrink-0" />
+                  <span className="text-white/60 text-sm">Asiento:</span>
+                  <span className="text-white text-sm font-medium">
+                    {scanResult.displayInfo.seat}
+                  </span>
+                </div>
+              )}
+              
+              {/* Holder Name */}
+              {scanResult.displayInfo.holderName && (
+                <div className="flex items-center space-x-2">
+                  <User size={14} className="text-white/60 flex-shrink-0" />
+                  <span className="text-white/60 text-sm">Titular:</span>
+                  <span className="text-white text-sm font-medium truncate">
+                    {scanResult.displayInfo.holderName}
+                  </span>
+                </div>
+              )}
+              
+              {/* Ticket ID */}
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-white/40 text-xs font-mono truncate">
+                  ID: {scanResult.displayInfo.ticketId}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : scanResult ? (
+          // Simple error display
+          <div className="p-4 flex items-center space-x-4">
             <div className="flex-shrink-0">
-              {scanStatus === 'success' && <CheckCircle2 size={48} className="text-white" />}
-              {scanStatus === 'denied' && <XCircle size={48} className="text-white" />}
               {scanStatus === 'warning' && <AlertTriangle size={48} className="text-white" />}
               {scanStatus === 'idle' && <Ticket size={48} className="text-white/50" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-lg truncate">
+              <p className="text-white font-bold text-lg">
                 {scanResult.message}
               </p>
-              {scanResult.ticket && (
-                <p className="text-white/80 text-sm truncate">
-                  {scanResult.ticket.holderName} • {scanResult.ticket.ticketType}
-                </p>
-              )}
               {scanResult.ticketId && (
                 <p className="text-white/60 text-xs font-mono truncate">
                   {scanResult.ticketId}
@@ -609,7 +820,8 @@ const CheckInPage = () => {
             </div>
           </div>
         ) : (
-          <div className="flex items-center space-x-4">
+          // Idle state
+          <div className="p-4 flex items-center space-x-4">
             <Ticket size={48} className="text-white/50" />
             <div>
               <p className="text-white/80 font-semibold">Listo para escanear</p>
@@ -625,6 +837,7 @@ const CheckInPage = () => {
           <button
             onClick={() => setIsScanning(false)}
             className="w-full py-3 bg-red-500/20 border border-red-500/30 text-red-400 font-semibold rounded-xl flex items-center justify-center space-x-2"
+            data-testid="stop-scan-button"
           >
             <CameraOff size={18} />
             <span>Detener Escáner</span>
