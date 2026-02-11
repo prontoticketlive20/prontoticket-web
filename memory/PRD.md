@@ -112,13 +112,32 @@ Create a modern homepage UI for an online event ticket marketplace called Pronto
 - Live statistics: Total, Admitidos, Pendientes
 - Scan history log with timestamps
 
-### ✅ Unified Ticket Service (Completed - Dec 2025)
-- `ticketService.js`: Shared mock logic for ticket generation/validation
-- Ticket ID Format: `TCK-<timestamp>-<random>`
-- Order ID Format: `ORD-<timestamp>`
-- Event ID Format: `EVT-<id>`
-- QR Code Data: JSON `{ ticketId, orderId, eventId }`
-- localStorage persistence for tickets and scan logs
+### ✅ Unified Ticket Service v2 (Updated - Dec 2025)
+- `ticketService.js`: Simulated database structure for ticket management
+- **NEW QR Code Structure (7 fields)**:
+  ```json
+  {
+    "ticketId": "TCK-<timestamp>-<random>",
+    "orderId": "ORD-<timestamp>-<random>",
+    "eventId": "EVT-<id>",
+    "functionId": "FUNC-EVT<id>-<n>" | null,
+    "ticketTypeId": "TT-EVT<id>-<type>",
+    "seatId": "SEAT-<section>-<row>-<number>" | null,
+    "issuedAt": <timestamp>
+  }
+  ```
+- **Rules**:
+  - Multi-function events: `functionId` populated
+  - Single-function events: `functionId = null`
+  - General Admission: `seatId = null`
+  - Seated events: `seatId` with real seat identifier
+- **Database Collections** (localStorage):
+  - `prontoticket_db_orders`
+  - `prontoticket_db_tickets`
+  - `prontoticket_db_ticket_types`
+  - `prontoticket_db_scans`
+  - `prontoticket_db_events`
+  - `prontoticket_db_functions`
 - Idempotent validation (prevents duplicate check-ins)
 
 ---
