@@ -1,108 +1,193 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { SeatsioSeatingChart } from '@seatsio/seatsio-react';
 import Header from './Header';
 import Footer from './Footer';
-import { Calendar, MapPin, Clock, X, ChevronLeft, AlertTriangle } from 'lucide-react';
-import { mockEvents } from '../data/mockEvents';
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  X,
+  ChevronLeft,
+  AlertTriangle,
+  Loader2
+} from 'lucide-react';
+import api from '../api/api';
+import { fetchEventById } from '../services/events.service';
 import { usePurchase } from '../context/PurchaseContext';
 
-// Valid sale types
 const VALID_SALE_TYPES = ['seated', 'general'];
 
-// This page is ONLY for seated events (saleType = "seated")
-// General events should NOT use this page - they use TicketSelection modal instead
+const SEATSIO_WORKSPACE_KEY = '525c2c82-fb6b-4e5d-899f-8bed4d5c1130';
+const SEATSIO_REGION = 'na';
+const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
+
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+const getDisplayedLabel = (object) =>
+  object?.labels?.displayedLabel ||
+  object?.labels?.own?.label ||
+  object?.label ||
+  object?.id ||
+  '';
+
+const getRowLabel = (object) =>
+  object?.labels?.parent?.label ||
+  object?.labels?.parent ||
+  object?.labels?.own?.row ||
+  '';
+
+const getCategoryLabel = (object) =>
+  object?.category?.label ||
+  object?.categoryLabel ||
+  '';
+
+const getStoredSeatsioSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SEATSIO_SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveSeatsioSession = (data) => {
+  try {
+    sessionStorage.setItem(SEATSIO_SESSION_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+};
+
+const clearSeatsioSession = () => {
+  try {
+    sessionStorage.removeItem(SEATSIO_SESSION_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+};
 
 const SeatsSelectionPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const event = mockEvents[id] || mockEvents['1'];
-  
-  const { 
-    selectEvent, 
+  const chartRef = useRef(null);
+  const syncingSelectionRef = useRef(false);
+
+  const {
+    selectedEvent,
+    selectEvent,
     selectedFunction,
     selectFunction,
-    addSeat, 
-    removeSeat, 
-    selectedSeats, 
+    addSeat,
+    removeSeat,
+    selectedSeats,
     formatPrice,
-    serviceFee: contextServiceFee,
-    getStoredEventId
+    getServiceFee,
+    getStoredEventId,
   } = usePurchase();
-  
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
+
+  const [event, setEvent] = useState(selectedEvent || null);
+  const [timeRemaining, setTimeRemaining] = useState(600);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Validate saleType
-  const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
-  const isSeatedEvent = event.saleType === 'seated';
-  const hasMultipleFunctions = event.functions && event.functions.length > 1;
-  const hasSingleFunction = event.functions && event.functions.length === 1;
+  const [pricingList, setPricingList] = useState([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
+  const [chartError, setChartError] = useState('');
+  const [loadingEvent, setLoadingEvent] = useState(false);
+  const [holdTokenData, setHoldTokenData] = useState(null);
+  const [holdCallsInProgress, setHoldCallsInProgress] = useState(false);
 
-  // Initialize: Set event in context and check for stored state
-  useEffect(() => {
-    const storedEventId = getStoredEventId();
-    
-    // If returning to the same event (e.g., back from summary), restore state
-    if (storedEventId === id) {
-      selectEvent(event);
-      setIsInitialized(true);
-    } else if (!storedEventId) {
-      // Fresh visit
-      selectEvent(event);
-      setIsInitialized(true);
-    } else {
-      // Different event - redirect to stored event or reset
-      selectEvent(event);
-      setIsInitialized(true);
-    }
-  }, [id, event, selectEvent, getStoredEventId]);
+  const seatmapKey = selectedFunction?._raw?.seatmapKey || '';
 
-  // Redirect if this is not a seated event or saleType is invalid
   useEffect(() => {
-    if (!isInitialized) return;
-    
+    let mounted = true;
+
+    const loadEvent = async () => {
+      try {
+        setLoadingEvent(true);
+
+        if (selectedEvent?.id === id) {
+          setEvent(selectedEvent);
+          setIsInitialized(true);
+          return;
+        }
+
+        const storedEventId = getStoredEventId();
+        const normalized = await fetchEventById(id || storedEventId);
+
+        if (!mounted) return;
+
+        setEvent(normalized);
+        selectEvent(normalized);
+        setIsInitialized(true);
+
+        if (normalized?.functions?.length === 1) {
+          const singleFunc = normalized.functions[0];
+          selectFunction(singleFunc);
+        }
+      } catch (e) {
+        console.error('[SeatsSelectionPage] Error cargando evento:', e);
+        if (!mounted) return;
+        setChartError('No pude cargar la información del evento.');
+      } finally {
+        if (mounted) setLoadingEvent(false);
+      }
+    };
+
+    loadEvent();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, selectedEvent, selectEvent, selectFunction, getStoredEventId]);
+
+  const hasValidSaleType = useMemo(
+    () => VALID_SALE_TYPES.includes(event?.saleType),
+    [event?.saleType]
+  );
+
+  const isSeatedEvent = event?.saleType === 'seated';
+  const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
+  const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
+
+  useEffect(() => {
+    if (!isInitialized || !event) return;
+
     if (!hasValidSaleType || !isSeatedEvent) {
       console.error(
-        `[ProntoTicketLive] SeatsSelectionPage: Invalid access.`,
-        `\nEvent saleType: "${event.saleType}"`,
-        `\nThis page requires saleType = "seated".`,
-        `\nRedirecting to event page.`
+        `[ProntoTicketLive] SeatsSelectionPage: acceso inválido para saleType "${event?.saleType}".`
       );
       navigate(`/evento/${id}`);
-      return;
     }
-  }, [event, id, navigate, hasValidSaleType, isSeatedEvent, isInitialized]);
+  }, [isInitialized, event, hasValidSaleType, isSeatedEvent, id, navigate]);
 
-  // Separate effect for function validation - only for multi-function events
   useEffect(() => {
     if (!isInitialized || !hasMultipleFunctions) return;
-    
-    // Give context time to restore from storage
+
     const timeout = setTimeout(() => {
       if (!selectedFunction) {
-        console.error(
-          `[ProntoTicketLive] SeatsSelectionPage: No function selected for multi-function event.`,
-          `\nRedirecting to event page to select a function.`
-        );
         navigate(`/evento/${id}`);
       }
     }, 150);
 
     return () => clearTimeout(timeout);
-  }, [hasMultipleFunctions, selectedFunction, id, navigate, isInitialized]);
+  }, [isInitialized, hasMultipleFunctions, selectedFunction, id, navigate]);
 
-  // Auto-select function if event has only one
   useEffect(() => {
-    if (hasSingleFunction && !selectedFunction) {
-      const singleFunc = event.functions[0];
-      selectFunction(singleFunc);
+    if (hasSingleFunction && event?.functions?.[0] && !selectedFunction) {
+      selectFunction(event.functions[0]);
     }
-  }, [hasSingleFunction, selectedFunction, event.functions, selectFunction]);
+  }, [hasSingleFunction, event?.functions, selectedFunction, selectFunction]);
 
-  // Timer countdown
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeRemaining(prev => {
+      setTimeRemaining((prev) => {
         if (prev <= 0) {
           clearInterval(timer);
           return 0;
@@ -114,73 +199,278 @@ const SeatsSelectionPage = () => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPricing = async () => {
+      if (!selectedFunction?.id) {
+        setPricingList([]);
+        return;
+      }
+
+      try {
+        setPricingLoading(true);
+
+        const pricingRes = await api.get(
+          `/function-ticket-types/function/${selectedFunction.id}`
+        );
+
+        const list = Array.isArray(pricingRes.data)
+          ? pricingRes.data
+          : pricingRes.data?.data || [];
+
+        if (!mounted) return;
+
+        setPricingList(list);
+      } catch (err) {
+        console.error('[SeatsSelectionPage] Error loading pricing:', err);
+        if (!mounted) return;
+        setPricingList([]);
+      } finally {
+        if (mounted) setPricingLoading(false);
+      }
+    };
+
+    loadPricing();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedFunction?.id]);
+
+  useEffect(() => {
+    const stored = getStoredSeatsioSession();
+
+    if (
+      stored &&
+      stored.functionId === selectedFunction?.id &&
+      stored.eventKey === String(seatmapKey || '').trim()
+    ) {
+      setHoldTokenData(stored);
+      if (
+        typeof stored.expiresInSeconds === 'number' &&
+        stored.expiresInSeconds > 0
+      ) {
+        setTimeRemaining(stored.expiresInSeconds);
+      }
+      return;
+    }
+
+    if (selectedFunction?.id) {
+      clearSeatsioSession();
+      setHoldTokenData(null);
+    }
+  }, [selectedFunction?.id, seatmapKey]);
+
+  const pricingMap = useMemo(() => {
+    const map = new Map();
+
+    for (const item of pricingList) {
+      const label = normalizeText(item?.ticketType?.name);
+      if (!label) continue;
+
+      map.set(label, {
+        functionTicketTypeId: item.id,
+        ticketTypeId: item.ticketTypeId,
+        ticketTypeName: item?.ticketType?.name || '',
+        price: Number(item.price || 0),
+        serviceFee: Number(item?.ticketType?.serviceFee || 0),
+        available: Number(item.available || 0),
+        sold: Number(item.sold || 0),
+      });
+    }
+
+    return map;
+  }, [pricingList]);
+
+  const seatsioPricing = useMemo(() => {
+    const prices = pricingList
+      .filter((item) => item?.ticketType?.name)
+      .map((item) => ({
+        category: item.ticketType.name,
+        price: Number(item.price || 0),
+      }));
+
+    return {
+      priceFormatter: (price) => `$${Number(price || 0).toLocaleString()}`,
+      prices,
+    };
+  }, [pricingList]);
+
+  const selectedSeatIds = useMemo(
+    () => new Set((selectedSeats || []).map((seat) => String(seat.id))),
+    [selectedSeats]
+  );
+
+  const canSelectSeats = !hasMultipleFunctions || selectedFunction !== null;
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const subtotal = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  const total = subtotal + (selectedSeats.length > 0 ? contextServiceFee : 0);
+  const subtotal = selectedSeats.reduce(
+    (sum, seat) => sum + Number(seat.price || 0),
+    0
+  );
+
+  const serviceFee = selectedSeats.length > 0 ? getServiceFee() : 0;
+  const total = subtotal + serviceFee;
+
+  const canContinueToSummary =
+    selectedSeats.length > 0 &&
+    !holdCallsInProgress &&
+    !!holdTokenData?.token;
+
+  const syncChartSelectionFromState = useCallback(async () => {
+    const chart = chartRef.current;
+    if (!chart || !chartReady) return;
+
+    try {
+      syncingSelectionRef.current = true;
+
+      const selectedInChart = await chart.listSelectedObjects();
+      const chartIds = new Set(
+        (selectedInChart || []).map((obj) => String(obj?.id || getDisplayedLabel(obj)))
+      );
+
+      const stateIds = new Set(
+        (selectedSeats || []).map((seat) => String(seat.id))
+      );
+
+      const idsToDeselect = [...chartIds].filter((idValue) => !stateIds.has(idValue));
+      const idsToSelect = [...stateIds].filter((idValue) => !chartIds.has(idValue));
+
+      if (idsToDeselect.length > 0) {
+        await chart.deselectObjects(idsToDeselect);
+      }
+
+      if (idsToSelect.length > 0) {
+        await chart.doSelectObjects(idsToSelect);
+      }
+    } catch (err) {
+      console.error('[SeatsSelectionPage] Error sincronizando selección con el chart:', err);
+    } finally {
+      syncingSelectionRef.current = false;
+    }
+  }, [chartReady, selectedSeats]);
+
+  useEffect(() => {
+    syncChartSelectionFromState();
+  }, [selectedSeats, syncChartSelectionFromState]);
 
   const handleBackToEvent = () => {
     navigate(`/evento/${id}`);
   };
 
   const handleContinueToSummary = () => {
-    if (selectedSeats.length > 0) {
+    if (canContinueToSummary) {
       navigate(`/evento/${id}/resumen`);
     }
   };
 
-  // Mock function to simulate seat selection (would be triggered by Seats.io)
-  // In real implementation, seats would be loaded for the specific selectedFunction.id
-  const mockAddSeat = () => {
-    const seatNumber = Math.floor(Math.random() * 20) + 1;
-    const row = String.fromCharCode(65 + Math.floor(Math.random() * 5)); // A-E
-    const mockSeat = {
-      id: `seat-${Date.now()}`,
-      number: `${row}${seatNumber}`,
-      seat: `${row}${seatNumber}`,
-      section: 'Platea A',
-      row: row,
-      price: 1200,
-      // Include function reference for seat validation
-      functionId: selectedFunction?.id || null
-    };
-    addSeat(mockSeat);
+  const handleRemoveSeat = async (seatId) => {
+    const chart = chartRef.current;
+    const normalizedSeatId = String(seatId || '');
+
+    if (!normalizedSeatId) return;
+
+    try {
+      if (chart) {
+        syncingSelectionRef.current = true;
+        await chart.deselectObjects([normalizedSeatId]);
+      }
+
+      removeSeat(normalizedSeatId);
+    } catch (err) {
+      console.error('[SeatsSelectionPage] No pude deseleccionar la silla desde el panel:', err);
+      removeSeat(normalizedSeatId);
+    } finally {
+      syncingSelectionRef.current = false;
+    }
   };
 
-  const handleRemoveSeat = (seatId) => {
-    removeSeat(seatId);
+  const handleSeatSelected = (object) => {
+    if (syncingSelectionRef.current) return;
+
+    const categoryLabel = getCategoryLabel(object);
+    const displayedLabel = getDisplayedLabel(object);
+    const rowLabel = getRowLabel(object);
+
+    const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
+
+    if (!matchedPricing) {
+      console.error(
+        `[SeatsSelectionPage] No encontré pricing/ticketType para la categoría Seats.io "${categoryLabel}".`
+      );
+      return;
+    }
+
+    const seatId = String(object?.id || displayedLabel);
+
+    if (!seatId || selectedSeatIds.has(seatId)) {
+      return;
+    }
+
+    addSeat({
+      id: seatId,
+      seat: displayedLabel,
+      number: displayedLabel,
+      section: categoryLabel || matchedPricing.ticketTypeName || 'Asiento',
+      row: rowLabel,
+      price: Number(matchedPricing.price || 0),
+      serviceFee: Number(matchedPricing.serviceFee || 0),
+      ticketTypeId: matchedPricing.ticketTypeId,
+      functionId: selectedFunction?.id || null,
+      objectType: object?.objectType || 'Seat',
+    });
   };
 
-  // Block seat selection if no function is selected (for multi-function events)
-  const canSelectSeats = !hasMultipleFunctions || selectedFunction !== null;
+  const handleSeatDeselected = (object) => {
+    if (syncingSelectionRef.current) return;
+
+    const seatId = String(object?.id || getDisplayedLabel(object));
+    if (seatId) {
+      removeSeat(seatId);
+    }
+  };
+
+  if (loadingEvent || !event) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A]">
+        <Header />
+        <div className="pt-32 flex items-center justify-center text-white/70">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          Cargando evento...
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <Header />
-      
-      {/* Event Summary Bar - Sticky */}
+
       <div className="sticky top-20 z-40 bg-[#121212] border-b border-white/10 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              {/* Event Thumbnail */}
-              <img 
-                src={event.image} 
+              <img
+                src={event.image}
                 alt={event.title}
                 className="w-16 h-16 rounded-lg object-cover hidden sm:block"
               />
-              
-              {/* Event Info */}
+
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                 <div>
-                  <h2 className="text-white font-bold text-sm sm:text-base line-clamp-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  <h2
+                    className="text-white font-bold text-sm sm:text-base line-clamp-1"
+                    style={{ fontFamily: "'Outfit', sans-serif" }}
+                  >
                     {event.title}
                   </h2>
-                  {/* Display selected function date/time */}
                   <div className="flex items-center space-x-2 text-white/60 text-xs sm:text-sm mt-0.5">
                     <Calendar size={14} />
                     <span data-testid="selected-function-date">
@@ -192,29 +482,32 @@ const SeatsSelectionPage = () => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="hidden md:flex items-center space-x-2 text-white/60 text-sm">
                   <MapPin size={14} />
-                  <span>{event.venue}</span>
+                  <span>{selectedFunction?.venueName || event.venue}</span>
                 </div>
               </div>
             </div>
 
-            {/* Timer */}
             <div className="flex items-center space-x-2 bg-[#FF9500]/10 border border-[#FF9500]/30 rounded-lg px-3 py-2">
               <Clock size={16} className="text-[#FF9500]" />
-              <span className="text-[#FF9500] font-bold text-sm sm:text-base" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <span
+                className="text-[#FF9500] font-bold text-sm sm:text-base"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
                 {formatTime(timeRemaining)}
               </span>
             </div>
           </div>
-          
-          {/* Selected Function Badge - Only show for multi-function events */}
+
           {hasMultipleFunctions && selectedFunction && (
             <div className="mt-3 pt-3 border-t border-white/10">
               <div className="flex items-center space-x-2">
-                <span className="text-white/50 text-xs uppercase tracking-wide">Función:</span>
-                <span 
+                <span className="text-white/50 text-xs uppercase tracking-wide">
+                  Función:
+                </span>
+                <span
                   className="text-[#007AFF] text-sm font-semibold"
                   data-testid="selected-function-badge"
                 >
@@ -226,62 +519,161 @@ const SeatsSelectionPage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* LEFT COLUMN - Seating Map */}
           <div className="lg:col-span-2">
             <div className="bg-[#121212] rounded-3xl border border-white/10 p-6 shadow-2xl">
-              <h2 
+              <h2
                 className="text-2xl font-bold text-white mb-6 tracking-tight"
                 style={{ fontFamily: "'Outfit', sans-serif" }}
               >
                 Selecciona tus asientos
               </h2>
 
-              {/* Seats.io Map Placeholder */}
-              <div 
-                className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden"
-                style={{ minHeight: '500px', height: '60vh' }}
-                data-testid="seatsio-map-container"
-              >
-                {/* Placeholder content */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
-                  <div className="mb-6">
-                    <div className="w-20 h-20 rounded-full bg-[#007AFF]/10 border-2 border-[#007AFF]/30 flex items-center justify-center mx-auto mb-4">
-                      <MapPin size={32} className="text-[#007AFF]" />
-                    </div>
-                    <p className="text-white/70 text-lg mb-2">
-                      Aquí se mostrará el mapa interactivo de asientos
+              {!canSelectSeats ? (
+                <div
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden flex items-center justify-center text-center p-8"
+                  style={{ minHeight: '500px', height: '60vh' }}
+                >
+                  <div>
+                    <AlertTriangle
+                      className="mx-auto mb-4 text-[#FF9500]"
+                      size={36}
+                    />
+                    <p className="text-white/80 text-lg mb-2">
+                      Debes seleccionar una función antes de escoger asientos
                     </p>
-                    <p className="text-white/40 text-sm mb-1">
-                      (Integración con Seats.io)
+                    <p className="text-white/50 text-sm">
+                      Vuelve al evento y elige la fecha y hora que deseas comprar.
                     </p>
-                    {selectedFunction && (
-                      <p className="text-[#007AFF] text-xs">
-                        Cargando asientos para: {selectedFunction.date} - {selectedFunction.time}
-                      </p>
-                    )}
                   </div>
-
-                  {/* Mock selection button for demo */}
-                  <button
-                    onClick={mockAddSeat}
-                    disabled={!canSelectSeats}
-                    className="px-6 py-2 bg-[#007AFF] hover:bg-[#0056b3] text-white text-sm font-semibold rounded-full transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Simular selección de asiento
-                  </button>
                 </div>
-
-                {/* Glow effect */}
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-32 bg-[#007AFF]/10 blur-3xl" />
+              ) : !seatmapKey ? (
+                <div
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-red-500/30 overflow-hidden flex items-center justify-center text-center p-8"
+                  style={{ minHeight: '500px', height: '60vh' }}
+                >
+                  <div>
+                    <AlertTriangle
+                      className="mx-auto mb-4 text-red-400"
+                      size={36}
+                    />
+                    <p className="text-white/80 text-lg mb-2">
+                      Esta función no tiene Seats.io configurado
+                    </p>
+                    <p className="text-white/50 text-sm">
+                      Debes cargar el event key de Seats.io en el campo{' '}
+                      <span className="text-white/70">seatmapKey</span> de esta función.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : pricingLoading ? (
+                <div
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden flex items-center justify-center text-center p-8"
+                  style={{ minHeight: '500px', height: '60vh' }}
+                >
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#007AFF] mb-4" />
+                    <p className="text-white/70 text-lg mb-2">
+                      Cargando pricing de la función...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden"
+                  style={{ minHeight: '500px', height: '60vh' }}
+                  data-testid="seatsio-map-container"
+                >
+                  {!chartReady && !chartError && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1E1E1E]">
+                      <div className="flex flex-col items-center text-center p-8">
+                        <Loader2 className="w-8 h-8 animate-spin text-[#007AFF] mb-4" />
+                        <p className="text-white/70 text-lg mb-2">
+                          Cargando mapa interactivo...
+                        </p>
+                        <p className="text-[#007AFF] text-xs">
+                          {selectedFunction?.date} - {selectedFunction?.time}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Legend */}
+                  {chartError ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1E1E1E]">
+                      <div className="flex flex-col items-center text-center p-8">
+                        <AlertTriangle className="w-8 h-8 text-red-400 mb-4" />
+                        <p className="text-white/80 text-lg mb-2">
+                          No pude cargar el mapa de asientos
+                        </p>
+                        <p className="text-white/50 text-sm">{chartError}</p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <SeatsioSeatingChart
+                    workspaceKey={SEATSIO_WORKSPACE_KEY}
+                    event={String(seatmapKey || '').trim()}
+                    region={SEATSIO_REGION}
+                    session="continue"
+                    pricing={seatsioPricing}
+                    onRenderStarted={(chart) => {
+                      chartRef.current = chart;
+                      setChartError('');
+                    }}
+                    onChartRendered={(chart) => {
+                      chartRef.current = chart;
+                      setChartReady(true);
+                      setChartError('');
+                    }}
+                    onSessionInitialized={(holdToken) => {
+                      const payload = {
+                        token: holdToken?.token,
+                        expiresAt: holdToken?.expiresAt,
+                        expiresInSeconds: holdToken?.expiresInSeconds,
+                        functionId: selectedFunction?.id || null,
+                        eventKey: String(seatmapKey || '').trim(),
+                      };
+
+                      setHoldTokenData(payload);
+
+                      if (typeof holdToken?.expiresInSeconds === 'number') {
+                        setTimeRemaining(holdToken.expiresInSeconds);
+                      }
+
+                      saveSeatsioSession(payload);
+                    }}
+                    onHoldCallsInProgress={() => {
+                      setHoldCallsInProgress(true);
+                    }}
+                    onHoldCallsComplete={() => {
+                      setHoldCallsInProgress(false);
+                    }}
+                    onHoldTokenExpired={() => {
+                      clearSeatsioSession();
+                      setHoldTokenData(null);
+                      setChartError(
+                        'La reserva temporal de asientos expiró. Selecciónalos de nuevo.'
+                      );
+                    }}
+                    onObjectSelected={handleSeatSelected}
+                    onObjectDeselected={handleSeatDeselected}
+                    onChartRenderingFailed={(chart, error) => {
+                      console.error(
+                        '[SeatsSelectionPage] Seats.io render error:',
+                        error
+                      );
+                      setChartReady(false);
+                      setChartError(
+                        error?.message || 'Error cargando el mapa de Seats.io.'
+                      );
+                    }}
+                    fitTo="width"
+                    maxSelectedObjects={10}
+                  />
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-4 mt-6 pt-6 border-t border-white/10">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 rounded bg-[#007AFF]" />
@@ -299,18 +691,16 @@ const SeatsSelectionPage = () => {
             </div>
           </div>
 
-          {/* RIGHT COLUMN - Selection Panel */}
           <div className="lg:col-span-1">
             <div className="sticky top-40">
               <div className="bg-[#121212] rounded-3xl border border-white/10 p-6 shadow-2xl">
-                <h3 
+                <h3
                   className="text-xl font-bold text-white mb-4 tracking-tight"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   Tus asientos seleccionados
                 </h3>
 
-                {/* Selected Seats List */}
                 <div className="space-y-3 mb-6 min-h-[200px]">
                   {selectedSeats.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -323,7 +713,7 @@ const SeatsSelectionPage = () => {
                     </div>
                   ) : (
                     selectedSeats.map((seat) => (
-                      <div 
+                      <div
                         key={seat.id}
                         className="flex items-center justify-between p-3 bg-[#1E1E1E] rounded-xl border border-white/5"
                       >
@@ -331,14 +721,20 @@ const SeatsSelectionPage = () => {
                           <div className="text-white font-semibold text-sm">
                             Asiento {seat.number || seat.seat}
                           </div>
-                          <div className="text-white/50 text-xs">{seat.section} - Fila {seat.row}</div>
+                          <div className="text-white/50 text-xs">
+                            {seat.section || 'Categoría'}
+                            {seat.row ? ` - Fila ${seat.row}` : ''}
+                          </div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <span className="text-[#FF9500] font-bold">{formatPrice(seat.price)}</span>
+                          <span className="text-[#FF9500] font-bold">
+                            {formatPrice(seat.price)}
+                          </span>
                           <button
                             onClick={() => handleRemoveSeat(seat.id)}
                             className="p-1 hover:bg-white/10 rounded-full transition-colors"
                             data-testid={`remove-seat-${seat.id}`}
+                            type="button"
                           >
                             <X size={16} className="text-white/60" />
                           </button>
@@ -348,22 +744,27 @@ const SeatsSelectionPage = () => {
                   )}
                 </div>
 
-                {/* Pricing Summary */}
                 <div className="space-y-3 pt-4 border-t border-white/10 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-white/60">Subtotal</span>
-                    <span className="text-white font-semibold">{formatPrice(subtotal)}</span>
+                    <span className="text-white font-semibold">
+                      {formatPrice(subtotal)}
+                    </span>
                   </div>
+
                   {selectedSeats.length > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-white/60">Cargo por servicio</span>
-                      <span className="text-white font-semibold">{formatPrice(contextServiceFee)}</span>
+                      <span className="text-white font-semibold">
+                        {formatPrice(serviceFee)}
+                      </span>
                     </div>
                   )}
+
                   <div className="flex justify-between pt-3 border-t border-white/5">
                     <span className="text-white font-bold">Total</span>
-                    <span 
-                      className="text-2xl font-bold text-[#FF9500]" 
+                    <span
+                      className="text-2xl font-bold text-[#FF9500]"
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
                       {formatPrice(total)}
@@ -371,21 +772,27 @@ const SeatsSelectionPage = () => {
                   </div>
                 </div>
 
-                {/* Primary CTA */}
                 <button
                   onClick={handleContinueToSummary}
-                  disabled={selectedSeats.length === 0}
+                  disabled={!canContinueToSummary}
                   className="w-full py-4 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 mb-3"
                   data-testid="continue-to-payment-button"
+                  type="button"
                 >
                   Ver resumen de compra
                 </button>
 
-                {/* Secondary Action */}
+                {holdCallsInProgress && (
+                  <p className="text-xs text-white/50 text-center mb-3">
+                    Espera un momento, asegurando asientos temporalmente...
+                  </p>
+                )}
+
                 <button
                   onClick={handleBackToEvent}
                   className="w-full py-3 text-white/70 hover:text-white font-semibold transition-colors flex items-center justify-center space-x-2"
                   data-testid="back-to-event-button"
+                  type="button"
                 >
                   <ChevronLeft size={18} />
                   <span>Volver al evento</span>
@@ -396,9 +803,7 @@ const SeatsSelectionPage = () => {
         </div>
       </div>
 
-      {/* Spacing before footer */}
       <div className="h-20" />
-
       <Footer />
     </div>
   );

@@ -1,236 +1,253 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { X, Minus, Plus, Ticket, Check } from 'lucide-react';
-import { getTicketOptions } from '../data/mockEvents';
-import { usePurchase } from '../context/PurchaseContext';
+import React, { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { usePurchase } from "../context/PurchaseContext";
+import api from "../api/api";
 
-// This component is ONLY for general admission events (saleType = "general")
-// Seated events should NOT use this component - they go directly to seat selection
-
-const TicketSelection = ({ event, onClose }) => {
+export default function TicketSelection({ event, onClose }) {
   const navigate = useNavigate();
-  const { updateTickets } = usePurchase();
-  const [selectedTickets, setSelectedTickets] = useState({});
-  const [step, setStep] = useState(1);
+  const { updateTickets, formatPrice } = usePurchase();
 
-  // Get ticket options (only available for general events)
-  const options = getTicketOptions(event.id);
+  const [pricingTypes, setPricingTypes] = useState([]);
 
-  const handleQuantityChange = (itemId, change) => {
-    setSelectedTickets(prev => {
-      const current = prev[itemId] || 0;
-      const newQuantity = Math.max(0, Math.min(10, current + change));
-      
-      if (newQuantity === 0) {
-        const newState = { ...prev };
-        delete newState[itemId];
-        return newState;
+  const selectedFunctionId = useMemo(() => {
+    return (
+      event?.selectedFunctionId ||
+      event?.functionId ||
+      event?.selectedFunction?.id ||
+      event?.activeFunction?.id ||
+      event?.function?.id ||
+      event?.functions?.[0]?.id ||
+      null
+    );
+  }, [event]);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      if (!selectedFunctionId) {
+        setPricingTypes([]);
+        return;
       }
-      
-      return { ...prev, [itemId]: newQuantity };
+
+      try {
+        const res = await api.get(
+          `/function-ticket-types/function/${selectedFunctionId}`
+        );
+
+        const raw = Array.isArray(res.data)
+          ? res.data
+          : res.data?.data || [];
+
+        const mapped = raw.map((p) => ({
+          id: p.ticketType?.id || p.ticketTypeId,
+          pricingId: p.id,
+          name: p.ticketType?.name || "Ticket",
+          price: Number(p.price) || 0,
+          serviceFee: Number(p.ticketType?.serviceFee || 0),
+          available:
+            p.available == null || Number(p.available) === 0
+              ? 999999
+              : Number(p.available),
+        }));
+
+        setPricingTypes(mapped);
+      } catch (err) {
+        console.error("Error loading function pricing", err);
+        setPricingTypes([]);
+      }
+    };
+
+    loadPricing();
+  }, [selectedFunctionId]);
+
+  const ticketTypes = useMemo(() => {
+    if (pricingTypes.length > 0) {
+      return pricingTypes;
+    }
+
+    const list = Array.isArray(event?.ticketTypes) ? event.ticketTypes : [];
+
+    return list.map((t) => ({
+      id: t.id,
+      pricingId: null,
+      name: t.name,
+      price: Number(t.price) || 0,
+      serviceFee: Number(t.serviceFee || 0),
+      available:
+        t.available == null || t.available === 0 ? 999999 : t.available,
+    }));
+  }, [event, pricingTypes]);
+
+  useEffect(() => {
+    console.log("[TicketSelection] event.id:", event?.id);
+    console.log("[TicketSelection] selectedFunctionId:", selectedFunctionId);
+    console.log("[TicketSelection] ticketTypes:", ticketTypes);
+  }, [event, selectedFunctionId, ticketTypes]);
+
+  const [qtyById, setQtyById] = useState({});
+
+  useEffect(() => {
+    const initial = {};
+    ticketTypes.forEach((t) => {
+      initial[t.id] = 0;
+    });
+    setQtyById(initial);
+  }, [ticketTypes]);
+
+  const increase = (id) => {
+    setQtyById((prev) => {
+      const current = prev[id] ?? 0;
+      const tt = ticketTypes.find((x) => x.id === id);
+      const max = tt?.available ?? 999999;
+      if (current >= max) return prev;
+      return { ...prev, [id]: current + 1 };
     });
   };
 
-  const getTotalTickets = () => {
-    return Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
+  const decrease = (id) => {
+    setQtyById((prev) => {
+      const current = prev[id] ?? 0;
+      if (current <= 0) return prev;
+      return { ...prev, [id]: current - 1 };
+    });
   };
 
-  const getTotalPrice = () => {
-    let total = 0;
-    for (const itemId in selectedTickets) {
-      const item = options.find(o => o.id === itemId);
-      if (item) {
-        total += item.price * selectedTickets[itemId];
-      }
-    }
-    return total;
-  };
+  const selectedTicketsArray = useMemo(() => {
+    return ticketTypes
+      .map((t) => ({
+        id: t.id,
+        pricingId: t.pricingId,
+        name: t.name,
+        price: t.price,
+        serviceFee: t.serviceFee,
+        quantity: qtyById[t.id] ?? 0,
+      }))
+      .filter((t) => t.quantity > 0);
+  }, [ticketTypes, qtyById]);
+
+  const total = useMemo(() => {
+    return selectedTicketsArray.reduce((sum, t) => sum + t.price * t.quantity, 0);
+  }, [selectedTicketsArray]);
+
+  const canContinue = selectedTicketsArray.length > 0;
 
   const handleContinue = () => {
-    if (getTotalTickets() > 0) {
-      setStep(2);
-    }
-  };
-
-  const handleProceedToSummary = () => {
-    // Convert selected tickets to array format for context
-    const ticketsArray = Object.keys(selectedTickets).map(itemId => {
-      const item = options.find(o => o.id === itemId);
-      return {
-        id: itemId,
-        type: item.name,
-        name: item.name,
-        price: item.price,
-        quantity: selectedTickets[itemId]
-      };
-    }).filter(t => t.quantity > 0);
-
-    // Update context with selected tickets
-    updateTickets(ticketsArray);
-
-    // Close modal
-    onClose();
-
-    // General events go directly to purchase summary
+    updateTickets(selectedTicketsArray);
+    onClose?.();
     navigate(`/evento/${event.id}/resumen`);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#121212] rounded-3xl border border-white/10 w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
-        
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#121212] shadow-2xl overflow-hidden mx-auto mt-24"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-start justify-between p-6 border-b border-white/10">
           <div>
-            <h2 
-              className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+            <h2
+              className="text-2xl font-bold text-white"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              {step === 1 ? 'Seleccionar entradas' : 'Confirmar selección'}
+              Seleccionar entradas
             </h2>
-            <p className="text-white/60 text-sm mt-1">{event.title}</p>
+            <p className="text-white/60 text-sm mt-1">{event?.title}</p>
           </div>
+
           <button
             onClick={onClose}
-            className="p-2 text-white/60 hover:text-white rounded-full hover:bg-white/10 transition-all duration-200"
-            data-testid="close-ticket-selection"
+            className="text-white/60 hover:text-white transition-colors"
+            aria-label="Cerrar"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {step === 1 ? (
-            <div className="space-y-4">
-              <p className="text-white/70 text-sm mb-6">
-                Selecciona el tipo y cantidad de entradas que deseas.
-              </p>
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          <p className="text-white/60 text-sm">
+            Selecciona el tipo y cantidad de entradas que deseas.
+          </p>
 
-              {options.map((item) => (
-                <div 
-                  key={item.id}
-                  className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5 hover:border-white/20 transition-all duration-200"
-                  data-testid={`ticket-option-${item.id}`}
+          <div className="space-y-3">
+            {ticketTypes.length === 0 ? (
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm">
+                No hay tipos de tickets disponibles para este evento.
+              </div>
+            ) : (
+              ticketTypes.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        {item.name}
-                      </h3>
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span className="text-[#FF9500] font-bold text-xl">${item.price}</span>
-                        <span className="text-white/50">
-                          {item.available > 0 ? `${item.available} disponibles` : 'Agotado'}
-                        </span>
-                      </div>
+                  <div>
+                    <div className="text-white font-semibold">{t.name}</div>
+                    <div className="text-white/60 text-sm">
+                      {formatPrice ? formatPrice(t.price) : `$${t.price}`}
+                      <span className="ml-2 text-white/40">
+                        (Disp: {t.available === 999999 ? "—" : t.available})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => decrease(t.id)}
+                      className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold transition"
+                      aria-label={`Disminuir ${t.name}`}
+                    >
+                      -
+                    </button>
+
+                    <div className="w-8 text-center text-white font-semibold">
+                      {qtyById[t.id] ?? 0}
                     </div>
 
-                    {item.available > 0 && (
-                      <div className="flex items-center space-x-3">
-                        <button
-                          onClick={() => handleQuantityChange(item.id, -1)}
-                          disabled={!selectedTickets[item.id]}
-                          className="p-2 rounded-full bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-                          data-testid={`decrease-${item.id}`}
-                        >
-                          <Minus size={18} className="text-white" />
-                        </button>
-                        
-                        <span className="text-white font-bold w-8 text-center text-lg">
-                          {selectedTickets[item.id] || 0}
-                        </span>
-                        
-                        <button
-                          onClick={() => handleQuantityChange(item.id, 1)}
-                          disabled={selectedTickets[item.id] >= 10 || selectedTickets[item.id] >= item.available}
-                          className="p-2 rounded-full bg-[#007AFF] hover:bg-[#0056b3] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-                          data-testid={`increase-${item.id}`}
-                        >
-                          <Plus size={18} className="text-white" />
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => increase(t.id)}
+                      className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold transition"
+                      aria-label={`Aumentar ${t.name}`}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
-                  <Check className="text-[#007AFF]" size={20} />
-                  <span>Resumen de tu compra</span>
-                </h3>
-                
-                <div className="space-y-3">
-                  {Object.keys(selectedTickets).map((itemId) => {
-                    const qty = selectedTickets[itemId];
-                    const item = options.find(o => o.id === itemId);
-                    if (!item) return null;
-                    return (
-                      <div key={itemId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                        <div>
-                          <div className="text-white font-semibold">{item.name}</div>
-                          <div className="text-white/50 text-sm">{qty} x ${item.price}</div>
-                        </div>
-                        <div className="text-[#FF9500] font-bold">${item.price * qty}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              ))
+            )}
+          </div>
 
-              <div className="bg-[#007AFF]/10 border border-[#007AFF]/20 rounded-2xl p-4">
-                <p className="text-white/70 text-sm">
-                  Al continuar, serás redirigido al proceso de pago seguro para completar tu compra.
-                </p>
-              </div>
+          {/* Total */}
+          <div className="pt-4 border-t border-white/10">
+            <div className="text-white/50 text-xs uppercase tracking-wide mb-1">
+              Total
             </div>
-          )}
+            <div
+              className="text-3xl font-bold text-white"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              {formatPrice ? formatPrice(total) : `$${total}`}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-white/10 p-6 bg-[#0A0A0A]">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-white/50 text-sm uppercase tracking-wide">Total</div>
-              <div className="text-3xl font-bold text-white tracking-tight flex items-baseline space-x-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                <span>${getTotalPrice()}</span>
-                {getTotalTickets() > 0 && (
-                  <span className="text-base text-white/60 font-normal">
-                    ({getTotalTickets()} {getTotalTickets() === 1 ? 'entrada' : 'entradas'})
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            {step === 2 && (
-              <button
-                onClick={() => setStep(1)}
-                className="flex-1 px-6 py-3.5 bg-white/10 text-white font-semibold rounded-full hover:bg-white/20 transition-all duration-300 border border-white/10"
-                data-testid="back-button"
-              >
-                Volver
-              </button>
-            )}
-            
-            <button
-              onClick={step === 1 ? handleContinue : handleProceedToSummary}
-              disabled={getTotalTickets() === 0}
-              className="flex-1 px-6 py-3.5 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center space-x-2"
-              data-testid="continue-button"
-            >
-              <Ticket size={20} />
-              <span>{step === 1 ? 'Continuar' : 'Ver resumen'}</span>
-            </button>
-          </div>
+        <div className="p-6 border-t border-white/10">
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={!canContinue}
+            className="w-full px-8 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[0_8px_30px_rgba(0,122,255,0.6)] active:scale-95 tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Continuar
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default TicketSelection;
+}

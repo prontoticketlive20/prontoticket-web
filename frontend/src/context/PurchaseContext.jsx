@@ -1,10 +1,15 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import api from '../api/api';
 
-// Storage key for sessionStorage
+// Storage keys
 const PURCHASE_STATE_KEY = 'prontoticket_purchase_state';
+const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
+const GENERAL_PURCHASE_TIMER_KEY = 'prontoticket_general_purchase_timer';
 
-// Valid sale types - only these are allowed
+// Valid sale types
 const VALID_SALE_TYPES = ['seated', 'general'];
+const GENERAL_PURCHASE_DURATION_SECONDS = 10 * 60;
+const TIMER_WARNING_THRESHOLD_SECONDS = 60;
 
 // Currency configuration by country
 const CURRENCY_BY_COUNTRY = {
@@ -28,13 +33,11 @@ const TAX_RATES = {
   'Perú': 0.18
 };
 
-// Helper to safely get from sessionStorage
 const getStoredState = () => {
   try {
     const stored = sessionStorage.getItem(PURCHASE_STATE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Validate stored data has expected structure
       if (parsed && typeof parsed === 'object') {
         return {
           eventId: parsed.eventId || null,
@@ -51,7 +54,6 @@ const getStoredState = () => {
   return null;
 };
 
-// Helper to save to sessionStorage
 const saveState = (state) => {
   try {
     const toStore = {
@@ -67,7 +69,6 @@ const saveState = (state) => {
   }
 };
 
-// Helper to clear sessionStorage
 const clearStoredState = () => {
   try {
     sessionStorage.removeItem(PURCHASE_STATE_KEY);
@@ -76,31 +77,157 @@ const clearStoredState = () => {
   }
 };
 
+const getStoredSeatsioSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SEATSIO_SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearStoredSeatsioSession = () => {
+  try {
+    sessionStorage.removeItem(SEATSIO_SESSION_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+const getStoredGeneralTimer = () => {
+  try {
+    const raw = sessionStorage.getItem(GENERAL_PURCHASE_TIMER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveGeneralTimer = (data) => {
+  try {
+    sessionStorage.setItem(GENERAL_PURCHASE_TIMER_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+};
+
+const clearGeneralTimer = () => {
+  try {
+    sessionStorage.removeItem(GENERAL_PURCHASE_TIMER_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 const PurchaseContext = createContext(null);
 
-export const PurchaseProvider = ({ children }) => {
-  // Initialize state from sessionStorage if available
-  const storedState = getStoredState();
-  
-  // Selected event data (full event object, not persisted - loaded from mockEvents)
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  
-  // Selected function (for multi-function events) - persisted
-  const [selectedFunction, setSelectedFunction] = useState(storedState?.selectedFunction || null);
-  
-  // Selected tickets array - persisted
-  const [selectedTickets, setSelectedTickets] = useState(storedState?.selectedTickets || []);
-  
-  // Selected seats array - persisted
-  const [selectedSeats, setSelectedSeats] = useState(storedState?.selectedSeats || []);
-  
-  // Stored event ID for restoration
-  const [storedEventId] = useState(storedState?.eventId || null);
-  
-  // Service fee
-  const [serviceFee] = useState(150);
+const normalizeEventFromApi = (evt) => {
+  if (!evt) return null;
 
-  // Persist state to sessionStorage whenever it changes
+  const saleTypeRaw = evt.saleType || 'GENERAL';
+  const saleType = String(saleTypeRaw).toLowerCase();
+
+  const firstFunction = Array.isArray(evt.functions) && evt.functions.length > 0
+    ? evt.functions[0]
+    : null;
+
+  return {
+    ...evt,
+    saleType,
+    image: evt.imageUrl || evt.image || '',
+    imageUrl: evt.imageUrl || evt.image || '',
+    youtubeUrl: evt.youtubeUrl || '',
+    useExternalTicket: Boolean(evt.useExternalTicket),
+    externalTicketUrl: evt.externalTicketUrl || '',
+    venue: firstFunction?.venueName || evt.venueName || evt.venue || 'Venue',
+    city: firstFunction?.city || evt.city || 'Ciudad',
+    country: firstFunction?.country || evt.country || 'Estados Unidos',
+    location:
+      evt.location ||
+      [
+        firstFunction?.venueName || evt.venueName || evt.venue || '',
+        firstFunction?.city || evt.city || '',
+        firstFunction?.country || evt.country || ''
+      ]
+        .filter(Boolean)
+        .join(', '),
+    date: firstFunction?.date
+      ? new Date(firstFunction.date).toLocaleDateString()
+      : evt.date || '',
+    time: firstFunction?.date
+      ? new Date(firstFunction.date).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : evt.time || '',
+    producerContact:
+      evt.producerEmail || evt.producerPhone
+        ? {
+            email: evt.producerEmail || '',
+            phone: evt.producerPhone || '',
+          }
+        : null,
+    functions: Array.isArray(evt.functions) ? evt.functions : [],
+    ticketTypes: Array.isArray(evt.ticketTypes) ? evt.ticketTypes : [],
+  };
+};
+
+export const PurchaseProvider = ({ children }) => {
+  const storedState = getStoredState();
+
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedFunction, setSelectedFunction] = useState(storedState?.selectedFunction || null);
+  const [selectedTickets, setSelectedTickets] = useState(storedState?.selectedTickets || []);
+  const [selectedSeats, setSelectedSeats] = useState(storedState?.selectedSeats || []);
+  const [storedEventId] = useState(storedState?.eventId || null);
+
+  const [purchaseTimer, setPurchaseTimer] = useState({
+    isActive: false,
+    isExpired: false,
+    isWarning: false,
+    timeRemaining: 0,
+    mode: null,
+    source: null,
+  });
+
+  const fetchEventById = useCallback(async (eventId) => {
+    if (!eventId) return null;
+
+    try {
+      const res = await api.get(`/events/${eventId}`);
+      return normalizeEventFromApi(res.data?.data || res.data);
+    } catch (e) {
+      try {
+        const res2 = await api.get('/events');
+        const list = res2.data?.data || res2.data || [];
+        const found = Array.isArray(list) ? list.find((x) => x.id === eventId) : null;
+        return normalizeEventFromApi(found);
+      } catch (e2) {
+        console.error('[PurchaseContext] Error cargando evento desde backend:', e2);
+        return null;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const restore = async () => {
+      if (!storedEventId) return;
+      if (selectedEvent?.id) return;
+      const evt = await fetchEventById(storedEventId);
+      if (mounted && evt) {
+        setSelectedEvent(evt);
+      }
+    };
+
+    restore();
+
+    return () => {
+      mounted = false;
+    };
+  }, [storedEventId, fetchEventById, selectedEvent?.id]);
+
   useEffect(() => {
     if (selectedEvent?.id) {
       saveState({
@@ -112,110 +239,136 @@ export const PurchaseProvider = ({ children }) => {
     }
   }, [selectedEvent, selectedFunction, selectedTickets, selectedSeats]);
 
-  // Validate saleType helper
   const isValidSaleType = useCallback((saleType) => {
     return VALID_SALE_TYPES.includes(saleType);
   }, []);
 
-  // Set the current event with validation
-  // Restore persisted selections if returning to the same event
   const selectEvent = useCallback((event) => {
-    if (event && !isValidSaleType(event.saleType)) {
+    const normalized = normalizeEventFromApi(event);
+
+    if (normalized && !isValidSaleType(normalized.saleType)) {
       console.error(
-        `[ProntoTicketLive Context] Invalid saleType for event "${event.title}".`,
-        `\nReceived: "${event.saleType}"`,
+        `[ProntoTicketLive Context] Invalid saleType for event "${normalized.title}".`,
+        `\nReceived: "${normalized.saleType}"`,
         `\nExpected: "seated" | "general"`
       );
     }
-    
-    setSelectedEvent(prevEvent => {
-      const isSameEvent = prevEvent?.id === event?.id;
-      const isRestoringFromStorage = !prevEvent && storedEventId === event?.id;
-      
-      // Only reset selections if switching to a DIFFERENT event
-      // AND not restoring from storage
+
+    setSelectedEvent((prevEvent) => {
+      const isSameEvent = prevEvent?.id === normalized?.id;
+      const isRestoringFromStorage = !prevEvent && storedEventId === normalized?.id;
+
       if (!isSameEvent && !isRestoringFromStorage) {
         setSelectedFunction(null);
         setSelectedTickets([]);
         setSelectedSeats([]);
-        // Clear storage when switching events
-        if (event?.id) {
+
+        clearGeneralTimer();
+        clearStoredSeatsioSession();
+
+        if (normalized?.id) {
           saveState({
-            eventId: event.id,
+            eventId: normalized.id,
             selectedFunction: null,
             selectedTickets: [],
             selectedSeats: []
           });
         }
       }
-      
-      return event;
+
+      return normalized;
     });
   }, [isValidSaleType, storedEventId]);
 
-  // Set the selected function
+  const selectEventById = useCallback(async (eventId) => {
+    const evt = await fetchEventById(eventId);
+    if (evt) selectEvent(evt);
+    return evt;
+  }, [fetchEventById, selectEvent]);
+
   const selectFunction = useCallback((func) => {
     setSelectedFunction(func);
   }, []);
 
-  // Update tickets selection (for general events only)
   const updateTickets = useCallback((tickets) => {
     setSelectedTickets(tickets);
   }, []);
 
-  // Update seats selection (for seated events only)
   const updateSeats = useCallback((seats) => {
     setSelectedSeats(seats);
   }, []);
 
-  // Add a single seat (for seated events)
   const addSeat = useCallback((seat) => {
-    setSelectedSeats(prev => [...prev, seat]);
+    setSelectedSeats((prev) => {
+      const exists = prev.some((s) => String(s.id) === String(seat.id));
+      if (exists) return prev;
+      return [...prev, seat];
+    });
   }, []);
 
-  // Remove a seat by id (for seated events)
   const removeSeat = useCallback((seatId) => {
-    setSelectedSeats(prev => prev.filter(s => s.id !== seatId));
+    setSelectedSeats((prev) => prev.filter((s) => String(s.id) !== String(seatId)));
   }, []);
 
-  // Clear all selections and storage
   const clearPurchase = useCallback(() => {
     setSelectedEvent(null);
     setSelectedFunction(null);
     setSelectedTickets([]);
     setSelectedSeats([]);
     clearStoredState();
+    clearStoredSeatsioSession();
+    clearGeneralTimer();
+    setPurchaseTimer({
+      isActive: false,
+      isExpired: false,
+      isWarning: false,
+      timeRemaining: 0,
+      mode: null,
+      source: null,
+    });
   }, []);
 
-  // Get currency based on event country
+  const expirePurchase = useCallback(() => {
+    setSelectedFunction(null);
+    setSelectedTickets([]);
+    setSelectedSeats([]);
+    clearStoredState();
+    clearStoredSeatsioSession();
+    clearGeneralTimer();
+    setPurchaseTimer({
+      isActive: false,
+      isExpired: true,
+      isWarning: false,
+      timeRemaining: 0,
+      mode: null,
+      source: null,
+    });
+  }, []);
+
   const getCurrency = useCallback(() => {
     if (!selectedEvent?.country) {
-      return CURRENCY_BY_COUNTRY['México'];
+      return CURRENCY_BY_COUNTRY['Estados Unidos'];
     }
-    return CURRENCY_BY_COUNTRY[selectedEvent.country] || CURRENCY_BY_COUNTRY['México'];
+    return CURRENCY_BY_COUNTRY[selectedEvent.country] || CURRENCY_BY_COUNTRY['Estados Unidos'];
   }, [selectedEvent]);
 
-  // Get tax rate based on event country
   const getTaxRate = useCallback(() => {
     if (!selectedEvent?.country) {
-      return TAX_RATES['México'];
+      return TAX_RATES['Estados Unidos'];
     }
-    return TAX_RATES[selectedEvent.country] || TAX_RATES['México'];
+    return TAX_RATES[selectedEvent.country] || TAX_RATES['Estados Unidos'];
   }, [selectedEvent]);
 
-  // Calculate subtotal from tickets (general events)
   const getTicketsSubtotal = useCallback(() => {
     return selectedTickets.reduce((sum, ticket) => {
-      return sum + (ticket.price * ticket.quantity);
+      return sum + (Number(ticket.price || 0) * Number(ticket.quantity || 0));
     }, 0);
   }, [selectedTickets]);
 
-  // Calculate subtotal from seats (seated events)
   const getSeatsSubtotal = useCallback(() => {
-    return selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+    return selectedSeats.reduce((sum, seat) => sum + Number(seat.price || 0), 0);
   }, [selectedSeats]);
 
-  // Get total subtotal based on saleType
   const getSubtotal = useCallback(() => {
     if (selectedEvent?.saleType === 'seated') {
       return getSeatsSubtotal();
@@ -223,41 +376,159 @@ export const PurchaseProvider = ({ children }) => {
     return getTicketsSubtotal();
   }, [selectedEvent, getTicketsSubtotal, getSeatsSubtotal]);
 
-  // Calculate tax
+  const getServiceFee = useCallback(() => {
+    if (selectedEvent?.saleType === 'seated') {
+      return selectedSeats.reduce((sum, seat) => {
+        return sum + Number(seat.serviceFee || 0);
+      }, 0);
+    }
+
+    return selectedTickets.reduce((sum, ticket) => {
+      const fee = Number(ticket.serviceFee || 0);
+      const qty = Number(ticket.quantity || 0);
+      return sum + (fee * qty);
+    }, 0);
+  }, [selectedEvent, selectedSeats, selectedTickets]);
+
   const getTax = useCallback(() => {
     const subtotal = getSubtotal();
     const taxRate = getTaxRate();
     return Math.round(subtotal * taxRate);
   }, [getSubtotal, getTaxRate]);
 
-  // Calculate total
   const getTotal = useCallback(() => {
     const subtotal = getSubtotal();
     const tax = getTax();
-    const hasItems = subtotal > 0;
-    return subtotal + (hasItems ? serviceFee : 0) + tax;
-  }, [getSubtotal, getTax, serviceFee]);
+    const fee = getServiceFee();
+    return subtotal + fee + tax;
+  }, [getSubtotal, getTax, getServiceFee]);
 
-  // Format price with currency
   const formatPrice = useCallback((amount) => {
     const currency = getCurrency();
-    return `${currency.symbol}${amount.toLocaleString()}`;
+    return `${currency.symbol}${Number(amount || 0).toLocaleString()}`;
   }, [getCurrency]);
 
-  // Check if purchase is ready (has selections based on saleType)
   const isPurchaseReady = useCallback(() => {
     if (selectedEvent?.saleType === 'seated') {
       return selectedSeats.length > 0;
     }
-    return selectedTickets.some(t => t.quantity > 0);
+    return selectedTickets.some((t) => Number(t.quantity || 0) > 0);
   }, [selectedEvent, selectedSeats, selectedTickets]);
 
-  // Get stored event ID (for restoration on page load)
   const getStoredEventId = useCallback(() => {
     return storedEventId;
   }, [storedEventId]);
 
-  // Get purchase summary data
+  const formatTimer = useCallback((seconds) => {
+    const safeSeconds = Math.max(0, Number(seconds || 0));
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  }, []);
+
+  useEffect(() => {
+    const hasGeneralSelections =
+      selectedTickets && selectedTickets.some((t) => Number(t.quantity || 0) > 0);
+
+    if (selectedEvent?.saleType === 'general' && hasGeneralSelections) {
+      const stored = getStoredGeneralTimer();
+
+      if (!stored?.expiresAt || stored?.eventId !== selectedEvent?.id) {
+        saveGeneralTimer({
+          eventId: selectedEvent?.id,
+          expiresAt: Date.now() + GENERAL_PURCHASE_DURATION_SECONDS * 1000,
+        });
+      }
+    } else {
+      clearGeneralTimer();
+    }
+  }, [selectedEvent?.saleType, selectedEvent?.id, selectedTickets]);
+
+  useEffect(() => {
+    const tick = () => {
+      const hasSeatSelections = selectedSeats.length > 0;
+      const hasTicketSelections = selectedTickets.some((t) => Number(t.quantity || 0) > 0);
+
+      if (selectedEvent?.saleType === 'seated' && hasSeatSelections) {
+        const seatsioSession = getStoredSeatsioSession();
+
+        if (!seatsioSession?.expiresAt) {
+          setPurchaseTimer({
+            isActive: false,
+            isExpired: false,
+            isWarning: false,
+            timeRemaining: 0,
+            mode: 'seated',
+            source: 'seatsio',
+          });
+          return;
+        }
+
+        const remaining = Math.max(
+          0,
+          Math.floor((new Date(seatsioSession.expiresAt).getTime() - Date.now()) / 1000)
+        );
+
+        setPurchaseTimer({
+          isActive: remaining > 0,
+          isExpired: remaining <= 0,
+          isWarning: remaining > 0 && remaining <= TIMER_WARNING_THRESHOLD_SECONDS,
+          timeRemaining: remaining,
+          mode: 'seated',
+          source: 'seatsio',
+        });
+
+        return;
+      }
+
+      if (selectedEvent?.saleType === 'general' && hasTicketSelections) {
+        const generalTimer = getStoredGeneralTimer();
+
+        if (!generalTimer?.expiresAt) {
+          setPurchaseTimer({
+            isActive: false,
+            isExpired: false,
+            isWarning: false,
+            timeRemaining: 0,
+            mode: 'general',
+            source: 'app',
+          });
+          return;
+        }
+
+        const remaining = Math.max(
+          0,
+          Math.floor((Number(generalTimer.expiresAt) - Date.now()) / 1000)
+        );
+
+        setPurchaseTimer({
+          isActive: remaining > 0,
+          isExpired: remaining <= 0,
+          isWarning: remaining > 0 && remaining <= TIMER_WARNING_THRESHOLD_SECONDS,
+          timeRemaining: remaining,
+          mode: 'general',
+          source: 'app',
+        });
+
+        return;
+      }
+
+      setPurchaseTimer({
+        isActive: false,
+        isExpired: false,
+        isWarning: false,
+        timeRemaining: 0,
+        mode: selectedEvent?.saleType || null,
+        source: null,
+      });
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedEvent?.saleType, selectedSeats, selectedTickets]);
+
   const getPurchaseSummary = useCallback(() => {
     const currency = getCurrency();
     const taxRate = getTaxRate();
@@ -276,7 +547,7 @@ export const PurchaseProvider = ({ children }) => {
       currency,
       taxRate,
       subtotal,
-      serviceFee: hasItems ? serviceFee : 0,
+      serviceFee: hasItems ? getServiceFee() : 0,
       tax,
       total,
       isPurchaseReady: isPurchaseReady()
@@ -284,42 +555,49 @@ export const PurchaseProvider = ({ children }) => {
   }, [
     selectedEvent,
     storedEventId,
-    selectedFunction, 
-    selectedTickets, 
+    selectedFunction,
+    selectedTickets,
     selectedSeats,
     getCurrency,
     getTaxRate,
     getSubtotal,
     getTax,
     getTotal,
-    serviceFee,
+    getServiceFee,
     isPurchaseReady
   ]);
 
+  const timerLabel = useMemo(() => formatTimer(purchaseTimer.timeRemaining), [
+    purchaseTimer.timeRemaining,
+    formatTimer
+  ]);
+
   const value = {
-    // State
     selectedEvent,
     selectedFunction,
     selectedTickets,
     selectedSeats,
-    serviceFee,
-    
-    // Actions
+    purchaseTimer,
+    timerLabel,
+
     selectEvent,
+    selectEventById,
     selectFunction,
     updateTickets,
     updateSeats,
     addSeat,
     removeSeat,
     clearPurchase,
-    
-    // Computed
+    expirePurchase,
+
     getCurrency,
     getTaxRate,
     getSubtotal,
+    getServiceFee,
     getTax,
     getTotal,
     formatPrice,
+    formatTimer,
     isPurchaseReady,
     getPurchaseSummary,
     getStoredEventId
@@ -332,7 +610,6 @@ export const PurchaseProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use purchase context
 export const usePurchase = () => {
   const context = useContext(PurchaseContext);
   if (!context) {

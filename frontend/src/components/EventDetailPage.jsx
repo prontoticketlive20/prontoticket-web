@@ -4,125 +4,224 @@ import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
 import FunctionSelector from './FunctionSelector';
-import { Calendar, MapPin, Clock, Users, Info, AlertCircle, Mail, Phone, AlertTriangle } from 'lucide-react';
-import { mockEvents, getEventPolicies } from '../data/mockEvents';
+import { fetchEventById } from '../services/events.service';
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  Info,
+  AlertCircle,
+  Mail,
+  Phone,
+  AlertTriangle,
+} from 'lucide-react';
+
 import { usePurchase } from '../context/PurchaseContext';
 
-// Valid sale types
 const VALID_SALE_TYPES = ['seated', 'general'];
+
+const DEFAULT_POLICIES = [
+  'El boleto es personal e intransferible',
+  'No se permiten cámaras profesionales',
+  'Prohibido el ingreso de alimentos y bebidas',
+];
+
+const FALLBACK_EVENT = (id) => ({
+  id,
+  title: 'Evento no disponible',
+  description: 'No se pudo cargar el evento desde el backend.',
+  saleType: 'general',
+  image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=1200',
+  date: '',
+  time: '',
+  venue: '',
+  location: '',
+  city: '',
+  country: 'México',
+  startingPrice: 0,
+  ageLimit: 'Todas las edades',
+  doors: '—',
+  duration: '—',
+  youtubeUrl: '',
+  useExternalTicket: false,
+  externalTicketUrl: '',
+  producerContact: null,
+  functions: [],
+  ticketTypes: [],
+});
+
+const getYoutubeEmbedUrl = (url) => {
+  if (!url) return '';
+
+  try {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.hostname.includes('youtu.be')) {
+      const videoId = parsedUrl.pathname.replace('/', '').trim();
+      return videoId
+        ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&showinfo=0`
+        : '';
+    }
+
+    if (parsedUrl.hostname.includes('youtube.com')) {
+      const videoId = parsedUrl.searchParams.get('v');
+      return videoId
+        ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&showinfo=0`
+        : '';
+    }
+
+    return '';
+  } catch {
+    return '';
+  }
+};
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
-  
+
+  const [event, setEvent] = useState(null);
+  const [policies, setPolicies] = useState(DEFAULT_POLICIES);
+
   const { selectEvent, selectFunction: setContextFunction } = usePurchase();
-  
-  const event = mockEvents[id] || mockEvents['1'];
-  const policies = getEventPolicies(id || '1');
-  
-  // Validate saleType
-  const hasValidSaleType = VALID_SALE_TYPES.includes(event.saleType);
-  const isSeatedEvent = event.saleType === 'seated';
-  const isGeneralEvent = event.saleType === 'general';
-  
-  // Developer warning for invalid saleType
+
   useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const normalized = await fetchEventById(id);
+        console.log("EVENT NORMALIZED:", normalized);
+        if (!mounted) return;
+
+        setEvent(normalized);
+        selectEvent(normalized);
+        setPolicies(DEFAULT_POLICIES);
+
+        if (normalized?.functions?.length === 1) {
+          const singleFunc = normalized.functions[0];
+          setSelectedFunction(singleFunc);
+          setContextFunction(singleFunc);
+        } else {
+          setSelectedFunction(null);
+        }
+      } catch (e) {
+        console.error('[EventDetailPage] Error cargando evento desde backend:', e);
+        if (!mounted) return;
+
+        const fallback = FALLBACK_EVENT(id);
+        setEvent(fallback);
+        selectEvent(fallback);
+        setPolicies(DEFAULT_POLICIES);
+      }
+    };
+
+    if (id) load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, selectEvent, setContextFunction]);
+
+  const saleType = event?.saleType;
+  const hasValidSaleType = event ? VALID_SALE_TYPES.includes(saleType) : true;
+  const isSeatedEvent = saleType === 'seated';
+  const isGeneralEvent = saleType === 'general';
+  const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
+  const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
+  const canProceed =
+    !!event && hasValidSaleType && (hasSingleFunction || selectedFunction !== null);
+
+  const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
+
+  useEffect(() => {
+    if (!event) return;
     if (!hasValidSaleType) {
       console.error(
-        `[ProntoTicketLive] Invalid or missing saleType for event "${event.title}" (ID: ${event.id}).`,
+        `[ProntoTicketLive] Invalid saleType for event "${event.title}" (ID: ${event.id}).`,
         `\nReceived: "${event.saleType}"`,
         `\nExpected: "seated" | "general"`,
         `\nPurchase flow is BLOCKED until this is fixed.`
       );
     }
   }, [event, hasValidSaleType]);
-  
-  const hasMultipleFunctions = event.functions && event.functions.length > 1;
-  const hasSingleFunction = event.functions && event.functions.length === 1;
-  
-  // Auto-select function if event has only one
-  useEffect(() => {
-    if (hasSingleFunction && !selectedFunction) {
-      const singleFunc = event.functions[0];
-      setSelectedFunction(singleFunc);
-      setContextFunction(singleFunc);
-    }
-  }, [hasSingleFunction, selectedFunction, event.functions, setContextFunction]);
-  
-  // Can only proceed if saleType is valid AND (single function auto-selected OR function manually selected)
-  const canProceed = hasValidSaleType && (hasSingleFunction || selectedFunction !== null);
 
-  // Set event in context when component mounts or id changes
   useEffect(() => {
-    selectEvent(event);
-  }, [id, event, selectEvent]);
-
-  // Update context when function is selected
-  useEffect(() => {
+    if (!event) return;
     if (selectedFunction) {
       setContextFunction(selectedFunction);
     }
-  }, [selectedFunction, setContextFunction]);
+  }, [event, selectedFunction, setContextFunction]);
 
   const handleSelectTickets = () => {
-    // Block if saleType is invalid
+    if (!event) return;
+
+    if (event.useExternalTicket && event.externalTicketUrl) {
+      window.open(event.externalTicketUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     if (!hasValidSaleType) {
       console.error('[ProntoTicketLive] Purchase blocked: Invalid saleType');
       return;
     }
-    
+
     if (!canProceed) return;
-    
-    // Ensure function is set in context before navigation
+
     if (selectedFunction) {
       setContextFunction(selectedFunction);
     }
-    
-    // ONLY ONE flow can execute based on saleType
+
     if (isSeatedEvent) {
-      // Seated events: Go directly to seat selection (no ticket modal)
       navigate(`/evento/${id}/asientos`);
     } else if (isGeneralEvent) {
-      // General events: Show ticket type/quantity selection modal
       setShowTicketSelection(true);
     }
   };
 
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A]">
+        <Header />
+        <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
+          Cargando evento...
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <Header />
-      
-      {/* Event Hero */}
+
       <div className="relative h-[50vh] min-h-[400px] mt-20">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url('${event.image}')` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent" />
       </div>
 
-      {/* Event Content */}
       <div className="relative -mt-32 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-[#121212] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-            
-            {/* Event Cover Image */}
             <div className="relative w-full aspect-[21/9] overflow-hidden">
-              <img 
-                src={event.image} 
+              <img
+                src={event.image}
                 alt={event.title}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-black/20" />
             </div>
 
-            {/* Event Content */}
             <div className="p-8 md:p-12">
-              {/* Event Header */}
               <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
-                <h1 
+                <h1
                   className="text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   data-testid="event-title"
@@ -174,36 +273,35 @@ const EventDetailPage = () => {
                   </div>
                   <button
                     onClick={handleSelectTickets}
-                    disabled={!canProceed}
+                    disabled={!event.useExternalTicket && !canProceed}
                     className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[0_8px_30px_rgba(0,122,255,0.6)] active:scale-95 tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
                     data-testid="select-tickets-button"
                   >
-                    {isSeatedEvent ? 'Seleccionar asientos' : 'Seleccionar entradas'}
+                    {event.useExternalTicket
+                      ? 'Comprar en sitio oficial'
+                      : isSeatedEvent
+                      ? 'Seleccionar asientos'
+                      : 'Seleccionar entradas'}
                   </button>
                 </div>
 
-                {/* Developer Warning - Invalid saleType */}
                 {!hasValidSaleType && (
-                  <div 
-                    className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start space-x-3"
-                    data-testid="invalid-saletype-warning"
-                  >
+                  <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start space-x-3">
                     <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-red-400 font-bold text-sm">⚠️ Developer Warning</p>
                       <p className="text-red-300/80 text-xs mt-1">
-                        Invalid or missing <code className="bg-red-500/30 px-1 rounded">saleType</code> for this event.
-                        Expected: <code className="bg-red-500/30 px-1 rounded">"seated"</code> or <code className="bg-red-500/30 px-1 rounded">"general"</code>.
-                        Received: <code className="bg-red-500/30 px-1 rounded">"{event.saleType || 'undefined'}"</code>.
-                        Purchase flow is blocked.
+                        Invalid <code className="bg-red-500/30 px-1 rounded">saleType</code>. Expected{' '}
+                        <code className="bg-red-500/30 px-1 rounded">seated</code> o{' '}
+                        <code className="bg-red-500/30 px-1 rounded">general</code>.
+                        Received: <code className="bg-red-500/30 px-1 rounded">{String(event.saleType)}</code>.
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Function Selector - Only shown for multi-function events with valid saleType */}
-              {hasValidSaleType && hasMultipleFunctions && (
+              {hasValidSaleType && hasMultipleFunctions && !event.useExternalTicket && (
                 <FunctionSelector
                   functions={event.functions}
                   selectedFunction={selectedFunction}
@@ -211,12 +309,8 @@ const EventDetailPage = () => {
                 />
               )}
 
-              {/* Description */}
               <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
-                <h2 
-                  className="text-2xl font-bold text-white tracking-tight"
-                  style={{ fontFamily: "'Outfit', sans-serif" }}
-                >
+                <h2 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   Descripción del evento
                 </h2>
                 <p className="text-white/70 leading-relaxed text-base">
@@ -224,7 +318,6 @@ const EventDetailPage = () => {
                 </p>
               </div>
 
-              {/* Info Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b border-white/10">
                 <div className="flex items-start space-x-3">
                   <Clock className="text-[#007AFF] flex-shrink-0 mt-1" size={18} strokeWidth={2} />
@@ -251,12 +344,8 @@ const EventDetailPage = () => {
                 </div>
               </div>
 
-              {/* Policies */}
               <div className="space-y-4 mb-8 pb-8 border-b border-white/10">
-                <h3 
-                  className="text-xl font-bold text-white tracking-tight flex items-center space-x-2"
-                  style={{ fontFamily: "'Outfit', sans-serif" }}
-                >
+                <h3 className="text-xl font-bold text-white tracking-tight flex items-center space-x-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   <AlertCircle className="text-[#FF9500]" size={22} strokeWidth={2} />
                   <span>Políticas del evento</span>
                 </h3>
@@ -270,7 +359,6 @@ const EventDetailPage = () => {
                 </ul>
               </div>
 
-              {/* Producer Contact */}
               {event.producerContact && (
                 <div className="space-y-3 mb-8 pb-8 border-b border-white/10">
                   <p className="text-sm text-white/60 tracking-wide">
@@ -279,7 +367,7 @@ const EventDetailPage = () => {
                   <div className="space-y-2">
                     <div className="flex items-center space-x-3">
                       <Mail size={16} className="text-[#007AFF] flex-shrink-0" strokeWidth={2} />
-                      <a 
+                      <a
                         href={`mailto:${event.producerContact.email}`}
                         className="text-white/70 hover:text-[#007AFF] transition-colors duration-200 text-sm"
                       >
@@ -288,7 +376,7 @@ const EventDetailPage = () => {
                     </div>
                     <div className="flex items-center space-x-3">
                       <Phone size={16} className="text-[#FF9500] flex-shrink-0" strokeWidth={2} />
-                      <a 
+                      <a
                         href={`tel:${event.producerContact.phone}`}
                         className="text-white/70 hover:text-[#FF9500] transition-colors duration-200 text-sm"
                       >
@@ -299,50 +387,46 @@ const EventDetailPage = () => {
                 </div>
               )}
 
-              {/* Promotional Video */}
-              <div className="space-y-4">
-                <h3 
-                  className="text-xl font-bold text-white tracking-tight"
-                  style={{ fontFamily: "'Outfit', sans-serif" }}
-                >
-                  Video promocional del evento
-                </h3>
-                <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1E1E1E] border border-white/10">
-                  <iframe
-                    src={`https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&showinfo=0`}
-                    title="Video promocional del evento"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 w-full h-full"
-                    data-testid="event-promo-video"
-                  />
+              {youtubeEmbedUrl ? (
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Video promocional del evento
+                  </h3>
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1E1E1E] border border-white/10">
+                    <iframe
+                      src={youtubeEmbedUrl}
+                      title="Video promocional del evento"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 w-full h-full"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
 
-          {/* Mobile Sticky CTA */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-white/10 p-4 z-40">
             <button
               onClick={handleSelectTickets}
-              disabled={!canProceed}
+              disabled={!event.useExternalTicket && !canProceed}
               className="w-full px-8 py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white text-base font-bold rounded-full shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
-              data-testid="mobile-select-tickets-button"
             >
-              {isSeatedEvent ? 'Seleccionar asientos' : 'Seleccionar entradas'}
+              {event.useExternalTicket
+                ? 'Comprar en sitio oficial'
+                : isSeatedEvent
+                ? 'Seleccionar asientos'
+                : 'Seleccionar entradas'}
             </button>
           </div>
         </div>
       </div>
 
       <div className="h-20" />
-
       <Footer />
 
-      {/* Ticket Selection Modal - ONLY for general events with valid saleType */}
-      {/* This ensures only ONE purchase flow is ever rendered */}
-      {showTicketSelection && isGeneralEvent && hasValidSaleType && (
-        <TicketSelection 
+      {showTicketSelection && isGeneralEvent && hasValidSaleType && !event.useExternalTicket && (
+        <TicketSelection
           event={event}
           onClose={() => setShowTicketSelection(false)}
         />

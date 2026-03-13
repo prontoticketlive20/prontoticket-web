@@ -1,16 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { 
-  Calendar, Clock, MapPin, Ticket, ChevronLeft, CreditCard, 
-  Globe, Building2, User, Mail, Phone, AlertTriangle, Check,
-  ShoppingCart, Lock, Loader2, Apple, Wallet
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  ChevronLeft,
+  CreditCard,
+  User,
+  Mail,
+  Phone,
+  AlertTriangle,
+  Check,
+  ShoppingCart,
+  Lock,
+  Loader2,
+  Apple,
+  Wallet
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
-import { mockEvents } from '../data/mockEvents';
+import { createGuestOrder } from '../services/orders.service';
 
-// Mock user data - simulates logged in user
 const MOCK_LOGGED_IN_USER = {
   id: 'user-123',
   firstName: 'Juan',
@@ -21,10 +32,17 @@ const MOCK_LOGGED_IN_USER = {
 };
 
 const IS_USER_LOGGED_IN = true;
+const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
 
-// Stripe Payment Element Mock Component
-// This simulates Stripe Payment Element UI for development
-// Will be replaced with actual @stripe/react-stripe-js when API keys are configured
+const getStoredSeatsioSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SEATSIO_SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -32,7 +50,6 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
   const [cardError, setCardError] = useState('');
   const [isReady, setIsReady] = useState(false);
 
-  // Simulate Stripe Element becoming ready
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsReady(true);
@@ -41,7 +58,6 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
     return () => clearTimeout(timer);
   }, [onReady]);
 
-  // Format card number with spaces
   const formatCardNumber = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
@@ -53,7 +69,6 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
     return parts.length ? parts.join(' ') : v;
   };
 
-  // Format expiry date
   const formatExpiry = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     if (v.length >= 2) {
@@ -95,36 +110,36 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
 
   return (
     <div className={`space-y-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      {/* Payment Method Tabs - Simulating Stripe's automatic display */}
       <div className="flex space-x-2 mb-4">
-        <button 
+        <button
           className="flex-1 py-2.5 px-4 bg-[#007AFF]/10 border-2 border-[#007AFF] rounded-lg flex items-center justify-center space-x-2 text-white text-sm font-medium"
           disabled={disabled}
+          type="button"
         >
           <CreditCard size={16} />
           <span>Tarjeta</span>
         </button>
-        <button 
+        <button
           className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm hover:border-white/20 transition-colors"
           disabled={disabled}
           title="Apple Pay disponible en dispositivos compatibles"
+          type="button"
         >
           <Apple size={16} />
           <span>Apple Pay</span>
         </button>
-        <button 
+        <button
           className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm hover:border-white/20 transition-colors"
           disabled={disabled}
           title="Otros métodos según país"
+          type="button"
         >
           <Wallet size={16} />
           <span>Más</span>
         </button>
       </div>
 
-      {/* Card Input Fields */}
       <div className="space-y-3">
-        {/* Card Number */}
         <div>
           <label className="block text-white/60 text-xs mb-1.5">Número de tarjeta</label>
           <div className="relative">
@@ -137,15 +152,9 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
               className="w-full px-4 py-3 bg-[#1E1E1E] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all font-mono"
               data-testid="stripe-card-number"
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex space-x-1">
-              <img src="https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg" alt="Visa" className="h-5" />
-              <img src="https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg" alt="Mastercard" className="h-5" />
-              <img src="https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg" alt="Amex" className="h-5" />
-            </div>
           </div>
         </div>
 
-        {/* Expiry & CVC Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-white/60 text-xs mb-1.5">Vencimiento</label>
@@ -174,7 +183,6 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
         </div>
       </div>
 
-      {/* Error Message */}
       {cardError && (
         <div className="flex items-center space-x-2 text-red-400 text-sm">
           <AlertTriangle size={14} />
@@ -182,13 +190,10 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
         </div>
       )}
 
-      {/* Stripe Branding */}
       <div className="flex items-center justify-center space-x-1 pt-2">
         <Lock size={12} className="text-white/40" />
         <span className="text-white/40 text-xs">Pago seguro con</span>
-        <svg className="h-4" viewBox="0 0 60 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M59.64 14.28H56.55V7.13H59.64V14.28ZM53.65 7.13V8.61C52.9 7.44 51.72 6.9 50.36 6.9C47.62 6.9 45.37 9.24 45.37 12.16C45.37 15.08 47.62 17.42 50.36 17.42C51.72 17.42 52.9 16.88 53.65 15.71V17.19H56.55V7.13H53.65ZM51 14.62C49.66 14.62 48.52 13.56 48.52 12.16C48.52 10.76 49.66 9.7 51 9.7C52.35 9.7 53.49 10.76 53.49 12.16C53.49 13.56 52.35 14.62 51 14.62ZM42.65 6.9C41.32 6.9 40.29 7.45 39.65 8.33V7.13H36.76V17.19H39.85V11.52C39.85 10.19 40.75 9.5 41.84 9.5C43.02 9.5 43.72 10.19 43.72 11.47V17.19H46.81V10.85C46.81 8.49 45.26 6.9 42.65 6.9ZM32.95 7.13L30.62 13.89L28.21 7.13H24.87L28.95 17.19H32.12L36.26 7.13H32.95ZM21.58 14.62C20.24 14.62 19.1 13.56 19.1 12.16C19.1 10.76 20.24 9.7 21.58 9.7C22.93 9.7 24.07 10.76 24.07 12.16C24.07 13.56 22.93 14.62 21.58 14.62ZM24.23 7.13V8.61C23.48 7.44 22.3 6.9 20.94 6.9C18.2 6.9 15.95 9.24 15.95 12.16C15.95 15.08 18.2 17.42 20.94 17.42C22.3 17.42 23.48 16.88 24.23 15.71V17.19H27.12V7.13H24.23ZM11.38 17.42C13.92 17.42 15.47 16.21 15.47 14.12C15.47 10.04 9.38 11.3 9.38 9.66C9.38 9.18 9.85 8.76 10.88 8.76C11.97 8.76 13.18 9.21 14.17 9.88L15.14 7.59C14.04 6.84 12.39 6.45 10.89 6.45C8.44 6.45 6.66 7.72 6.66 9.79C6.66 13.84 12.75 12.58 12.75 14.25C12.75 14.79 12.2 15.11 11.21 15.11C9.86 15.11 8.4 14.52 7.39 13.73L6.37 16.02C7.53 16.93 9.49 17.42 11.38 17.42ZM3.08 4.51C3.08 3.45 2.2 2.59 1.09 2.59C-0.03 2.59 -0.9 3.45 -0.9 4.51C-0.9 5.57 -0.03 6.43 1.09 6.43C2.2 6.43 3.08 5.57 3.08 4.51ZM-0.4 17.19H2.69V7.13H-0.4V17.19Z" fill="#6772E5"/>
-        </svg>
+        <span className="text-white/40 text-xs font-bold">Stripe (mock)</span>
       </div>
     </div>
   );
@@ -197,20 +202,20 @@ const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
 const CheckoutPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const { 
+
+  const {
     selectedEvent,
     selectedFunction,
     selectedTickets,
     selectedSeats,
-    selectEvent,
     getPurchaseSummary,
     formatPrice,
-    getStoredEventId,
-    clearPurchase
+    clearPurchase,
+    expirePurchase,
+    purchaseTimer,
+    timerLabel
   } = usePurchase();
 
-  // Form state
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -218,24 +223,18 @@ const CheckoutPage = () => {
     phone: ''
   });
 
-  // Checkbox states
   const [purchaseAsGuest, setPurchaseAsGuest] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
-  
-  // Form validation errors
   const [errors, setErrors] = useState({});
-  
-  // User state
+
   const [isLoggedIn] = useState(IS_USER_LOGGED_IN);
   const [currentUser] = useState(IS_USER_LOGGED_IN ? MOCK_LOGGED_IN_USER : null);
 
-  // Payment state
   const [stripeReady, setStripeReady] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [checkoutLocked, setCheckoutLocked] = useState(false);
 
-  // Pre-fill form if user is logged in
   useEffect(() => {
     if (isLoggedIn && currentUser) {
       setFormData({
@@ -247,132 +246,195 @@ const CheckoutPage = () => {
     }
   }, [isLoggedIn, currentUser]);
 
-  // Restore event from mock if needed
-  useEffect(() => {
-    const storedEventId = getStoredEventId();
-    
-    if (!selectedEvent && id) {
-      const event = mockEvents[id];
-      if (event) {
-        selectEvent(event);
-      }
-    } else if (storedEventId && storedEventId !== id && !selectedEvent) {
-      navigate(`/evento/${storedEventId}/checkout`, { replace: true });
-    }
-  }, [id, selectedEvent, selectEvent, getStoredEventId, navigate]);
-
-  // Get purchase summary
   const summary = getPurchaseSummary();
-  const event = selectedEvent || mockEvents[id] || mockEvents['1'];
+  const event = selectedEvent;
   const isSeatedEvent = event?.saleType === 'seated';
   const hasMultipleFunctions = event?.functions && event.functions.length > 1;
 
-  // Check if has selections
-  const hasTicketSelections = selectedTickets && selectedTickets.length > 0;
+  const hasTicketSelections = selectedTickets && selectedTickets.some(t => (t.quantity || 0) > 0);
   const hasSeatSelections = selectedSeats && selectedSeats.length > 0;
   const hasSelections = isSeatedEvent ? hasSeatSelections : hasTicketSelections;
 
-  // Handle Stripe ready
-  const handleStripeReady = useCallback(() => {
-    setStripeReady(true);
-  }, []);
+  const isTimerBlocking = purchaseTimer?.mode === event?.saleType && !purchaseTimer?.isActive;
+  const showTimer = purchaseTimer?.mode === event?.saleType && (purchaseTimer?.isActive || purchaseTimer?.isExpired);
 
-  // Handle Stripe error
-  const handleStripeError = useCallback((error) => {
-    setPaymentError(error);
-  }, []);
+  useEffect(() => {
+    if (purchaseTimer?.isExpired && hasSelections) {
+      expirePurchase();
 
-  // Handle form input changes
+      const timeout = setTimeout(() => {
+        if (isSeatedEvent) {
+          navigate(`/evento/${id}/asientos`, { replace: true });
+        } else {
+          navigate(`/evento/${id}`, { replace: true });
+        }
+      }, 1200);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [purchaseTimer?.isExpired, hasSelections, expirePurchase, isSeatedEvent, navigate, id]);
+
+  const handleStripeReady = useCallback(() => setStripeReady(true), []);
+  const handleStripeError = useCallback((error) => setPaymentError(error), []);
+
+  const timerMessage = useMemo(() => {
+    if (purchaseTimer?.isExpired) {
+      return 'Tu tiempo de compra expiró. Debes volver a seleccionar tus entradas.';
+    }
+    if (purchaseTimer?.isWarning) {
+      return 'Tu reserva está por expirar. Finaliza el pago antes de que se liberen tus entradas.';
+    }
+    return null;
+  }, [purchaseTimer?.isExpired, purchaseTimer?.isWarning]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'El nombre es requerido';
-    }
-    
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'El apellido es requerido';
-    }
-    
+    if (!formData.firstName.trim()) newErrors.firstName = 'El nombre es requerido';
+    if (!formData.lastName.trim()) newErrors.lastName = 'El apellido es requerido';
+
     if (!formData.email.trim()) {
       newErrors.email = 'El email es requerido';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Ingresa un email válido';
     }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido';
-    }
-    
+
+    if (!formData.phone.trim()) newErrors.phone = 'El teléfono es requerido';
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle payment submission
+  const buildGuestItems = () => {
+    if (!isSeatedEvent) {
+      return (selectedTickets || [])
+        .filter((t) => Number(t.quantity || 0) > 0)
+        .map((t) => ({
+          ticketTypeId: t.id,
+          quantity: Number(t.quantity || 0),
+        }));
+    }
+
+    return (selectedSeats || []).map((s) => ({
+      ticketTypeId: s.ticketTypeId,
+      seatId: s.id,
+    }));
+  };
+
+  const extractOrderId = (resp) => {
+    return (
+      resp?.data?.data?.orderId ||
+      resp?.data?.orderId ||
+      resp?.orderId ||
+      resp?.data?.data?.order?.id ||
+      resp?.data?.order?.id ||
+      null
+    );
+  };
+
+  const extractBackendTickets = (resp) => {
+    return (
+      resp?.data?.data?.tickets ||
+      resp?.data?.tickets ||
+      resp?.tickets ||
+      []
+    );
+  };
+
   const handlePayNow = async () => {
-    // Prevent double submission
-    if (isProcessingPayment || checkoutLocked) {
+    if (isProcessingPayment || checkoutLocked || isTimerBlocking) return;
+    if (!acceptTerms) return;
+    if (!validateForm()) return;
+
+    if (!event?.id) {
+      alert('No se encontró el evento seleccionado. Vuelve al evento e intenta de nuevo.');
       return;
     }
 
-    // Validate terms
-    if (!acceptTerms) {
+    const functionId = selectedFunction?.id || event?.functions?.[0]?.id;
+    if (!functionId) {
+      alert('No se encontró la función del evento. Selecciona una función e intenta de nuevo.');
       return;
     }
 
-    // Validate form
-    if (!validateForm()) {
+    const items = buildGuestItems();
+    if (!items || items.length === 0) {
+      alert('No hay entradas seleccionadas.');
       return;
     }
 
-    // Clear previous errors
+    const seatsioSession = isSeatedEvent ? getStoredSeatsioSession() : null;
+
+    if (isSeatedEvent) {
+      if (!seatsioSession?.token || !purchaseTimer?.isActive) {
+        alert('La reserva temporal de asientos expiró. Vuelve a seleccionar tus asientos.');
+        return;
+      }
+
+      if (seatsioSession.functionId !== functionId) {
+        alert('La sesión de asientos no coincide con la función seleccionada. Intenta de nuevo.');
+        return;
+      }
+    }
+
     setPaymentError('');
     setIsProcessingPayment(true);
 
     try {
-      // Simulate Stripe payment processing
-      // In production, this would call stripe.confirmPayment()
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Simulate successful payment (90% success rate for demo)
+      await new Promise(resolve => setTimeout(resolve, 1200));
       const isSuccess = Math.random() > 0.1;
 
       if (!isSuccess) {
         throw new Error('Tu tarjeta fue rechazada. Por favor, verifica los datos o intenta con otra tarjeta.');
       }
 
-      // Lock checkout state on success
       setCheckoutLocked(true);
 
-      // Prepare confirmation data
+      const payload = {
+        functionId,
+        buyerEmail: formData.email,
+        buyerName: `${formData.firstName} ${formData.lastName}`.trim(),
+        buyerPhone: formData.phone,
+        items,
+        holdToken: isSeatedEvent ? seatsioSession?.token : undefined,
+
+        subtotal: Number(summary.subtotal || 0),
+        serviceFee: Number(summary.serviceFee || 0),
+        salesTax: Number(summary.tax || 0),
+        total: Number(summary.total || 0),
+      };
+
+      const created = await createGuestOrder(payload);
+      console.log('[CheckoutPage] createGuestOrder response:', created);
+
+      const orderIdReal = extractOrderId(created);
+      if (!orderIdReal) {
+        console.error('[CheckoutPage] No se pudo extraer orderId de la respuesta:', created);
+        throw new Error('El backend no devolvió orderId. Revisa la respuesta en consola.');
+      }
+
+      const backendTickets = extractBackendTickets(created);
+
       const confirmationData = {
-        orderId: `ORD-${Date.now()}`,
+        orderId: orderIdReal,
+        backendTickets,
         event: {
           id: event.id,
           title: event.title,
           date: selectedFunction?.date || event.date,
           time: selectedFunction?.time || event.time,
           venue: event.venue,
-          city: event.city
+          city: event.city,
+          functions: event.functions || []
         },
-        selectedFunction,
-        tickets: selectedTickets,
-        seats: selectedSeats,
+        selectedFunction: selectedFunction || (event.functions?.[0] || null),
+        tickets: selectedTickets || [],
+        seats: selectedSeats || [],
         buyer: formData,
         total: summary.total,
         currency: summary.currency,
@@ -380,29 +442,33 @@ const CheckoutPage = () => {
         timestamp: new Date().toISOString()
       };
 
-      // Store confirmation data in sessionStorage for confirmation page
       sessionStorage.setItem('prontoticket_confirmation', JSON.stringify(confirmationData));
+      sessionStorage.removeItem(SEATSIO_SESSION_STORAGE_KEY);
 
-      // Navigate to confirmation page
-      navigate(`/evento/${id}/confirmacion`);
+      clearPurchase();
 
+      navigate(`/evento/${id}/confirmacion/${orderIdReal}`);
     } catch (error) {
+      setCheckoutLocked(false);
       setPaymentError(error.message || 'Error al procesar el pago. Por favor, intenta de nuevo.');
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
-  // Go back to summary
   const handleGoBack = () => {
     navigate(`/evento/${id}/resumen`);
   };
 
-  // Check if can proceed to payment
-  const canPayNow = acceptTerms && stripeReady && hasSelections && !isProcessingPayment && !checkoutLocked;
+  const canPayNow =
+    acceptTerms &&
+    stripeReady &&
+    hasSelections &&
+    !isProcessingPayment &&
+    !checkoutLocked &&
+    !isTimerBlocking;
 
-  // Empty state - no selections
-  if (!hasSelections) {
+  if (!event || !hasSelections) {
     return (
       <div className="min-h-screen bg-[#0A0A0A]" data-testid="checkout-page">
         <Header />
@@ -419,7 +485,6 @@ const CheckoutPage = () => {
               <button
                 onClick={() => navigate(`/evento/${id}`)}
                 className="px-6 py-3 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110"
-                data-testid="go-to-event-button"
               >
                 Ir al evento
               </button>
@@ -437,26 +502,43 @@ const CheckoutPage = () => {
 
       <div className="pt-32 pb-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Page Title */}
           <div className="mb-8">
-            <h1 
-              className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight mb-2"
-              style={{ fontFamily: "'Outfit', sans-serif" }}
-              data-testid="page-title"
-            >
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
               Checkout
             </h1>
             <p className="text-white/60 text-sm sm:text-base">Completa tus datos y realiza el pago</p>
           </div>
 
+          {showTimer && (
+            <div
+              className={`mb-6 rounded-2xl border px-4 py-4 ${
+                purchaseTimer?.isExpired
+                  ? 'border-red-500/30 bg-red-500/10'
+                  : purchaseTimer?.isWarning
+                  ? 'border-[#FF9500]/30 bg-[#FF9500]/10'
+                  : 'border-[#007AFF]/30 bg-[#007AFF]/10'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-white font-semibold">
+                    Tiempo restante para finalizar el pago
+                  </p>
+                  {timerMessage && (
+                    <p className="text-white/70 text-sm mt-1">{timerMessage}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-white/60 text-xs uppercase tracking-wide">Timer</div>
+                  <div className="text-2xl font-bold text-[#FF9500]">{timerLabel}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            
-            {/* LEFT COLUMN - Buyer Info & Payment (3/5) */}
             <div className="lg:col-span-3 space-y-6">
-              
-              {/* Buyer Information Card */}
-              <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 sm:p-6" data-testid="buyer-info-card">
+              <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 sm:p-6">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="w-10 h-10 rounded-full bg-[#007AFF]/10 flex items-center justify-center">
                     <User size={20} className="text-[#007AFF]" />
@@ -471,7 +553,6 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* Form Fields */}
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -484,10 +565,8 @@ const CheckoutPage = () => {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        placeholder="Ingresa tu nombre"
-                        disabled={checkoutLocked}
+                        disabled={checkoutLocked || isTimerBlocking}
                         className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.firstName ? 'border-red-500' : 'border-white/10'}`}
-                        data-testid="input-first-name"
                       />
                       {errors.firstName && <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>}
                     </div>
@@ -501,10 +580,8 @@ const CheckoutPage = () => {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        placeholder="Ingresa tu apellido"
-                        disabled={checkoutLocked}
+                        disabled={checkoutLocked || isTimerBlocking}
                         className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.lastName ? 'border-red-500' : 'border-white/10'}`}
-                        data-testid="input-last-name"
                       />
                       {errors.lastName && <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>}
                     </div>
@@ -521,10 +598,8 @@ const CheckoutPage = () => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="tu@email.com"
-                      disabled={checkoutLocked}
+                      disabled={checkoutLocked || isTimerBlocking}
                       className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.email ? 'border-red-500' : 'border-white/10'}`}
-                      data-testid="input-email"
                     />
                     {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                   </div>
@@ -540,16 +615,13 @@ const CheckoutPage = () => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      placeholder="+52 55 1234 5678"
-                      disabled={checkoutLocked}
+                      disabled={checkoutLocked || isTimerBlocking}
                       className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.phone ? 'border-red-500' : 'border-white/10'}`}
-                      data-testid="input-phone"
                     />
                     {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
 
-                {/* Checkboxes */}
                 <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
                   {!isLoggedIn && (
                     <label className="flex items-start space-x-3 cursor-pointer group">
@@ -558,9 +630,8 @@ const CheckoutPage = () => {
                           type="checkbox"
                           checked={purchaseAsGuest}
                           onChange={(e) => setPurchaseAsGuest(e.target.checked)}
-                          disabled={checkoutLocked}
+                          disabled={checkoutLocked || isTimerBlocking}
                           className="sr-only"
-                          data-testid="checkbox-guest"
                         />
                         <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${purchaseAsGuest ? 'bg-[#007AFF] border-[#007AFF]' : 'border-white/30 group-hover:border-white/50'}`}>
                           {purchaseAsGuest && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -576,9 +647,8 @@ const CheckoutPage = () => {
                         type="checkbox"
                         checked={acceptTerms}
                         onChange={(e) => setAcceptTerms(e.target.checked)}
-                        disabled={checkoutLocked}
+                        disabled={checkoutLocked || isTimerBlocking}
                         className="sr-only"
-                        data-testid="checkbox-terms"
                       />
                       <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${acceptTerms ? 'bg-[#007AFF] border-[#007AFF]' : 'border-white/30 group-hover:border-white/50'}`}>
                         {acceptTerms && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -591,8 +661,7 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
-              {/* Payment Section - NEW */}
-              <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 sm:p-6" data-testid="payment-section">
+              <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 sm:p-6">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="w-10 h-10 rounded-full bg-[#FF9500]/10 flex items-center justify-center">
                     <CreditCard size={20} className="text-[#FF9500]" />
@@ -605,16 +674,14 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* Stripe Payment Element */}
-                <MockStripePaymentElement 
+                <MockStripePaymentElement
                   onReady={handleStripeReady}
                   onError={handleStripeError}
-                  disabled={checkoutLocked || !acceptTerms}
+                  disabled={checkoutLocked || !acceptTerms || isTimerBlocking}
                 />
 
-                {/* Payment Error Message */}
                 {paymentError && (
-                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start space-x-3" data-testid="payment-error">
+                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start space-x-3">
                     <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-red-400 font-semibold text-sm">Error en el pago</p>
@@ -623,20 +690,10 @@ const CheckoutPage = () => {
                   </div>
                 )}
 
-                {/* Terms Warning */}
-                {!acceptTerms && (
-                  <div className="mt-4 p-3 bg-[#FF9500]/10 border border-[#FF9500]/20 rounded-xl flex items-center space-x-2">
-                    <AlertTriangle size={16} className="text-[#FF9500] flex-shrink-0" />
-                    <p className="text-white/70 text-xs">Acepta los términos y condiciones para continuar con el pago</p>
-                  </div>
-                )}
-
-                {/* Pay Now Button */}
                 <button
                   onClick={handlePayNow}
                   disabled={!canPayNow}
-                  className="w-full mt-6 py-4 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[#FF9500]/50 active:scale-95 flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
-                  data-testid="pay-now-button"
+                  className="w-full mt-6 py-4 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110 shadow-lg hover:shadow-[#FF9500]/50 active:scale-95 flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isProcessingPayment ? (
                     <>
@@ -651,15 +708,11 @@ const CheckoutPage = () => {
                   )}
                 </button>
               </div>
-
             </div>
 
-            {/* RIGHT COLUMN - Order Summary (2/5) */}
             <div className="lg:col-span-2">
               <div className="lg:sticky lg:top-32 space-y-6">
-                
-                {/* Event Summary Card */}
-                <div className="bg-[#121212] rounded-2xl border border-white/10 p-5" data-testid="event-summary-card">
+                <div className="bg-[#121212] rounded-2xl border border-white/10 p-5">
                   <h3 className="text-base font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
                     Evento
                   </h3>
@@ -678,16 +731,7 @@ const CheckoutPage = () => {
                         </div>
                         <div className="flex items-center space-x-1.5 text-xs text-white/60">
                           <MapPin size={12} className="text-[#007AFF]" />
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${event.city}`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="truncate hover:text-[#007AFF] transition-colors duration-200"
-                            title="Abrir en Google Maps"
-                            data-testid="venue-maps-link"
-                          >
-                            {event.venue}
-                          </a>
+                          <span className="truncate">{event.venue}</span>
                         </div>
                       </div>
                     </div>
@@ -700,83 +744,16 @@ const CheckoutPage = () => {
                   )}
                 </div>
 
-                {/* Tickets Summary */}
-                <div className="bg-[#121212] rounded-2xl border border-white/10 p-5" data-testid="tickets-summary-card">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Ticket size={16} className="text-[#007AFF]" />
-                    <h3 className="text-base font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                      Entradas
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    {isSeatedEvent ? (
-                      selectedSeats.map((seat, index) => (
-                        <div key={seat.id || index} className="flex justify-between text-sm">
-                          <span className="text-white/70">{seat.section} - {seat.row}{seat.number || seat.seat}</span>
-                          <span className="text-white font-semibold">{formatPrice(seat.price)}</span>
-                        </div>
-                      ))
-                    ) : (
-                      selectedTickets.filter(t => t.quantity > 0).map((ticket, index) => (
-                        <div key={ticket.id || index} className="flex justify-between text-sm">
-                          <span className="text-white/70">{ticket.type || ticket.name} x{ticket.quantity}</span>
-                          <span className="text-white font-semibold">{formatPrice(ticket.price * ticket.quantity)}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Price Summary */}
-                <div className="bg-[#121212] rounded-2xl border border-white/10 p-5" data-testid="price-summary-card">
-                  <h3 className="text-base font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Resumen
-                  </h3>
-                  <div className="flex items-center space-x-2 mb-3 pb-3 border-b border-white/10">
-                    <Globe size={12} className="text-[#007AFF]" />
-                    <span className="text-white/50 text-xs">{summary.currency.code} ({summary.currency.name})</span>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Subtotal</span>
-                      <span className="text-white">{formatPrice(summary.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Cargo por servicio</span>
-                      <span className="text-white">{formatPrice(summary.serviceFee)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Impuestos ({Math.round(summary.taxRate * 100)}%)</span>
-                      <span className="text-white">{formatPrice(summary.tax)}</span>
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-white font-bold">Total</span>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-[#FF9500]" style={{ fontFamily: "'Outfit', sans-serif" }} data-testid="total-price">
-                          {formatPrice(summary.total)}
-                        </div>
-                        <div className="text-white/40 text-xs">{summary.currency.code}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Back Button */}
                 <button
                   onClick={handleGoBack}
                   disabled={isProcessingPayment}
                   className="w-full py-3 text-white/70 hover:text-white font-semibold transition-colors flex items-center justify-center space-x-2 text-sm disabled:opacity-50"
-                  data-testid="go-back-button"
                 >
                   <ChevronLeft size={16} />
                   <span>Volver al resumen</span>
                 </button>
-
               </div>
             </div>
-
           </div>
         </div>
       </div>
