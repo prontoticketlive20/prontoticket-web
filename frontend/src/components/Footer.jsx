@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
+import logoProntoTicketLive from "../assets/logo-prontoticketlive.png";
 
 const Footer = () => {
   return (
@@ -8,10 +9,10 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
           <div className="space-y-4">
-            <img 
-              src="https://customer-assets.emergentagent.com/job_df4a73ed-0c0c-4268-9eaf-d95c4450d1cd/artifacts/bgf87i71_PRONTOlive.png"
-              alt="ProntoTicketLive"
-              className="h-12 w-auto"
+            <img
+             src={logoProntoTicketLive}
+             alt="ProntoTicketLive"
+             className="h-14 w-auto"
             />
             <p className="text-white/60 text-sm leading-relaxed">
               Tu plataforma de confianza para comprar tickets de los mejores eventos en vivo.
@@ -114,20 +115,20 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start space-x-2">
                 <Mail className="text-[#007AFF] flex-shrink-0 mt-0.5" size={16} />
-                <a href="mailto:info@prontoticketlive.com" className="text-white/60 hover:text-white transition-colors duration-200 text-sm">
+                <a href="mailto:sales@prontoticketlive.com" className="text-white/60 hover:text-white transition-colors duration-200 text-sm">
                   info@prontoticketlive.com
                 </a>
               </li>
               <li className="flex items-start space-x-2">
                 <Phone className="text-[#FF9500] flex-shrink-0 mt-0.5" size={16} />
-                <a href="tel:+525555555555" className="text-white/60 hover:text-white transition-colors duration-200 text-sm">
-                  +52 55 5555 5555
+                <a href="tel:+1 4073604497" className="text-white/60 hover:text-white transition-colors duration-200 text-sm">
+                  +1 407 3604497
                 </a>
               </li>
               <li className="flex items-start space-x-2">
                 <MapPin className="text-[#007AFF] flex-shrink-0 mt-0.5" size={16} />
                 <span className="text-white/60 text-sm">
-                  Ciudad de México, México
+                  Orlando FL, USA
                 </span>
               </li>
             </ul>
@@ -137,7 +138,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 text-center">
           <p className="text-white/40 text-sm">
-            © 2025 ProntoTicketLive. Todos los derechos reservados.
+            © 2026 ProntoTicket Group LLC. Todos los derechos reservados.
           </p>
         </div>
       </div>

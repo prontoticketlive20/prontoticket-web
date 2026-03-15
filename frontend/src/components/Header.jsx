@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useState } from "react";
 import { Menu, X, Globe, LayoutDashboard, LogOut, User2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../api/api";
+import logoProntoTicketLive from "../assets/logo-prontoticketlive.png";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -135,16 +136,16 @@ const Header = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link
-            to="/"
-            className="flex items-center space-x-2 transition-opacity duration-300 hover:opacity-80"
-            data-testid="header-logo-link"
-          >
-            <img
-              src="https://customer-assets.emergentagent.com/job_df4a73ed-0c0c-4268-9eaf-d95c4450d1cd/artifacts/bgf87i71_PRONTOlive.png"
-              alt="ProntoTicketLive"
-              className="h-12 w-auto"
-            />
-          </Link>
+  to="/"
+  className="flex items-center space-x-2 transition-opacity duration-300 hover:opacity-80"
+  data-testid="header-logo-link"
+>
+  <img
+    src={logoProntoTicketLive}
+    alt="ProntoTicketLive"
+    className="h-14 w-auto"
+  />
+</Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import Header from './Header';
 import Footer from './Footer';
 import {
@@ -18,6 +19,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
+import logoProntoTicketLiveLarge from '../assets/logo-prontoticketlive-large.png';
 
 const ConfirmationPage = () => {
   const { id, orderId: orderIdFromUrl } = useParams();
@@ -39,13 +41,11 @@ const ConfirmationPage = () => {
     try {
       const data = JSON.parse(stored);
 
-      // Si el orderId viene en URL, lo preferimos
       const finalOrderId = orderIdFromUrl || data.orderId;
       const normalized = { ...data, orderId: finalOrderId };
 
       setConfirmationData(normalized);
 
-      // Tickets reales del backend (guardados por CheckoutPage)
       const backendTickets = Array.isArray(normalized.backendTickets)
         ? normalized.backendTickets
         : [];
@@ -66,77 +66,272 @@ const ConfirmationPage = () => {
     }
   };
 
-  const generateTicketPDF = (ticket, orderData, ticketIndex, totalTickets) => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 18;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('ProntoTicketLive - Entrada', margin, 18);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(`Ticket ${ticketIndex + 1} de ${totalTickets}`, margin, 28);
-
-    doc.setFontSize(10);
-    doc.text(`Order ID: ${orderData.orderId || ''}`, margin, 38);
-    doc.text(`Ticket ID: ${ticket.id || ''}`, margin, 45);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(orderData.event?.title || 'Evento', margin, 58);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Fecha: ${orderData.selectedFunction?.date || orderData.event?.date || ''}`, margin, 68);
-    doc.text(`Hora: ${orderData.selectedFunction?.time || orderData.event?.time || ''}`, margin, 75);
-    doc.text(`Lugar: ${orderData.event?.venue || ''}`, margin, 82);
-    doc.text(`Ciudad: ${orderData.event?.city || ''}`, margin, 89);
-
-    // QR payload mínimo
-    const qrPayload = JSON.stringify({
+  const buildQrPayload = (ticket, orderData) => {
+    return JSON.stringify({
       ticketId: ticket.id,
       orderId: orderData.orderId,
-      functionId: ticket.functionId,
+      eventId: orderData.event?.id || id,
+      functionId: ticket.functionId || orderData.selectedFunction?.id || null,
       ticketTypeId: ticket.ticketTypeId,
-      seatId: ticket.seatId,
+      seatId: ticket.seatId || null,
       issuedAt: Date.now(),
     });
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('QR payload:', margin, 105);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(qrPayload, margin, 112, { maxWidth: pageWidth - margin * 2 });
-
-    return doc;
   };
 
-  const handleDownloadTickets = async () => {
-    if (!confirmationData || isGeneratingPDF || generatedTickets.length === 0) return;
-
-    setIsGeneratingPDF(true);
+  const loadImageAsDataUrl = async (src) => {
+    if (!src) return null;
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      const response = await fetch(src);
+      const blob = await response.blob();
 
-      for (let i = 0; i < generatedTickets.length; i++) {
-        const t = generatedTickets[i];
-        const doc = generateTicketPDF(t, confirmationData, i, generatedTickets.length);
-        doc.save(`Ticket_${i + 1}_${t.id}.pdf`);
-
-        if (i < generatedTickets.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-      }
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     } catch (error) {
-      console.error('[ConfirmationPage] Error generating PDF:', error);
-      alert('Error al generar los tickets. Por favor, intenta de nuevo.');
-    } finally {
-      setIsGeneratingPDF(false);
+      console.warn('[ConfirmationPage] No pude cargar imagen para PDF:', src, error);
+      return null;
     }
   };
+
+  const qrSvgToPngDataUrl = async (value, size = 220) => {
+  const svgString = renderToStaticMarkup(
+    <QRCodeSVG value={value} size={size} level="M" includeMargin={true} />
+  );
+
+  const svgWithNamespace = svgString.includes('xmlns=')
+    ? svgString
+    : svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+
+  const svgBlob = new Blob([svgWithNamespace], {
+    type: 'image/svg+xml;charset=utf-8',
+  });
+
+  const blobUrl = URL.createObjectURL(svgBlob);
+
+  return await new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('No se pudo crear el contexto del canvas para el QR.'));
+          return;
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+
+        const pngDataUrl = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(blobUrl);
+        resolve(pngDataUrl);
+      } catch (err) {
+        URL.revokeObjectURL(blobUrl);
+        reject(err);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      reject(new Error('No se pudo convertir el SVG del QR a imagen PNG.'));
+    };
+
+    img.src = blobUrl;
+  });
+};
+
+  const generateTicketPDF = async (ticket, orderData, ticketIndex, totalTickets) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+
+  const logoDataUrl = await loadImageAsDataUrl(logoProntoTicketLiveLarge);
+  const eventImageDataUrl = await loadImageAsDataUrl(
+  orderData.event?.image || orderData.event?.imageUrl
+);
+  const qrPayload = buildQrPayload(ticket, orderData);
+  const qrPngDataUrl = await qrSvgToPngDataUrl(qrPayload, 240);
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  // Header negro
+  doc.setFillColor(10, 10, 10);
+  doc.roundedRect(margin, 10, contentWidth, 34, 4, 4, 'F');
+
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', margin + 6, 15, 70, 18, undefined, 'FAST');
+    } catch (error) {
+      console.warn('[ConfirmationPage] No pude insertar logo en PDF:', error);
+    }
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(`Ticket ${ticketIndex + 1} de ${totalTickets}`, pageWidth - margin - 6, 20, {
+    align: 'right',
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Orden: ${orderData.orderId || ''}`, pageWidth - margin - 6, 27, {
+    align: 'right',
+  });
+  doc.text(`Ticket ID: ${ticket.id || ''}`, pageWidth - margin - 6, 33, {
+    align: 'right',
+  });
+
+  let currentY = 52;
+
+  // Imagen del evento (opcional, no debe romper el PDF)
+  if (eventImageDataUrl) {
+    try {
+      doc.addImage(eventImageDataUrl, 'PNG', margin, currentY, contentWidth, 52, undefined, 'FAST');
+      currentY += 58;
+    } catch (error) {
+      console.warn('[ConfirmationPage] No pude insertar imagen del evento en PDF:', error);
+      currentY += 4;
+    }
+  }
+
+  doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(orderData.event?.title || 'Evento', margin, currentY);
+  currentY += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`Fecha: ${orderData.selectedFunction?.date || orderData.event?.date || ''}`, margin, currentY);
+  currentY += 6;
+  doc.text(`Hora: ${orderData.selectedFunction?.time || orderData.event?.time || ''}`, margin, currentY);
+  currentY += 6;
+  doc.text(`Lugar: ${orderData.event?.venue || ''}`, margin, currentY);
+  currentY += 6;
+  doc.text(`Ciudad: ${orderData.event?.city || ''}`, margin, currentY);
+  currentY += 10;
+
+  doc.setFillColor(248, 249, 251);
+  doc.roundedRect(margin, currentY, contentWidth, 34, 3, 3, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text('Datos del ticket', margin + 5, currentY + 8);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(
+    `Comprador: ${orderData.buyer?.firstName || ''} ${orderData.buyer?.lastName || ''}`.trim(),
+    margin + 5,
+    currentY + 16
+  );
+  doc.text(`Email: ${orderData.buyer?.email || ''}`, margin + 5, currentY + 22);
+  doc.text(`TicketTypeId: ${ticket.ticketTypeId || ''}`, margin + 5, currentY + 28);
+
+  if (ticket.seatId) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 149, 0);
+    doc.text(`Asiento: ${ticket.seatId}`, pageWidth - margin - 5, currentY + 16, {
+      align: 'right',
+    });
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal');
+  }
+
+  currentY += 42;
+
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(margin, currentY, contentWidth, 78, 3, 3, 'S');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Código QR de acceso', margin + 5, currentY + 8);
+
+  if (qrPngDataUrl) {
+    try {
+      const qrSize = 52;
+      doc.addImage(qrPngDataUrl, 'PNG', margin + 5, currentY + 14, qrSize, qrSize, undefined, 'FAST');
+    } catch (error) {
+      console.error('[ConfirmationPage] No pude insertar QR en PDF:', error);
+      throw error;
+    }
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(70, 70, 70);
+  doc.text(
+    'Presenta este código QR en la entrada del evento. Cada ticket es único y solo puede usarse una vez.',
+    margin + 64,
+    currentY + 24,
+    { maxWidth: contentWidth - 70 }
+  );
+
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text(qrPayload, margin + 64, currentY + 48, {
+    maxWidth: contentWidth - 70,
+  });
+
+  doc.setDrawColor(230, 230, 230);
+  doc.line(margin, pageHeight - 22, pageWidth - margin, pageHeight - 22);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(20, 20, 20);
+  doc.text('ProntoTicketLive.com', margin, pageHeight - 14);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Ticket generado automáticamente por la plataforma.', margin, pageHeight - 9);
+
+  return doc;
+};
+
+  const handleDownloadTickets = async () => {
+  if (!confirmationData || isGeneratingPDF || generatedTickets.length === 0) return;
+
+  setIsGeneratingPDF(true);
+
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    for (let i = 0; i < generatedTickets.length; i++) {
+      const t = generatedTickets[i];
+      console.log('[ConfirmationPage] Generando PDF para ticket:', t.id);
+
+      const doc = await generateTicketPDF(t, confirmationData, i, generatedTickets.length);
+      doc.save(`ProntoTicketLive_Ticket_${i + 1}_${t.id}.pdf`);
+
+      if (i < generatedTickets.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+  } catch (error) {
+    console.error('[ConfirmationPage] Error generating PDF:', error);
+    alert('Error al generar los tickets. Por favor, intenta de nuevo.');
+  } finally {
+    setIsGeneratingPDF(false);
+  }
+};
 
   const handleBackToHome = () => {
     sessionStorage.removeItem('prontoticket_confirmation');
@@ -159,7 +354,6 @@ const ConfirmationPage = () => {
 
       <div className="pt-28 pb-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          {/* Success Header */}
           <div className="text-center mb-8">
             <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 size={48} className="text-green-500" />
@@ -175,7 +369,6 @@ const ConfirmationPage = () => {
             </p>
           </div>
 
-          {/* Order ID */}
           <div className="bg-gradient-to-r from-[#007AFF]/20 to-[#FF9500]/20 rounded-2xl border border-white/10 p-4 mb-6 text-center">
             <p className="text-white/60 text-sm mb-1">Número de pedido</p>
             <div className="flex items-center justify-center space-x-2">
@@ -186,6 +379,7 @@ const ConfirmationPage = () => {
                 onClick={handleCopyOrderId}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                 data-testid="copy-order-id"
+                type="button"
               >
                 {copied ? (
                   <Check size={16} className="text-green-500" />
@@ -196,7 +390,6 @@ const ConfirmationPage = () => {
             </div>
           </div>
 
-          {/* Event Details */}
           <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 mb-6">
             <h2
               className="text-lg font-bold text-white mb-4"
@@ -232,11 +425,13 @@ const ConfirmationPage = () => {
             </div>
           </div>
 
-          {/* Tickets */}
           <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 mb-6">
             <div className="flex items-center space-x-2 mb-4">
               <Ticket size={18} className="text-[#007AFF]" />
-              <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <h2
+                className="text-lg font-bold text-white"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
                 Tus entradas ({generatedTickets.length})
               </h2>
             </div>
@@ -250,15 +445,7 @@ const ConfirmationPage = () => {
             ) : (
               <div className="space-y-4">
                 {generatedTickets.map((t, idx) => {
-                  const qrData = JSON.stringify({
-                    ticketId: t.id,
-                    orderId,
-                    eventId: event?.id || id,
-                    functionId: t.functionId || selectedFunction?.id || null,
-                    ticketTypeId: t.ticketTypeId,
-                    seatId: t.seatId || null,
-                    issuedAt: Date.now(),
-                  });
+                  const qrData = buildQrPayload(t, confirmationData);
 
                   return (
                     <div
@@ -268,18 +455,16 @@ const ConfirmationPage = () => {
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <p className="text-white font-semibold">
-                            Entrada {idx + 1}
-                          </p>
+                          <p className="text-white font-semibold">Entrada {idx + 1}</p>
                           <p className="text-white/40 text-xs font-mono mt-1">{t.id}</p>
                           <p className="text-white/60 text-xs mt-1">
                             TicketTypeId: <span className="font-mono">{t.ticketTypeId}</span>
                           </p>
                           {t.seatId && (
-                             <p className="text-[#FF9500] text-xs mt-1">
-                             Asiento: <span className="font-mono">{t.seatId}</span>
+                            <p className="text-[#FF9500] text-xs mt-1">
+                              Asiento: <span className="font-mono">{t.seatId}</span>
                             </p>
-                           )}
+                          )}
                         </div>
                       </div>
 
@@ -300,7 +485,10 @@ const ConfirmationPage = () => {
             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-baseline">
               <span className="text-white font-bold">Total pagado</span>
               <div className="text-right">
-                <div className="text-2xl font-bold text-[#FF9500]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <div
+                  className="text-2xl font-bold text-[#FF9500]"
+                  style={{ fontFamily: "'Outfit', sans-serif" }}
+                >
                   {formatPrice(total)}
                 </div>
                 <div className="text-white/40 text-xs">{currency?.code || 'MXN'}</div>
@@ -308,34 +496,34 @@ const ConfirmationPage = () => {
             </div>
           </div>
 
-          {/* Buyer */}
           <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 mb-6">
             <div className="flex items-center space-x-2 mb-3">
               <User size={16} className="text-[#007AFF]" />
               <h3 className="text-white font-semibold">Comprador</h3>
             </div>
-            <p className="text-white/80">{buyer?.firstName} {buyer?.lastName}</p>
+            <p className="text-white/80">
+              {buyer?.firstName} {buyer?.lastName}
+            </p>
             <p className="text-white/60 text-sm">{buyer?.email}</p>
           </div>
 
-          {/* Email Notice */}
           <div className="bg-[#007AFF]/10 rounded-xl border border-[#007AFF]/20 p-4 mb-6 flex items-start space-x-3">
             <Mail size={18} className="text-[#007AFF] flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-white font-semibold text-sm">Revisa tu correo</p>
+              <p className="text-white font-semibold text-sm">Descarga tus entradas</p>
               <p className="text-white/60 text-sm">
-                También enviamos las entradas a {buyer?.email}
+                El envío automático por correo será habilitado en la siguiente fase.
               </p>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="space-y-3">
             <button
               onClick={handleDownloadTickets}
               disabled={isGeneratingPDF || generatedTickets.length === 0}
               className="w-full py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-xl transition-all duration-300 hover:brightness-110 flex items-center justify-center space-x-2 disabled:opacity-70"
               data-testid="download-tickets-button"
+              type="button"
             >
               {isGeneratingPDF ? (
                 <>
@@ -354,6 +542,7 @@ const ConfirmationPage = () => {
               onClick={handleBackToHome}
               className="w-full py-3 text-white/70 hover:text-white font-semibold transition-colors text-sm"
               data-testid="back-to-home"
+              type="button"
             >
               Volver al inicio
             </button>
