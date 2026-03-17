@@ -18,6 +18,7 @@ import EventFunctionsPage from "./pages/admin/EventFunctionsPage";
 import FunctionPricingPage from "./pages/admin/FunctionPricingPage";
 import EventTicketTypesPage from "./pages/admin/EventTicketTypesPage";
 import EditEventPage from "./pages/admin/EditEventPage";
+import MyTicketsPage from "./components/MyTicketsPage";
 
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -143,41 +144,41 @@ function App() {
                   </AdminRoute>
                 }
               />
-          
-               <Route
-                 path="/admin/events/new"
-                 element={
-                   <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                     <CreateEventPage />
-                   </AdminRoute>
-                 }
-               />
 
-                 <Route
-                   path="/admin/events/:id/edit"
-                   element={
-                     <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                       <EditEventPage />
-                     </AdminRoute>
-                  }
-               />
+              <Route
+                path="/admin/events/new"
+                element={
+                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                    <CreateEventPage />
+                  </AdminRoute>
+                }
+              />
 
-               <Route
+              <Route
+                path="/admin/events/:id/edit"
+                element={
+                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                    <EditEventPage />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
                 path="/admin/events/:eventId/functions"
                 element={<EventFunctionsPage />}
               />
-              
+
               <Route
                 path="/admin/functions/:functionId/pricing"
                 element={<FunctionPricingPage />}
               />
 
-              <Route 
+              <Route
                 path="/admin/events/:eventId/ticket-types"
-                element={<EventTicketTypesPage />} 
-               /> 
+                element={<EventTicketTypesPage />}
+              />
 
-               <Route
+              <Route
                 path="/producer"
                 element={
                   <AdminRoute allowedRoles={["PRODUCER", "ADMIN"]}>
@@ -199,9 +200,15 @@ function App() {
               <Route path="/evento/:id/asientos" element={<SeatsSelectionPage />} />
               <Route path="/evento/:id/resumen" element={<PurchaseSummaryPage />} />
               <Route path="/evento/:id/checkout" element={<CheckoutPage />} />
+
               <Route
                 path="/evento/:id/confirmacion/:orderId"
                 element={<ConfirmationPage />}
+              />
+
+              <Route
+                path="/my-tickets/:orderId"
+                element={<MyTicketsPage />}
               />
 
               <Route
@@ -215,6 +222,7 @@ function App() {
                 }
               />
             </Route>
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
