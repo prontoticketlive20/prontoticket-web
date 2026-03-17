@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  Share2,
 } from "lucide-react";
 
 import Header from "./Header";
@@ -145,6 +146,46 @@ const MyTicketsPage = () => {
         seatId: ticket?.seatId || null,
       })
     );
+  };
+
+  const buildShareText = (ticket) => {
+    const ticketTypeLabel = getTicketTypeLabel(ticket);
+    const seatLine = ticket?.seatId ? `\nAsiento: ${ticket.seatId}` : "";
+    const pageUrl = window.location.href;
+
+    return [
+      `🎟 Ticket de ${eventInfo.title}`,
+      `Fecha: ${formattedDate}`,
+      `Hora: ${formattedTime}`,
+      `Lugar: ${locationLine}`,
+      `Tipo de entrada: ${ticketTypeLabel}${seatLine}`,
+      `Orden: ${orderData?.id || "-"}`,
+      `Ticket ID: ${ticket?.id || "-"}`,
+      `Ver tickets: ${pageUrl}`,
+    ].join("\n");
+  };
+
+  const handleShareTicket = async (ticket) => {
+    try {
+      const shareText = buildShareText(ticket);
+      const shareUrl = window.location.href;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: `${eventInfo.title} - Ticket`,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareText);
+      alert("La información del ticket fue copiada para compartir.");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("[MyTicketsPage] No pude compartir el ticket:", error);
+      alert("No pude compartir el ticket. Intenta nuevamente.");
+    }
   };
 
   const loadImageAsDataUrl = async (src) => {
@@ -308,7 +349,7 @@ const MyTicketsPage = () => {
     currentY += 10;
 
     doc.setFillColor(248, 249, 251);
-    doc.roundedRect(margin, currentY, contentWidth, 34, 3, 3, "F");
+    doc.roundedRect(margin, currentY, contentWidth, 28, 3, 3, "F");
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -317,9 +358,7 @@ const MyTicketsPage = () => {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Comprador: ${orderData?.buyerName || ""}`.trim(), margin + 5, currentY + 16);
-    doc.text(`Email: ${orderData?.buyerEmail || ""}`, margin + 5, currentY + 22);
-    doc.text(`Tipo de entrada: ${getTicketTypeLabel(ticket)}`, margin + 5, currentY + 28);
+    doc.text(`Tipo de entrada: ${getTicketTypeLabel(ticket)}`, margin + 5, currentY + 16);
 
     if (ticket.seatId) {
       doc.setFont("helvetica", "bold");
@@ -331,7 +370,7 @@ const MyTicketsPage = () => {
       doc.setFont("helvetica", "normal");
     }
 
-    currentY += 42;
+    currentY += 36;
 
     doc.setDrawColor(220, 220, 220);
     doc.roundedRect(margin, currentY, contentWidth, 78, 3, 3, "S");
@@ -670,33 +709,6 @@ const MyTicketsPage = () => {
                           <div className="text-white/85">{locationLine}</div>
                         </div>
                       </div>
-
-                      <div className="border-t border-dashed border-white/10 pt-4">
-                        <div className="grid grid-cols-1 gap-3 text-sm">
-                          <div>
-                            <div className="text-white/40 text-xs mb-1">Comprador</div>
-                            <div className="text-white text-lg font-semibold">
-                              {orderData.buyerName || "-"}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <div className="text-white/40 text-xs mb-1">Correo</div>
-                              <div className="text-white/80 break-all">
-                                {orderData.buyerEmail || "-"}
-                              </div>
-                            </div>
-
-                            {orderData.buyerPhone ? (
-                              <div>
-                                <div className="text-white/40 text-xs mb-1">Teléfono</div>
-                                <div className="text-white/80">{orderData.buyerPhone}</div>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="border-t lg:border-t-0 lg:border-l border-dashed border-white/10 bg-gradient-to-b from-white/[0.03] to-white/[0.01] p-5 sm:p-6 flex flex-col justify-between">
@@ -726,10 +738,10 @@ const MyTicketsPage = () => {
 
                         <button
                           type="button"
-                          disabled
-                          className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/35 font-semibold cursor-not-allowed"
-                          title="Compartir ticket se añadirá en la siguiente fase"
+                          onClick={() => handleShareTicket(ticket)}
+                          className="w-full py-3 rounded-2xl bg-[#007AFF]/10 border border-[#007AFF]/20 text-[#8ec5ff] font-semibold hover:bg-[#007AFF]/15 transition-colors flex items-center justify-center gap-2"
                         >
+                          <Share2 size={16} />
                           Compartir ticket
                         </button>
                       </div>
