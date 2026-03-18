@@ -24,6 +24,8 @@ import api from "../api/api";
 import { usePurchase } from "../context/PurchaseContext";
 import logoProntoTicketLiveLarge from "../assets/logo-prontoticketlive-large.png";
 
+const SHARED_TICKETS_STORAGE_KEY = "ptl_shared_tickets";
+
 const MyTicketsPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -33,6 +35,23 @@ const MyTicketsPage = () => {
   const [orderData, setOrderData] = useState(null);
   const [copied, setCopied] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [sharedTickets, setSharedTickets] = useState({});
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SHARED_TICKETS_STORAGE_KEY);
+      if (stored) {
+        setSharedTickets(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.warn("[MyTicketsPage] No pude leer sharedTickets desde localStorage", error);
+    }
+  }, []);
+
+  const persistSharedTickets = (nextValue) => {
+    setSharedTickets(nextValue);
+    localStorage.setItem(SHARED_TICKETS_STORAGE_KEY, JSON.stringify(nextValue));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -148,10 +167,14 @@ const MyTicketsPage = () => {
     );
   };
 
+  const getTicketShareUrl = (ticketId) => {
+    return `${window.location.origin}/ticket/${ticketId}`;
+  };
+
   const buildShareText = (ticket) => {
     const ticketTypeLabel = getTicketTypeLabel(ticket);
     const seatLine = ticket?.seatId ? `\nAsiento: ${ticket.seatId}` : "";
-    const pageUrl = window.location.href;
+    const shareUrl = getTicketShareUrl(ticket.id);
 
     return [
       `🎟 Ticket de ${eventInfo.title}`,
@@ -159,16 +182,15 @@ const MyTicketsPage = () => {
       `Hora: ${formattedTime}`,
       `Lugar: ${locationLine}`,
       `Tipo de entrada: ${ticketTypeLabel}${seatLine}`,
-      `Orden: ${orderData?.id || "-"}`,
       `Ticket ID: ${ticket?.id || "-"}`,
-      `Ver tickets: ${pageUrl}`,
+      `Abrir ticket: ${shareUrl}`,
     ].join("\n");
   };
 
   const handleShareTicket = async (ticket) => {
     try {
       const shareText = buildShareText(ticket);
-      const shareUrl = window.location.href;
+      const shareUrl = getTicketShareUrl(ticket.id);
 
       if (navigator.share) {
         await navigator.share({
@@ -176,11 +198,15 @@ const MyTicketsPage = () => {
           text: shareText,
           url: shareUrl,
         });
-        return;
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        alert("La información del ticket fue copiada para compartir.");
       }
 
-      await navigator.clipboard.writeText(shareText);
-      alert("La información del ticket fue copiada para compartir.");
+      persistSharedTickets({
+        ...sharedTickets,
+        [ticket.id]: true,
+      });
     } catch (error) {
       if (error?.name === "AbortError") return;
       console.error("[MyTicketsPage] No pude compartir el ticket:", error);
@@ -638,6 +664,7 @@ const MyTicketsPage = () => {
             {orderData.tickets?.map((ticket, idx) => {
               const qrData = buildQrPayload(ticket);
               const ticketTypeLabel = getTicketTypeLabel(ticket);
+              const isShared = Boolean(sharedTickets[ticket.id]);
 
               return (
                 <div
@@ -652,9 +679,18 @@ const MyTicketsPage = () => {
                     <div className="p-5 sm:p-6">
                       <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                         <div>
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold mb-3">
-                            <Ticket size={13} />
-                            Entrada {idx + 1}
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold">
+                              <Ticket size={13} />
+                              Entrada {idx + 1}
+                            </div>
+
+                            {isShared ? (
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold">
+                                <Check size={12} />
+                                Compartido
+                              </div>
+                            ) : null}
                           </div>
 
                           <h3 className="text-white text-2xl font-bold leading-tight mb-3">

@@ -19,6 +19,7 @@ import FunctionPricingPage from "./pages/admin/FunctionPricingPage";
 import EventTicketTypesPage from "./pages/admin/EventTicketTypesPage";
 import EditEventPage from "./pages/admin/EditEventPage";
 import MyTicketsPage from "./components/MyTicketsPage";
+import TicketPage from "./components/TicketPage";
 
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -209,6 +210,11 @@ function App() {
               <Route
                 path="/my-tickets/:orderId"
                 element={<MyTicketsPage />}
+              />
+
+              <Route
+                path="/ticket/:ticketId"
+                element={<TicketPage />}
               />
 
               <Route
