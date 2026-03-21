@@ -9,10 +9,9 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [language, setLanguage] = useState("es");
 
-  // Auth UI
   const [isAuthed, setIsAuthed] = useState(false);
   const [userLabel, setUserLabel] = useState("Guest");
-  const [userRole, setUserRole] = useState(null); // ADMIN | PRODUCER | SCANNER | CUSTOMER | null
+  const [userRole, setUserRole] = useState(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,16 +33,20 @@ const Header = () => {
     localStorage.removeItem("ptl_user_role");
   }, []);
 
-  // Dashboard route por rol (por ahora)
+  // ✅ Ruta por rol
   const getDashboardPath = useCallback((role) => {
     if (role === "ADMIN") return "/admin";
     if (role === "SCANNER") return "/checkin";
-    if (role === "PRODUCER") return "/admin"; // placeholder (Entra al mismo AdminDashboard pero solo sus eventos)
-    if (role === "CUSTOMER") return "/dashboard"; // placeholder (luego CustomerDashboard)
+    if (role === "PRODUCER") return "/admin";
+    if (role === "CUSTOMER") return "/account";
     return "/dashboard";
   }, []);
 
-  // ✅ Refresca auth (backend-first)
+  const getDashboardLabel = useCallback((role) => {
+    if (role === "CUSTOMER") return "Mi Cuenta";
+    return "Dashboard";
+  }, []);
+
   const refreshAuthState = useCallback(async () => {
     const token = getToken();
 
@@ -54,10 +57,8 @@ const Header = () => {
       return;
     }
 
-    // UI inmediata
     setIsAuthed(true);
 
-    // nombre rápido cacheado
     const savedName = localStorage.getItem("ptl_user_name") || "";
     const savedRole = localStorage.getItem("ptl_user_role") || null;
     setUserLabel(savedName || "Cuenta");
@@ -77,7 +78,6 @@ const Header = () => {
       localStorage.setItem("ptl_user_name", label);
       if (role) localStorage.setItem("ptl_user_role", role);
     } catch (e) {
-      // token inválido
       clearAuthStorage();
       setIsAuthed(false);
       setUserRole(null);
@@ -85,7 +85,6 @@ const Header = () => {
     }
   }, [getToken, clearAuthStorage]);
 
-  // Scroll + idioma + init auth
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -98,7 +97,6 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [refreshAuthState]);
 
-  // Cada cambio de ruta: refrescar auth + cerrar menú móvil
   useEffect(() => {
     refreshAuthState();
     setIsMobileMenuOpen(false);
@@ -125,6 +123,7 @@ const Header = () => {
   ];
 
   const dashboardPath = isAuthed ? getDashboardPath(userRole) : "/login";
+  const dashboardLabel = getDashboardLabel(userRole);
 
   return (
     <header
@@ -134,20 +133,18 @@ const Header = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
           <Link
-  to="/"
-  className="flex items-center space-x-2 transition-opacity duration-300 hover:opacity-80"
-  data-testid="header-logo-link"
->
-  <img
-    src={logoProntoTicketLive}
-    alt="ProntoTicketLive"
-    className="h-14 w-auto"
-  />
-</Link>
+            to="/"
+            className="flex items-center space-x-2 transition-opacity duration-300 hover:opacity-80"
+            data-testid="header-logo-link"
+          >
+            <img
+              src={logoProntoTicketLive}
+              alt="ProntoTicketLive"
+              className="h-14 w-auto"
+            />
+          </Link>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => (
               <a
@@ -161,9 +158,7 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            {/* Language Selector */}
             <div className="relative group">
               <button
                 className="flex items-center space-x-2 px-3 py-2 text-white/70 hover:text-white rounded-lg hover:bg-white/5 transition-all duration-200"
@@ -204,7 +199,6 @@ const Header = () => {
 
             <div className="w-px h-6 bg-white/10" />
 
-            {/* Auth area */}
             {!isAuthed ? (
               <div className="flex items-center space-x-3">
                 <span className="text-white/50 text-sm">Guest</span>
@@ -230,14 +224,13 @@ const Header = () => {
                   ) : null}
                 </div>
 
-                {/* ✅ Dashboard SIEMPRE que haya sesión */}
                 <Link
                   to={dashboardPath}
                   className="px-4 py-2.5 bg-white/5 text-white/80 font-semibold rounded-full transition-all duration-300 hover:bg-white/10 text-sm flex items-center space-x-2"
                   data-testid="dashboard-link"
                 >
                   <LayoutDashboard size={16} />
-                  <span>Dashboard</span>
+                  <span>{dashboardLabel}</span>
                 </Link>
 
                 <button
@@ -253,7 +246,6 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="md:hidden p-2 text-white"
@@ -264,7 +256,6 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 bg-black/95 border-t border-white/10">
             <nav className="flex flex-col space-y-4">
@@ -280,7 +271,6 @@ const Header = () => {
                 </a>
               ))}
 
-              {/* Mobile Language Selector */}
               <div className="px-4 pt-2 pb-4 border-t border-white/10">
                 <div className="flex items-center space-x-2 mb-3">
                   <Globe size={16} className="text-white/60" strokeWidth={2} />
@@ -312,7 +302,6 @@ const Header = () => {
                 </div>
               </div>
 
-              {/* Mobile Auth */}
               <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-white/10">
                 {!isAuthed ? (
                   <>
@@ -330,7 +319,8 @@ const Header = () => {
                 ) : (
                   <>
                     <div className="px-2 text-white/80 text-sm">
-                      {userLabel} {userRole ? <span className="text-white/40">({userRole})</span> : null}
+                      {userLabel}{" "}
+                      {userRole ? <span className="text-white/40">({userRole})</span> : null}
                     </div>
 
                     <Link
@@ -340,7 +330,7 @@ const Header = () => {
                       data-testid="mobile-dashboard-link"
                     >
                       <LayoutDashboard size={16} />
-                      <span>Dashboard</span>
+                      <span>{dashboardLabel}</span>
                     </Link>
 
                     <button

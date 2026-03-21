@@ -2,28 +2,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import api, { clearAuth } from "../api/api";
 
-/**
- * AdminRoute (flexible)
- *
- * - Si NO pasas allowedRoles => deja pasar a cualquier usuario AUTENTICADO.
- * - Si pasas allowedRoles (ej: ['ADMIN']) => sólo esos roles entran.
- *
- * Uso recomendado:
- * 1) Dashboard general (todos):
- *   <AdminRoute>
- *     <Dashboard />
- *   </AdminRoute>
- *
- * 2) Admin-only:
- *   <AdminRoute allowedRoles={['ADMIN']}>
- *     <AdminDashboard />
- *   </AdminRoute>
- */
+function extractUser(payload) {
+  if (!payload) return null;
+
+  if (payload?.data?.role || payload?.data?.email || payload?.data?.userId || payload?.data?.id) {
+    return payload.data;
+  }
+
+  if (payload?.role || payload?.email || payload?.userId || payload?.id) {
+    return payload;
+  }
+
+  return null;
+}
+
 export default function AdminRoute({ children, allowedRoles }) {
   const location = useLocation();
   const [status, setStatus] = useState("loading"); // loading | allowed | denied
 
-  // ✅ clave estable para evitar re-check innecesario por referencia de array
   const rolesKey = useMemo(() => {
     if (!allowedRoles || allowedRoles.length === 0) return "";
     return allowedRoles.slice().sort().join("|");
@@ -33,45 +29,66 @@ export default function AdminRoute({ children, allowedRoles }) {
     let alive = true;
 
     async function check() {
+      const token =
+        localStorage.getItem("ptl_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pt_token");
+
+      if (!token) {
+        if (alive) setStatus("denied");
+        return;
+      }
+
+      // ✅ Si no hay restricción de rol, con token basta
+      if (!allowedRoles || allowedRoles.length === 0) {
+        if (alive) setStatus("allowed");
+        return;
+      }
+
+      // ✅ Primero intentamos con el rol cacheado
+      const cachedRole =
+        localStorage.getItem("ptl_user_role") ||
+        localStorage.getItem("user_role") ||
+        null;
+
+      if (cachedRole && allowedRoles.includes(cachedRole)) {
+        if (alive) setStatus("allowed");
+        return;
+      }
+
+      // ✅ Si no hay role cacheado o no coincide, consultamos backend
       try {
-        const token =
-          localStorage.getItem("ptl_token") ||
-          localStorage.getItem("token") ||
-          localStorage.getItem("access_token");
-
-        if (!token) {
-          if (alive) setStatus("denied");
-          return;
-        }
-
-        // api.js agrega Bearer automáticamente
         const res = await api.get("/auth/me");
-        const me = res.data?.data ?? res.data;
+        const me = extractUser(res.data);
 
-        const role = me?.role || null;
-        const label = me?.name || me?.email || "Guest";
+        const role =
+          me?.role ||
+          localStorage.getItem("ptl_user_role") ||
+          localStorage.getItem("user_role") ||
+          null;
 
-        // Cache rápido para Header
+        const label =
+          me?.name ||
+          me?.email ||
+          localStorage.getItem("ptl_user_name") ||
+          "Cuenta";
+
         localStorage.setItem("ptl_user_name", label);
         if (role) localStorage.setItem("ptl_user_role", role);
 
         if (!alive) return;
 
-        // ✅ Si NO especificas allowedRoles => cualquier logueado entra
-        if (!allowedRoles || allowedRoles.length === 0) {
+        if (role && allowedRoles.includes(role)) {
           setStatus("allowed");
-          return;
+        } else {
+          setStatus("denied");
         }
-
-        // ✅ Si especificas allowedRoles => validar por rol
-        if (role && allowedRoles.includes(role)) setStatus("allowed");
-        else setStatus("denied");
       } catch (e) {
         if (!alive) return;
 
         const httpStatus = e?.response?.status;
 
-        // ✅ si token inválido/expirado => limpiar storage y negar
         if (httpStatus === 401 || httpStatus === 403) {
           clearAuth?.();
         }
@@ -86,7 +103,6 @@ export default function AdminRoute({ children, allowedRoles }) {
     return () => {
       alive = false;
     };
-    // usamos rolesKey para evitar loops por arrays nuevos
   }, [rolesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === "loading") {
@@ -98,7 +114,6 @@ export default function AdminRoute({ children, allowedRoles }) {
   }
 
   if (status === "denied") {
-    // guardamos "from" como location completo (Login lo lee como from.pathname)
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

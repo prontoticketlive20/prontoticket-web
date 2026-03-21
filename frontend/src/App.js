@@ -11,6 +11,8 @@ import {
 import { PurchaseProvider } from "./context/PurchaseContext";
 
 import AdminRoute from "./components/AdminRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import OrderDetailPage from "./pages/admin/OrderDetailPage";
 import CreateEventPage from "./pages/admin/CreateEventPage";
@@ -18,6 +20,7 @@ import EventFunctionsPage from "./pages/admin/EventFunctionsPage";
 import FunctionPricingPage from "./pages/admin/FunctionPricingPage";
 import EventTicketTypesPage from "./pages/admin/EventTicketTypesPage";
 import EditEventPage from "./pages/admin/EditEventPage";
+
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
 
@@ -35,7 +38,8 @@ import ConfirmationPage from "./components/ConfirmationPage";
 import CheckInPage from "./components/CheckInPage";
 
 import Login from "./pages/Login";
-import ProtectedRoute from "./components/ProtectedRoute";
+import Register from "./pages/Register";
+import AccountPage from "./pages/AccountPage";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -80,24 +84,13 @@ const ProducerDashboardPlaceholder = () => {
   );
 };
 
-const CustomerDashboardPlaceholder = () => {
-  return (
-    <div className="p-6">
-      <h1 className="text-white text-xl font-bold">Mi Cuenta</h1>
-      <p className="text-white/60 mt-2">
-        (En construcción) Aquí irá el historial de compras y acceso a tickets.
-      </p>
-    </div>
-  );
-};
-
 const DashboardRedirect = () => {
   const role =
     localStorage.getItem("ptl_user_role") ||
     localStorage.getItem("user_role") ||
     "";
 
-  if (!role) return <Navigate to="/admin" replace />;
+  if (!role) return <Navigate to="/login" replace />;
 
   if (role === "ADMIN") return <Navigate to="/admin" replace />;
   if (role === "SCANNER") return <Navigate to="/checkin" replace />;
@@ -118,82 +111,113 @@ function App() {
             <Route element={<LayoutWithHeader />}>
               <Route path="/" element={<HomeContent />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
               <Route
                 path="/dashboard"
                 element={
-                  <AdminRoute>
+                  <ProtectedRoute>
                     <DashboardRedirect />
-                  </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/admin"
                 element={
-                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                    <AdminDashboard />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/admin/orders/:id"
                 element={
-                  <AdminRoute allowedRoles={["ADMIN"]}>
-                    <OrderDetailPage />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN"]}>
+                      <OrderDetailPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/admin/events/new"
                 element={
-                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                    <CreateEventPage />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <CreateEventPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/admin/events/:id/edit"
                 element={
-                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                    <EditEventPage />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <EditEventPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/admin/events/:eventId/functions"
-                element={<EventFunctionsPage />}
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <EventFunctionsPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/admin/functions/:functionId/pricing"
-                element={<FunctionPricingPage />}
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <FunctionPricingPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/admin/events/:eventId/ticket-types"
-                element={<EventTicketTypesPage />}
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <EventTicketTypesPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/producer"
                 element={
-                  <AdminRoute allowedRoles={["PRODUCER", "ADMIN"]}>
-                    <ProducerDashboardPlaceholder />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["PRODUCER", "ADMIN"]}>
+                      <ProducerDashboardPlaceholder />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 
               <Route
                 path="/account"
                 element={
-                  <AdminRoute allowedRoles={["CUSTOMER", "ADMIN"]}>
-                    <CustomerDashboardPlaceholder />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["CUSTOMER", "ADMIN"]}>
+                      <AccountPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
                 }
               />
 

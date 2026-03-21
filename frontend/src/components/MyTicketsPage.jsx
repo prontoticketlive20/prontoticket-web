@@ -16,6 +16,8 @@ import {
   Check,
   ShieldCheck,
   Share2,
+  QrCode,
+  Sparkles,
 } from "lucide-react";
 
 import Header from "./Header";
@@ -23,6 +25,7 @@ import Footer from "./Footer";
 import api from "../api/api";
 import { usePurchase } from "../context/PurchaseContext";
 import logoProntoTicketLiveLarge from "../assets/logo-prontoticketlive-large.png";
+import icono2026 from "../assets/icono_2026.png";
 
 const SHARED_TICKETS_STORAGE_KEY = "ptl_shared_tickets";
 
@@ -481,9 +484,11 @@ const MyTicketsPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-white/70">
-          <Loader2 size={20} className="animate-spin" />
-          <span>Cargando tickets...</span>
+        <div className="flex flex-col items-center gap-4 text-white/70">
+          <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <Loader2 size={24} className="animate-spin" />
+          </div>
+          <span className="text-sm sm:text-base">Cargando tickets...</span>
         </div>
       </div>
     );
@@ -494,14 +499,17 @@ const MyTicketsPage = () => {
       <div className="min-h-screen bg-[#0A0A0A] text-white">
         <Header />
         <div className="pt-28 pb-20 px-4">
-          <div className="max-w-xl mx-auto bg-[#121212] border border-white/10 rounded-3xl p-6 text-center shadow-2xl shadow-black/30">
-            <h1 className="text-2xl font-bold mb-3">No pudimos encontrar esta orden</h1>
-            <p className="text-white/60 text-sm mb-6">
+          <div className="max-w-xl mx-auto bg-[#121212] border border-white/10 rounded-[32px] p-6 sm:p-8 text-center shadow-2xl shadow-black/30">
+            <div className="mx-auto mb-5 w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <img src={icono2026} alt="ProntoTicketLive" className="w-20 h-20 object-contain" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3">No pudimos encontrar esta orden</h1>
+            <p className="text-white/60 text-sm sm:text-base mb-6">
               Verifica el enlace o vuelve a intentar desde tu correo de confirmación.
             </p>
             <button
               onClick={() => navigate("/")}
-              className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold"
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold"
               type="button"
             >
               Volver al inicio
@@ -518,142 +526,154 @@ const MyTicketsPage = () => {
       <Header />
 
       <div className="pt-24 pb-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#007AFF]/20 bg-[#007AFF]/10 text-[#8ec5ff] text-sm mb-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="mx-auto mb-4 w-16 h-16 sm:w-20 sm:h-20 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center shadow-xl shadow-black/30">
+              <img src={icono2026} alt="ProntoTicketLive" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#007AFF]/20 bg-[#007AFF]/10 text-[#8ec5ff] text-xs sm:text-sm mb-4">
               <ShieldCheck size={16} />
               Acceso seguro a tus entradas
             </div>
 
             <h1
-              className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-3"
+              className="text-3xl sm:text-5xl font-bold text-white tracking-tight mb-3"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Mis Tickets
             </h1>
-            <p className="text-white/60 max-w-2xl mx-auto">
-              Accede a tus entradas desde cualquier dispositivo y presenta tu QR en puerta.
+            <p className="text-white/60 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+              Todo listo para tu evento. Presenta tu QR desde el móvil o descarga tus entradas en PDF.
             </p>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-[#0d2340] via-[#0f172a] to-[#3a2410] p-5 sm:p-6 mb-6 shadow-2xl shadow-black/30">
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-white/60 text-sm mb-1">Número de pedido</p>
-                  <p className="text-sm sm:text-base font-bold text-white tracking-wide font-mono break-all leading-snug">
-                    {orderData.id}
-                  </p>
-                </div>
+          <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-[#0d2340] via-[#0f172a] to-[#3a2410] p-5 sm:p-6 mb-6 shadow-2xl shadow-black/30">
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#007AFF]/10 blur-3xl" />
+            <div className="absolute -bottom-16 -left-10 w-40 h-40 rounded-full bg-[#FF9500]/10 blur-3xl" />
 
-                <button
-                  onClick={handleCopyOrderId}
-                  className="shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                  type="button"
-                >
-                  {copied ? (
-                    <Check size={16} className="text-green-400" />
-                  ) : (
-                    <Copy size={16} className="text-white/70" />
-                  )}
-                </button>
-              </div>
+            <div className="relative grid grid-cols-1 sm:grid-cols-[1.2fr_0.8fr] gap-4 sm:gap-6">
+              <div className="min-w-0">
+                <p className="text-white/55 text-xs sm:text-sm mb-1">Número de pedido</p>
+                <p className="text-sm sm:text-base font-bold text-white tracking-wide font-mono break-all leading-snug">
+                  {orderData.id}
+                </p>
 
-              <div className="flex items-center gap-3 text-sm">
-                <div className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10">
-                  <div className="text-white/50 text-xs">Entradas</div>
-                  <div className="text-white font-bold">{ticketCount}</div>
-                </div>
-                <div className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10">
-                  <div className="text-white/50 text-xs">Total</div>
-                  <div className="text-[#FFB347] font-bold">
-                    {formatPrice(orderData.total)}
+                <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
+                  <div className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10">
+                    <div className="text-white/50 text-[11px] sm:text-xs">Entradas</div>
+                    <div className="text-white font-bold">{ticketCount}</div>
+                  </div>
+
+                  <div className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10">
+                    <div className="text-white/50 text-[11px] sm:text-xs">Total</div>
+                    <div className="text-[#FFB347] font-bold">
+                      {formatPrice(orderData.total)}
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex sm:justify-end items-start">
+                <button
+                  onClick={handleCopyOrderId}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 transition-colors text-white/85 font-semibold"
+                  type="button"
+                >
+                  {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                  <span>{copied ? "Copiado" : "Copiar orden"}</span>
+                </button>
               </div>
             </div>
           </div>
 
           {eventInfo.imageUrl ? (
-            <div className="mb-6 rounded-3xl overflow-hidden border border-white/10 bg-[#121212] shadow-2xl shadow-black/30">
+            <div className="mb-6 rounded-[32px] overflow-hidden border border-white/10 bg-[#121212] shadow-2xl shadow-black/30">
               <img
                 src={eventInfo.imageUrl}
                 alt={eventInfo.title}
-                className="w-full h-52 sm:h-64 object-cover"
+                className="w-full h-44 sm:h-64 object-cover"
               />
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6 mb-6">
-            <div className="bg-[#121212] rounded-3xl border border-white/10 p-6 shadow-2xl shadow-black/20">
+          <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.95fr] gap-6 mb-7">
+            <div className="bg-[#121212] rounded-[32px] border border-white/10 p-5 sm:p-6 shadow-2xl shadow-black/20">
               <div className="flex items-center gap-2 mb-4">
-                <Ticket size={18} className="text-[#FFB347]" />
+                <Sparkles size={18} className="text-[#FFB347]" />
                 <h2
-                  className="text-lg font-bold text-white"
+                  className="text-lg sm:text-xl font-bold text-white"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   Detalles del evento
                 </h2>
               </div>
 
-              <h3 className="text-white font-bold text-2xl mb-5 leading-tight">
+              <h3 className="text-white font-bold text-2xl sm:text-3xl mb-5 leading-tight">
                 {eventInfo.title}
               </h3>
 
-              <div className="rounded-2xl bg-white/5 border border-white/5 p-4 sm:p-5">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-[#8ec5ff] text-sm font-semibold mb-2">
-                      <Calendar size={15} />
-                      Fecha
-                    </div>
-                    <div className="text-white/85 text-lg">{formattedDate}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+                  <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-2">
+                    <Calendar size={15} />
+                    Fecha
                   </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 text-[#FFB347] text-sm font-semibold mb-2">
-                      <Clock size={15} />
-                      Hora
-                    </div>
-                    <div className="text-white/85 text-lg">{formattedTime}</div>
-                  </div>
+                  <div className="text-white/90 text-base sm:text-lg">{formattedDate}</div>
                 </div>
 
-                <div>
-                  <div className="flex items-center gap-2 text-[#8ec5ff] text-sm font-semibold mb-2">
+                <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+                  <div className="flex items-center gap-2 text-[#FFB347] text-xs font-semibold mb-2">
+                    <Clock size={15} />
+                    Hora
+                  </div>
+                  <div className="text-white/90 text-base sm:text-lg">{formattedTime}</div>
+                </div>
+
+                <div className="rounded-2xl bg-white/5 border border-white/5 p-4 sm:col-span-1 col-span-1">
+                  <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-2">
                     <MapPin size={15} />
                     Lugar
                   </div>
-                  <div className="text-white/85">{locationLine}</div>
+                  <div className="text-white/85 text-sm sm:text-base leading-relaxed">{locationLine}</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#121212] rounded-3xl border border-white/10 p-6 shadow-2xl shadow-black/20">
+            <div className="bg-[#121212] rounded-[32px] border border-white/10 p-5 sm:p-6 shadow-2xl shadow-black/20">
               <div className="flex items-center gap-2 mb-4">
                 <User size={16} className="text-[#007AFF]" />
                 <h3 className="text-white font-semibold">Comprador</h3>
               </div>
 
-              <div className="text-white text-2xl font-bold mb-3">
+              <div className="text-white text-xl sm:text-2xl font-bold mb-3 leading-tight">
                 {orderData.buyerName || "-"}
               </div>
 
               <div className="space-y-2">
-                <p className="text-white/70 text-base break-all">
+                <p className="text-white/70 text-sm sm:text-base break-all">
                   {orderData.buyerEmail || "-"}
                 </p>
                 {orderData.buyerPhone ? (
-                  <p className="text-white/55 text-base">{orderData.buyerPhone}</p>
+                  <p className="text-white/55 text-sm sm:text-base">{orderData.buyerPhone}</p>
                 ) : null}
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-[#0f1c2c] border border-[#007AFF]/15 p-4">
+                <div className="flex items-start gap-3">
+                  <Mail size={16} className="text-[#4ea3ff] flex-shrink-0 mt-0.5" />
+                  <p className="text-white/65 text-sm leading-relaxed">
+                    Tus entradas están disponibles en esta pantalla y también puedes descargarlas en PDF.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="mb-5 flex items-center gap-2">
-            <Ticket size={18} className="text-[#007AFF]" />
+            <QrCode size={18} className="text-[#007AFF]" />
             <h2
-              className="text-xl font-bold text-white"
+              className="text-xl sm:text-2xl font-bold text-white"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
               Tus entradas ({ticketCount})
@@ -669,80 +689,78 @@ const MyTicketsPage = () => {
               return (
                 <div
                   key={ticket.id || idx}
-                  className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#111111] shadow-2xl shadow-black/30"
+                  className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#111111] shadow-2xl shadow-black/30"
                 >
-                  <div className="absolute inset-y-0 left-0 w-2 bg-gradient-to-b from-[#007AFF] via-[#2f86ff] to-[#FFB347]" />
-                  <div className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#0A0A0A]" />
-                  <div className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#0A0A0A]" />
+                  <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-[#007AFF] via-[#2f86ff] to-[#FFB347]" />
 
-                  <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
                     <div className="p-5 sm:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold">
-                              <Ticket size={13} />
-                              Entrada {idx + 1}
+                      <div className="flex flex-col gap-4 mb-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold">
+                            <Ticket size={13} />
+                            Entrada {idx + 1}
+                          </div>
+
+                          {isShared ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold">
+                              <Check size={12} />
+                              Compartido
                             </div>
-
-                            {isShared ? (
-                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold">
-                                <Check size={12} />
-                                Compartido
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <h3 className="text-white text-2xl font-bold leading-tight mb-3">
-                            {eventInfo.title}
-                          </h3>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/80 text-sm">
-                              {ticketTypeLabel}
-                            </span>
-
-                            {ticket.seatId ? (
-                              <span className="px-3 py-1 rounded-full bg-[#FF9500]/10 border border-[#FF9500]/20 text-[#FFB347] font-semibold text-sm">
-                                Asiento {ticket.seatId}
-                              </span>
-                            ) : null}
-                          </div>
+                          ) : null}
                         </div>
 
-                        <div className="text-left lg:text-right max-w-[220px]">
-                          <div className="text-white/40 text-xs mb-1">Ticket ID</div>
-                          <div className="text-white/65 text-xs font-mono break-all leading-relaxed">
-                            {ticket.id}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <h3 className="text-white text-xl sm:text-2xl font-bold leading-tight mb-3">
+                              {eventInfo.title}
+                            </h3>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/80 text-sm">
+                                {ticketTypeLabel}
+                              </span>
+
+                              {ticket.seatId ? (
+                                <span className="px-3 py-1.5 rounded-full bg-[#FF9500]/10 border border-[#FF9500]/20 text-[#FFB347] font-semibold text-sm">
+                                  Asiento {ticket.seatId}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="text-left sm:text-right sm:max-w-[220px]">
+                            <div className="text-white/40 text-[11px] mb-1">Ticket ID</div>
+                            <div className="text-white/65 text-xs font-mono break-all leading-relaxed">
+                              {ticket.id}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-white/5 border border-white/5 p-4 mb-4">
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-1.5">
-                              <Calendar size={14} />
-                              Fecha
-                            </div>
-                            <div className="text-white text-lg">{formattedDate}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+                          <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-2">
+                            <Calendar size={14} />
+                            Fecha
                           </div>
-
-                          <div>
-                            <div className="flex items-center gap-2 text-[#FFB347] text-xs font-semibold mb-1.5">
-                              <Clock size={14} />
-                              Hora
-                            </div>
-                            <div className="text-white text-lg">{formattedTime}</div>
-                          </div>
+                          <div className="text-white text-base sm:text-lg">{formattedDate}</div>
                         </div>
 
-                        <div>
-                          <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-1.5">
+                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+                          <div className="flex items-center gap-2 text-[#FFB347] text-xs font-semibold mb-2">
+                            <Clock size={14} />
+                            Hora
+                          </div>
+                          <div className="text-white text-base sm:text-lg">{formattedTime}</div>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+                          <div className="flex items-center gap-2 text-[#8ec5ff] text-xs font-semibold mb-2">
                             <MapPin size={14} />
                             Lugar
                           </div>
-                          <div className="text-white/85">{locationLine}</div>
+                          <div className="text-white/85 text-sm leading-relaxed">{locationLine}</div>
                         </div>
                       </div>
                     </div>
@@ -757,7 +775,7 @@ const MyTicketsPage = () => {
                           <QRCodeSVG value={qrData} size={150} level="M" includeMargin={false} />
                         </div>
 
-                        <p className="text-white/45 text-xs mt-3 text-center max-w-[220px] leading-relaxed">
+                        <p className="text-white/45 text-xs mt-3 text-center max-w-[240px] leading-relaxed">
                           Presenta este código en la entrada. Cada ticket puede usarse una sola vez.
                         </p>
                       </div>
@@ -789,7 +807,7 @@ const MyTicketsPage = () => {
           </div>
 
           <div className="mt-8 space-y-4">
-            <div className="bg-[#0f1c2c] rounded-3xl border border-[#007AFF]/20 p-5 shadow-2xl shadow-black/20">
+            <div className="bg-[#0f1c2c] rounded-[28px] border border-[#007AFF]/20 p-5 shadow-2xl shadow-black/20">
               <div className="flex items-start gap-3">
                 <Mail size={18} className="text-[#4ea3ff] flex-shrink-0 mt-0.5" />
                 <div>
@@ -806,7 +824,7 @@ const MyTicketsPage = () => {
             <button
               onClick={handleDownloadTickets}
               disabled={isGeneratingPDF || !orderData.tickets?.length}
-              className="w-full py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-2xl transition-all duration-300 hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-[#007AFF]/20"
+              className="w-full py-4 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-[24px] transition-all duration-300 hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-[#007AFF]/20"
               type="button"
             >
               {isGeneratingPDF ? (

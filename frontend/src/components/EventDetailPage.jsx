@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -77,6 +77,28 @@ const getYoutubeEmbedUrl = (url) => {
   }
 };
 
+const normalizeFunction = (func) => {
+  if (!func) return null;
+
+  return {
+    ...func,
+    taxRate: Number(func.taxRate || 0),
+  };
+};
+
+const normalizeEventFunctions = (evt) => {
+  if (!evt) return evt;
+
+  const functions = Array.isArray(evt.functions)
+    ? evt.functions.map((func) => normalizeFunction(func))
+    : [];
+
+  return {
+    ...evt,
+    functions,
+  };
+};
+
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -94,8 +116,11 @@ const EventDetailPage = () => {
 
     const load = async () => {
       try {
-        const normalized = await fetchEventById(id);
-        console.log("EVENT NORMALIZED:", normalized);
+        const rawEvent = await fetchEventById(id);
+        const normalized = normalizeEventFunctions(rawEvent);
+
+        console.log('EVENT NORMALIZED:', normalized);
+
         if (!mounted) return;
 
         setEvent(normalized);
@@ -103,11 +128,12 @@ const EventDetailPage = () => {
         setPolicies(DEFAULT_POLICIES);
 
         if (normalized?.functions?.length === 1) {
-          const singleFunc = normalized.functions[0];
+          const singleFunc = normalizeFunction(normalized.functions[0]);
           setSelectedFunction(singleFunc);
           setContextFunction(singleFunc);
         } else {
           setSelectedFunction(null);
+          setContextFunction(null);
         }
       } catch (e) {
         console.error('[EventDetailPage] Error cargando evento desde backend:', e);
@@ -127,6 +153,11 @@ const EventDetailPage = () => {
     };
   }, [id, selectEvent, setContextFunction]);
 
+  const normalizedSelectedFunction = useMemo(() => {
+    if (!selectedFunction) return null;
+    return normalizeFunction(selectedFunction);
+  }, [selectedFunction]);
+
   const saleType = event?.saleType;
   const hasValidSaleType = event ? VALID_SALE_TYPES.includes(saleType) : true;
   const isSeatedEvent = saleType === 'seated';
@@ -134,7 +165,7 @@ const EventDetailPage = () => {
   const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
   const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
   const canProceed =
-    !!event && hasValidSaleType && (hasSingleFunction || selectedFunction !== null);
+    !!event && hasValidSaleType && (hasSingleFunction || normalizedSelectedFunction !== null);
 
   const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
 
@@ -152,10 +183,25 @@ const EventDetailPage = () => {
 
   useEffect(() => {
     if (!event) return;
-    if (selectedFunction) {
-      setContextFunction(selectedFunction);
+
+    if (normalizedSelectedFunction) {
+      const freshFunction =
+        event.functions?.find((f) => f.id === normalizedSelectedFunction.id) ||
+        normalizedSelectedFunction;
+
+      const safeFunction = normalizeFunction(freshFunction);
+
+      console.log('SELECTED FUNCTION SENT TO CONTEXT:', safeFunction);
+
+      setContextFunction(safeFunction);
     }
-  }, [event, selectedFunction, setContextFunction]);
+  }, [event, normalizedSelectedFunction, setContextFunction]);
+
+  const handleFunctionSelect = (func) => {
+    const safeFunction = normalizeFunction(func);
+    setSelectedFunction(safeFunction);
+    setContextFunction(safeFunction);
+  };
 
   const handleSelectTickets = () => {
     if (!event) return;
@@ -172,8 +218,8 @@ const EventDetailPage = () => {
 
     if (!canProceed) return;
 
-    if (selectedFunction) {
-      setContextFunction(selectedFunction);
+    if (normalizedSelectedFunction) {
+      setContextFunction(normalizedSelectedFunction);
     }
 
     if (isSeatedEvent) {
@@ -304,8 +350,8 @@ const EventDetailPage = () => {
               {hasValidSaleType && hasMultipleFunctions && !event.useExternalTicket && (
                 <FunctionSelector
                   functions={event.functions}
-                  selectedFunction={selectedFunction}
-                  onSelectFunction={setSelectedFunction}
+                  selectedFunction={normalizedSelectedFunction}
+                  onSelectFunction={handleFunctionSelect}
                 />
               )}
 
@@ -323,7 +369,7 @@ const EventDetailPage = () => {
                   <Clock className="text-[#007AFF] flex-shrink-0 mt-1" size={18} strokeWidth={2} />
                   <div>
                     <div className="text-white/50 text-xs uppercase tracking-wide mb-1">Puertas abren</div>
-                    <div className="text-white font-semibold">{event.doors} hrs</div>
+                    <div className="text-white font-semibold">{event.doors}</div>
                   </div>
                 </div>
 
@@ -435,4 +481,4 @@ const EventDetailPage = () => {
   );
 };
 
-export default EventDetailPage;
+export default EventDetailPage;   

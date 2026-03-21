@@ -21,7 +21,6 @@ import AdminLayout from "../../components/admin/AdminLayout";
 
 // ---------- Helpers ----------
 function toISOStartOfDay(dateStr) {
-  // dateStr: YYYY-MM-DD
   if (!dateStr) return null;
   const d = new Date(`${dateStr}T00:00:00.000`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
@@ -37,53 +36,46 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
-  // Metrics (backend-first con fallback)
   const [stats, setStats] = useState({
     events: 0,
     ticketsSold: 0,
     users: 0,
 
-    // ✅ Finanzas separadas
-    netTickets: 0, // ingresos netos por boletos (sin fees/taxes)
-    fees: 0, // ingresos por fee
-    taxes: 0, // impuestos
-    totalCollected: 0, // total cobrado (net + fees + taxes)
+    netTickets: 0,
+    fees: 0,
+    taxes: 0,
+    totalCollected: 0,
 
-    // útil
     ordersPaidCount: 0,
   });
 
-  const [events, setEvents] = useState([]); // normalized
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Recent orders
   const [recentOrders, setRecentOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
 
   const [checkinStats, setCheckinStats] = useState({
-  total: 0,
-  used: 0,
-  pending: 0,
-  percent: 0
-});
+    total: 0,
+    used: 0,
+    pending: 0,
+    percent: 0,
+  });
 
   const [checkinByType, setCheckinByType] = useState([]);
   const [checkinByTypeLoading, setCheckinByTypeLoading] = useState(false);
 
-  // UI filters (tabla de eventos)
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // all | active | draft | past
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // ✅ Summary filters (admin/summary)
-  const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
-  const [toDate, setToDate] = useState(""); // YYYY-MM-DD
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedFunctionId, setSelectedFunctionId] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // ✅ Asegura token: usa el token del api.js; si no existe, intenta migrar desde ptl_token
   useEffect(() => {
     const tokenFromApi =
       typeof getAuthToken === "function" ? getAuthToken() : null;
@@ -91,11 +83,10 @@ export default function AdminDashboard() {
     const token = tokenFromApi || tokenFromLegacy;
 
     if (token && typeof setAuthToken === "function") {
-      setAuthToken(token); // guarda en TOKEN_KEY del api.js para interceptor
+      setAuthToken(token);
     }
   }, []);
 
-  // ✅ Cargar user /auth/me
   useEffect(() => {
     let alive = true;
 
@@ -105,9 +96,7 @@ export default function AdminDashboard() {
         const data = res.data?.data ?? res.data;
         if (!alive) return;
         setUser(data);
-      } catch (e) {
-        // no bloqueamos el dashboard por esto
-      }
+      } catch (e) {}
     })();
 
     return () => {
@@ -115,220 +104,192 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // =========================
-  // Fetch events (si existe /events)
-  // =========================
   const fetchEvents = async () => {
-  setEventsLoading(true);
-  setErrorMsg("");
+    setEventsLoading(true);
+    setErrorMsg("");
 
-  try {
-    const [eventsRes, meRes] = await Promise.all([
-      api.get("/events"),
-      api.get("/auth/me"),
-    ]);
+    try {
+      const [eventsRes, meRes] = await Promise.all([
+        api.get("/events"),
+        api.get("/auth/me"),
+      ]);
 
-    const list = eventsRes.data?.data ?? eventsRes.data;
-    const me = meRes.data?.data ?? meRes.data;
+      const list = eventsRes.data?.data ?? eventsRes.data;
+      const me = meRes.data?.data ?? meRes.data;
 
-    const rawList = Array.isArray(list) ? list : [];
+      const rawList = Array.isArray(list) ? list : [];
 
-    // ✅ En dashboard, PRODUCER solo ve sus eventos
-    const filteredList =
-      me?.role === "PRODUCER"
-        ? rawList.filter((e) => e.producerId === me.id || e.producerId === me.userId)
-        : rawList;
+      const filteredList =
+        me?.role === "PRODUCER"
+          ? rawList.filter((e) => e.producerId === me.id || e.producerId === me.userId)
+          : rawList;
 
-    const normalized = filteredList.map((e) => ({
-      id: e.id,
-      title: e.title ?? e.name ?? "Evento",
-      category: e.category ?? "OTHER",
-      saleType: e.saleType ?? "GENERAL",
-      createdAt: e.createdAt ?? null,
-      functionsCount: Array.isArray(e.functions)
-        ? e.functions.length
-        : e.functionsCount ?? 0,
-      ticketTypesCount: Array.isArray(e.ticketTypes)
-        ? e.ticketTypes.length
-        : e.ticketTypesCount ?? 0,
-      status: e.status ?? (e.isPublished ? "active" : "draft"),
-      producerId: e.producerId ?? null,
+      const normalized = filteredList.map((e) => ({
+        id: e.id,
+        title: e.title ?? e.name ?? "Evento",
+        category: e.category ?? "OTHER",
+        saleType: e.saleType ?? "GENERAL",
+        createdAt: e.createdAt ?? null,
+        functionsCount: Array.isArray(e.functions)
+          ? e.functions.length
+          : e.functionsCount ?? 0,
+        ticketTypesCount: Array.isArray(e.ticketTypes)
+          ? e.ticketTypes.length
+          : e.ticketTypesCount ?? 0,
+        status: e.status ?? (e.isPublished ? "active" : "draft"),
+        producerId: e.producerId ?? null,
+        functionsRaw: Array.isArray(e.functions) ? e.functions : [],
+      }));
 
-      // funciones crudas para dropdown
-      functionsRaw: Array.isArray(e.functions) ? e.functions : [],
-    }));
+      setEvents(normalized);
 
-    setEvents(normalized);
+      setStats((prev) => ({
+        ...prev,
+        events: normalized.length,
+      }));
+    } catch (e) {
+      setEvents([]);
+      setErrorMsg(
+        "No pude cargar eventos desde el backend (endpoint /events). Si aún no lo tienes, es normal."
+      );
+    } finally {
+      setEventsLoading(false);
+    }
+  };
 
-    setStats((prev) => ({
-      ...prev,
-      events: normalized.length,
-    }));
-  } catch (e) {
-    setEvents([]);
-    setErrorMsg(
-      "No pude cargar eventos desde el backend (endpoint /events). Si aún no lo tienes, es normal."
-    );
-  } finally {
-    setEventsLoading(false);
-  }
-};
-
-  // =========================
-  // Fetch summary (admin/summary) con filtros
-  // =========================
   const fetchAdminSummary = async (params) => {
     const res = await api.get("/admin/summary", { params });
     return res.data?.data ?? res.data;
   };
 
-// =========================
-// Fetch recent orders
-// =========================
-const fetchRecentOrders = async () => {
-  setOrdersLoading(true);
+  const fetchRecentOrders = async () => {
+    setOrdersLoading(true);
 
-  try {
-    const params = {};
+    try {
+      const params = {};
 
-    if (fromDate) params.from = fromDate;
-    if (toDate) params.to = toDate;
+      if (fromDate) params.from = fromDate;
+      if (toDate) params.to = toDate;
 
-    if (selectedEventId) params.eventId = selectedEventId;
-    if (selectedFunctionId) params.functionId = selectedFunctionId;
+      if (selectedEventId) params.eventId = selectedEventId;
+      if (selectedFunctionId) params.functionId = selectedFunctionId;
 
-    params.status = "PAID";
-    params.limit = 25;
+      params.status = "PAID";
+      params.limit = 10;
 
-    const res = await api.get("/admin/orders", { params });
+      const res = await api.get("/admin/orders", { params });
 
-    const raw =
-    res.data?.data?.data ??
-    res.data?.data ??
-    res.data ??
-    [];    
+      const raw =
+        res.data?.data?.data ??
+        res.data?.data ??
+        res.data ??
+        [];
 
-    const data = Array.isArray(raw) ? raw : [];
+      const data = Array.isArray(raw) ? raw : [];
 
-    setRecentOrders(data);
-  } catch (e) {
-    console.error("Error loading recent orders", e);
-  } finally {
-    setOrdersLoading(false);
-  }
-};
-
- // =========================
-// Fetch check-in stats
-// =========================
-const fetchCheckinStats = async () => {
-  try {
-    const params = {};
-
-    if (!selectedEventId) {
-       setCheckinStats({
-       total: 0,
-       used: 0,
-       pending: 0,
-       percent: 0,
-     })
-    return;
+      setRecentOrders(data);
+    } catch (e) {
+      console.error("Error loading recent orders", e);
+    } finally {
+      setOrdersLoading(false);
     }
-    if (selectedEventId) params.eventId = selectedEventId;
-    if (selectedFunctionId) params.functionId = selectedFunctionId;
+  };
 
-    const res = await api.get("/checkin/stats", { params });
+  const fetchCheckinStats = async () => {
+    try {
+      const params = {};
 
-    const raw =
-      res.data?.data?.data ??
-      res.data?.data ??
-      res.data ??
-      {};
+      if (!selectedEventId) {
+        setCheckinStats({
+          total: 0,
+          used: 0,
+          pending: 0,
+          percent: 0,
+        });
+        return;
+      }
+      if (selectedEventId) params.eventId = selectedEventId;
+      if (selectedFunctionId) params.functionId = selectedFunctionId;
 
-    const total = Number(raw.totalTickets || 0);
-    const used = Number(raw.usedTickets || 0);
+      const res = await api.get("/checkin/stats", { params });
 
-    const pending = Number(raw.validTickets || Math.max(total - used, 0));
+      const raw =
+        res.data?.data?.data ??
+        res.data?.data ??
+        res.data ??
+        {};
 
-    const percent = total > 0
-      ? Math.round((used / total) * 100)
-      : 0;
+      const total = Number(raw.totalTickets || 0);
+      const used = Number(raw.usedTickets || 0);
 
-    setCheckinStats({
-      total,
-      used,
-      pending,
-      percent
-    });
+      const pending = Number(raw.validTickets || Math.max(total - used, 0));
 
-  } catch (err) {
-    console.error("Error loading checkin stats", err);
-  }
-};
+      const percent = total > 0 ? Math.round((used / total) * 100) : 0;
 
-// =========================
-// Fetch check-in stats by Type
-// =========================
+      setCheckinStats({
+        total,
+        used,
+        pending,
+        percent,
+      });
+    } catch (err) {
+      console.error("Error loading checkin stats", err);
+    }
+  };
 
   const fetchCheckinStatsByType = async (params = {}) => {
-  
-  try {
-    setCheckinByTypeLoading(true);
+    try {
+      setCheckinByTypeLoading(true);
 
-    if (!params.eventId) {
+      if (!params.eventId) {
+        setCheckinByType([]);
+        return;
+      }
+
+      const res = await api.get("/checkin/stats-by-type", { params });
+
+      console.log("stats-by-type response:", res.data);
+
+      const payload = res.data?.data;
+      const list = payload?.data?.items || [];
+      const normalized = list.map((item) => {
+        const label =
+          item.ticketTypeName ||
+          item.name ||
+          item.ticketType ||
+          "Tipo";
+
+        const used = Number(
+          item.usedTickets ?? item.used ?? item.checkedIn ?? 0
+        );
+
+        const total = Number(
+          item.totalTickets ?? item.total ?? item.count ?? used
+        );
+
+        const pending = Number(
+          item.validTickets ?? item.pending ?? Math.max(total - used, 0)
+        );
+
+        return {
+          label,
+          used,
+          total,
+          pending,
+        };
+      });
+
+      setCheckinByType(normalized);
+    } catch (err) {
+      console.error("ERROR REAL EN fetchCheckinStatsByType:", err);
+      console.log("err.response?.status:", err?.response?.status);
+      console.log("err.response?.data:", err?.response?.data);
       setCheckinByType([]);
-      return;
+    } finally {
+      setCheckinByTypeLoading(false);
     }
+  };
 
-    const res = await api.get("/checkin/stats-by-type", { params });
-
-    console.log("stats-by-type response:", res.data);
-    // console.log("stats-by-type raw:", res.data?.data);
-
-    
-    const payload = res.data?.data;
-    const list = payload?.data?.items || [];    
-    const normalized = list.map((item) => {
-      const label =
-        item.ticketTypeName ||
-        item.name ||
-        item.ticketType ||
-        "Tipo";
-
-      const used = Number(
-        item.usedTickets ?? item.used ?? item.checkedIn ?? 0
-      );
-
-      const total = Number(
-        item.totalTickets ?? item.total ?? item.count ?? used
-      );
-
-      const pending = Number(
-        item.validTickets ?? item.pending ?? Math.max(total - used, 0)
-      );
-
-      return {
-        label,
-        used,
-        total,
-        pending,
-      };
-    });
-
-    setCheckinByType(normalized);
-  } catch (err) {
-    console.error("ERROR REAL EN fetchCheckinStatsByType:", err);
-    console.log("err.response?.status:", err?.response?.status);
-    console.log("err.response?.data:", err?.response?.data);
-    setCheckinByType([]);
-  } finally {
-    setCheckinByTypeLoading(false);
-  }
-};
-
-  // =========================
-  // Apply summary filters
-  // =========================
   const applySummaryFilters = async () => {
     setSummaryLoading(true);
     setErrorMsg("");
@@ -336,10 +297,6 @@ const fetchCheckinStats = async () => {
     try {
       const params = {};
 
-      // Fechas: incluimos día completo (recomendación #1)
-      
-
-      // En tu backend parseas Date(value), 
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
 
@@ -354,7 +311,7 @@ const fetchCheckinStats = async () => {
       } catch {}
 
       try {
-      await fetchCheckinStatsByType(params);
+        await fetchCheckinStatsByType(params);
       } catch (err) {
         console.error("FALLO fetchCheckinStatsByType en applySummaryFilters:", err);
       }
@@ -394,21 +351,15 @@ const fetchCheckinStats = async () => {
     setToDate("");
     setSelectedEventId("");
     setSelectedFunctionId("");
-    // refresca summary sin filtros
     await applySummaryFilters();
   };
 
-  // =========================
-  // Refresh general (events + summary)
-  // =========================
   const refresh = async () => {
     setLoading(true);
     setErrorMsg("");
 
     try {
       await fetchEvents();
-
-      // si hay filtros activos, respétalos
       await applySummaryFilters();
     } finally {
       setLoading(false);
@@ -416,32 +367,28 @@ const fetchCheckinStats = async () => {
   };
 
   useEffect(() => {
-    // Carga inicial
     (async () => {
       await fetchEvents();
       await applySummaryFilters();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
-  useEffect(() => {
-  if (!selectedEventId) return;
-  
-  const interval = setInterval(() => {
-    fetchCheckinStats();
-    fetchCheckinStatsByType({
-    eventId: selectedEventId,
-    functionId: selectedFunctionId,
-   });
-  }, 5000);
 
-  return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps  
- }, [selectedEventId, selectedFunctionId]);
-    
-  // =========================
-  // Functions dropdown derived
-  // =========================
+  useEffect(() => {
+    if (!selectedEventId) return;
+
+    const interval = setInterval(() => {
+      fetchCheckinStats();
+      fetchCheckinStatsByType({
+        eventId: selectedEventId,
+        functionId: selectedFunctionId,
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId, selectedFunctionId]);
+
   const selectedEvent = useMemo(() => {
     if (!selectedEventId) return null;
     return (events || []).find((e) => e.id === selectedEventId) || null;
@@ -449,7 +396,6 @@ const fetchCheckinStats = async () => {
 
   const functionOptions = useMemo(() => {
     const fns = selectedEvent?.functionsRaw || [];
-    // normaliza para dropdown (id + label)
     return fns.map((fn) => {
       const d = fn?.date ? new Date(fn.date) : null;
       const dateLabel =
@@ -470,14 +416,10 @@ const fetchCheckinStats = async () => {
     });
   }, [selectedEvent]);
 
-  // si cambias de evento, resetea functionId
   useEffect(() => {
     setSelectedFunctionId("");
   }, [selectedEventId]);
 
-  // =========================
-  // Filters (tabla eventos)
-  // =========================
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
 
@@ -499,13 +441,57 @@ const fetchCheckinStats = async () => {
       });
   }, [events, query, statusFilter]);
 
+  const displayedEvents = useMemo(() => {
+    const hasEventFilters = query.trim() !== "" || statusFilter !== "all";
+
+    if (hasEventFilters) {
+      return filteredEvents;
+    }
+
+    const now = Date.now();
+
+    const withNextFunction = filteredEvents.map((e) => {
+      const upcomingDates = (e.functionsRaw || [])
+        .map((fn) => {
+          const time = fn?.date ? new Date(fn.date).getTime() : NaN;
+          return Number.isNaN(time) ? null : time;
+        })
+        .filter((v) => v !== null)
+        .filter((time) => time >= now);
+
+      const nextFunctionAt =
+        upcomingDates.length > 0 ? Math.min(...upcomingDates) : null;
+
+      return {
+        ...e,
+        nextFunctionAt,
+      };
+    });
+
+    const upcoming = withNextFunction
+      .filter((e) => e.nextFunctionAt !== null)
+      .sort((a, b) => a.nextFunctionAt - b.nextFunctionAt)
+      .slice(0, 5);
+
+    if (upcoming.length > 0) {
+      return upcoming;
+    }
+
+    return [...filteredEvents]
+      .sort((a, b) => {
+        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      })
+      .slice(0, 5);
+  }, [filteredEvents, query, statusFilter]);
+
   const money = (n) => {
     const v = Number(n);
     const safe = Number.isFinite(v) ? v : 0;
     return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   };
 
-  // ✅ Operación (cards superiores)
   const opsCards = [
     { label: "Eventos", value: stats.events, icon: CalendarDays },
     { label: "Tickets vendidos", value: stats.ticketsSold, icon: Ticket },
@@ -514,7 +500,6 @@ const fetchCheckinStats = async () => {
     { label: "Total cobrado", value: money(stats.totalCollected), icon: DollarSign },
   ];
 
-  // ✅ Finanzas separadas
   const financeCards = [
     {
       label: "Net (boletos)",
@@ -531,28 +516,27 @@ const fetchCheckinStats = async () => {
     { label: "Taxes", value: money(stats.taxes), icon: Percent, hint: "Impuestos" },
   ];
 
-  // Acciones placeholder (luego hacemos rutas reales)
   const handleCreateEvent = () => {
     navigate("/admin/events/new");
   };
 
   const handleEditEvent = (eventId) => {
-  navigate(`/admin/events/${eventId}/edit`);
-};
+    navigate(`/admin/events/${eventId}/edit`);
+  };
 
   const handleManageFunctions = (eventId) => {
-    // UX pro: si presionas “Funciones”, te selecciona el evento arriba
     setSelectedEventId(eventId);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleManageTicketTypes = (eventId) => {
-  navigate(`/admin/events/${eventId}/ticket-types`);
-};
+    navigate(`/admin/events/${eventId}/ticket-types`);
+  };
+
+  const showingDefaultTopEvents = query.trim() === "" && statusFilter === "all";
 
   return (
     <AdminLayout user={user}>
-      {/* Top bar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard Admin</h1>
@@ -583,7 +567,6 @@ const fetchCheckinStats = async () => {
         </div>
       </div>
 
-      {/* ✅ Summary Filters */}
       <div className="mb-5 rounded-2xl border border-white/10 bg-[#121212] p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
@@ -683,14 +666,12 @@ const fetchCheckinStats = async () => {
         </div>
       </div>
 
-      {/* Error (no bloqueante) */}
       {errorMsg ? (
         <div className="mb-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
           <p className="text-yellow-200 text-sm">{errorMsg}</p>
         </div>
       ) : null}
 
-      {/* KPI - Operación */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         {opsCards.map((c) => {
           const Icon = c.icon;
@@ -714,7 +695,6 @@ const fetchCheckinStats = async () => {
         })}
       </div>
 
-      {/* KPI - Finanzas separadas */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         {financeCards.map((c) => {
           const Icon = c.icon;
@@ -743,12 +723,15 @@ const fetchCheckinStats = async () => {
         })}
       </div>
 
-      {/* Events module */}
       <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-white font-semibold text-lg">Eventos</div>
-            <div className="text-white/50 text-sm">Busca, filtra y administra eventos.</div>
+            <div className="text-white/50 text-sm">
+              {showingDefaultTopEvents
+                ? "Mostrando los 5 eventos más próximos. Usa los filtros para ver más."
+                : "Busca, filtra y administra eventos."}
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-2 md:items-center">
@@ -784,7 +767,7 @@ const fetchCheckinStats = async () => {
               <RefreshCw size={16} className="animate-spin" />
               <span className="text-sm">Cargando eventos…</span>
             </div>
-          ) : filteredEvents.length === 0 ? (
+          ) : displayedEvents.length === 0 ? (
             <div className="text-white/50 text-sm">
               No hay eventos para mostrar (o el backend aún no devuelve /events).
             </div>
@@ -803,254 +786,255 @@ const fetchCheckinStats = async () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEvents.map((e) => (
+                  {displayedEvents.map((e) => (
                     <tr key={e.id} className="border-t border-white/10">
+                      <td className="py-3 pr-3">
+                        <div className="text-white font-semibold">{e.title}</div>
+                        <div className="text-white/40 text-xs font-mono truncate max-w-[360px]">
+                          {e.id}
+                        </div>
+                      </td>
 
-  <td className="py-3 pr-3">
-    <div className="text-white font-semibold">{e.title}</div>
-    <div className="text-white/40 text-xs font-mono truncate max-w-[360px]">
-      {e.id}
-    </div>
-  </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {e.category}
+                      </td>
 
-  <td className="py-3 pr-3 text-white/70 text-sm">
-    {e.category}
-  </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {e.saleType}
+                      </td>
 
-  <td className="py-3 pr-3 text-white/70 text-sm">
-    {e.saleType}
-  </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {e.functionsCount ?? 0}
+                      </td>
 
-  <td className="py-3 pr-3 text-white/70 text-sm">
-    {e.functionsCount ?? 0}
-  </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {e.ticketTypesCount ?? 0}
+                      </td>
 
-  <td className="py-3 pr-3 text-white/70 text-sm">
-    {e.ticketTypesCount ?? 0}
-  </td>
+                      <td className="py-3 pr-3">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs border border-white/10 bg-white/5 text-white/70">
+                          {e.status}
+                        </span>
+                      </td>
 
-  <td className="py-3 pr-3">
-    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs border border-white/10 bg-white/5 text-white/70">
-      {e.status}
-    </span>
-  </td>
+                      <td className="py-3 pr-0">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditEvent(e.id)}
+                            className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
+                            type="button"
+                          >
+                            Editar
+                          </button>
 
-  <td className="py-3 pr-0">
-    <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/events/${e.id}/functions`)}
+                            className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
+                            type="button"
+                          >
+                            Funciones
+                          </button>
 
-      <button
-        onClick={() => handleEditEvent(e.id)}
-        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
-        type="button"
-      >
-        Editar
-      </button>
+                          <button
+                            onClick={() => handleManageTicketTypes(e.id)}
+                            className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
+                            type="button"
+                          >
+                            Ticket Types
+                          </button>
 
-      <button
-        onClick={() => navigate(`/admin/events/${e.id}/functions`)}
-        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
-        type="button"
-      >
-        Funciones
-      </button>
-
-      <button
-        onClick={() => handleManageTicketTypes(e.id)}
-        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm"
-        type="button"
-      >
-        Ticket Types
-      </button>
-
-      <button
-        onClick={() => alert("Próximo paso: vista detalle del evento")}
-        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80"
-        type="button"
-        title="Ver detalle"
-      >
-        <ChevronRight size={16} />
-      </button>
-
-    </div>
-  </td>
-  </tr>
+                          <button
+                            onClick={() => alert("Próximo paso: vista detalle del evento")}
+                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80"
+                            type="button"
+                            title="Ver detalle"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
 
               <div className="mt-3 text-xs text-white/40">
-                Siguiente paso: conectamos acciones a pantallas reales (Crear/Editar/Funciones/Tipos).
+                {showingDefaultTopEvents
+                  ? "Vista resumida inicial: 5 eventos más próximos."
+                  : "Resultado filtrado completo según búsqueda/estado."}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Next widgets placeholders */}
       <div className="rounded-2xl border border-white/10 bg-[#121212] p-4">
-  <div className="text-white font-semibold mb-3">Ventas recientes</div>
+        <div className="text-white font-semibold mb-3">
+          Ventas recientes
+          <span className="ml-2 text-white/40 text-sm font-normal">
+            (últimas 10)
+          </span>
+        </div>
 
-  {ordersLoading ? (
-    <div className="text-white/60 text-sm">Cargando órdenes…</div>
-  ) : recentOrders.length === 0 ? (
-    <div className="text-white/50 text-sm">
-      No hay órdenes en este rango.
-    </div>
-  ) : (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="text-white/50 text-xs">
-            <th className="py-2 pr-3">Fecha</th>
-            <th className="py-2 pr-3">Orden</th>
-            <th className="py-2 pr-3">Comprador</th>
-            <th className="py-2 pr-3">Evento</th>
-            <th className="py-2 pr-3">Tickets</th>
-            <th className="py-2 pr-3">Total</th>
-            <th className="py-2 pr-3">Status</th>
-          </tr>
-        </thead>
+        {ordersLoading ? (
+          <div className="text-white/60 text-sm">Cargando órdenes…</div>
+        ) : recentOrders.length === 0 ? (
+          <div className="text-white/50 text-sm">
+            No hay órdenes en este rango.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-white/50 text-xs">
+                  <th className="py-2 pr-3">Fecha</th>
+                  <th className="py-2 pr-3">Orden</th>
+                  <th className="py-2 pr-3">Comprador</th>
+                  <th className="py-2 pr-3">Evento</th>
+                  <th className="py-2 pr-3">Tickets</th>
+                  <th className="py-2 pr-3">Total</th>
+                  <th className="py-2 pr-3">Status</th>
+                </tr>
+              </thead>
 
-        <tbody>
-          {recentOrders.map((o) => {
-            const d = new Date(o.createdAt);
+              <tbody>
+                {recentOrders.map((o) => {
+                  const d = new Date(o.createdAt);
 
-            return (
-              <tr key={o.id} className="border-t border-white/10">
-                <td className="py-3 pr-3 text-white/70 text-sm">
-                  {d.toLocaleString()}
-                </td>
+                  return (
+                    <tr key={o.id} className="border-t border-white/10">
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {d.toLocaleString()}
+                      </td>
 
-                <td className="py-3 pr-3 text-white font-mono text-xs">
-                 <Link
-                   to={`/admin/orders/${o.id}`}
-                   className="text-[#007AFF] hover:underline"
-                 >
-                   {o.id.slice(0, 8)}
-                </Link>
-                </td>
+                      <td className="py-3 pr-3 text-white font-mono text-xs">
+                        <Link
+                          to={`/admin/orders/${o.id}`}
+                          className="text-[#007AFF] hover:underline"
+                        >
+                          {o.id.slice(0, 8)}
+                        </Link>
+                      </td>
 
-                <td className="py-3 pr-3 text-white/70 text-sm">
-                  {o.buyer?.name || o.buyer?.email || "Guest"}
-                </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {o.buyer?.name || o.buyer?.email || "Guest"}
+                      </td>
 
-                <td className="py-3 pr-3 text-white/70 text-sm">
-                  {o.event?.title || "-"}
-                </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {o.event?.title || "-"}
+                      </td>
 
-                <td className="py-3 pr-3 text-white/70 text-sm">
-                  {o.ticketsCount}
-                </td>
+                      <td className="py-3 pr-3 text-white/70 text-sm">
+                        {o.ticketsCount}
+                      </td>
 
-                <td className="py-3 pr-3 text-white font-semibold">
-                  ${Number(o.total).toLocaleString()}
-                </td>
+                      <td className="py-3 pr-3 text-white font-semibold">
+                        ${Number(o.total).toLocaleString()}
+                      </td>
 
-                <td className="py-3 pr-3">
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-500/10 border border-green-500/30 text-green-300">
-                    {o.status}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  )}
-</div>
-        <div className="rounded-2xl border border-white/10 bg-[#121212] p-4">
-  <div className="text-white font-semibold mb-4">
-    Check-in / Accesos
-  </div>
-
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-    <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-      <div className="text-white/50 text-sm">Tickets totales</div>
-      <div className="text-white text-2xl font-bold mt-1">
-        {checkinStats.total}
+                      <td className="py-3 pr-3">
+                        <span className="px-2 py-1 text-xs rounded-full bg-green-500/10 border border-green-500/30 text-green-300">
+                          {o.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
 
-    <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-      <div className="text-white/50 text-sm">Tickets usados</div>
-      <div className="text-green-400 text-2xl font-bold mt-1">
-        {checkinStats.used}
-      </div>
-    </div>
+      <div className="rounded-2xl border border-white/10 bg-[#121212] p-4">
+        <div className="text-white font-semibold mb-4">
+          Check-in / Accesos
+        </div>
 
-    <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-      <div className="text-white/50 text-sm">Pendientes</div>
-      <div className="text-yellow-400 text-2xl font-bold mt-1">
-        {checkinStats.pending}
-      </div>
-    </div>
-
-    <div className="bg-black/30 border border-white/10 rounded-xl p-4">
-      <div className="text-white/50 text-sm">Asistencia</div>
-      <div className="text-[#007AFF] text-2xl font-bold mt-1">
-        {checkinStats.percent}%
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-4">
-  <div className="flex items-center justify-between mb-4">
-    <div>
-      <div className="text-white font-semibold">
-        Asistencia por tipo de entrada
-      </div>
-      <div className="text-white/50 text-sm mt-1">
-        Distribución de tickets usados por categoría.
-      </div>
-    </div>
-  </div>
-
-  {checkinByTypeLoading ? (
-    <div className="text-white/60 text-sm">Cargando gráfico…</div>
-  ) : checkinByType.length === 0 ? (
-    <div className="text-white/50 text-sm">
-      No hay datos por tipo de entrada para este filtro.
-    </div>
-  ) : (
-    <div className="space-y-4">
-      {checkinByType.map((item, idx) => {
-        const maxUsed = Math.max(...checkinByType.map((x) => x.used), 1);
-        const widthPercent = Math.max(
-          8,
-          Math.round((item.used / maxUsed) * 100)
-        );
-
-        const percentOfTotal =
-          item.total > 0 ? Math.round((item.used / item.total) * 100) : 0;
-
-        return (
-          <div key={`${item.label}-${idx}`}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-white/80 text-sm font-medium">
-                {item.label}
-              </div>
-              <div className="text-white/50 text-xs">
-                Usados: {item.used} · Total: {item.total} · {percentOfTotal}%
-              </div>
-            </div>
-
-            <div className="w-full h-3 rounded-full bg-black/40 border border-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#007AFF] to-[#00C2FF]"
-                style={{ width: `${widthPercent}%` }}
-              />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+            <div className="text-white/50 text-sm">Tickets totales</div>
+            <div className="text-white text-2xl font-bold mt-1">
+              {checkinStats.total}
             </div>
           </div>
-        );
-      })}
-    </div>
-  )}
-</div>
 
-      </AdminLayout>
+          <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+            <div className="text-white/50 text-sm">Tickets usados</div>
+            <div className="text-green-400 text-2xl font-bold mt-1">
+              {checkinStats.used}
+            </div>
+          </div>
+
+          <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+            <div className="text-white/50 text-sm">Pendientes</div>
+            <div className="text-yellow-400 text-2xl font-bold mt-1">
+              {checkinStats.pending}
+            </div>
+          </div>
+
+          <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+            <div className="text-white/50 text-sm">Asistencia</div>
+            <div className="text-[#007AFF] text-2xl font-bold mt-1">
+              {checkinStats.percent}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-white font-semibold">
+              Asistencia por tipo de entrada
+            </div>
+            <div className="text-white/50 text-sm mt-1">
+              Distribución de tickets usados por categoría.
+            </div>
+          </div>
+        </div>
+
+        {checkinByTypeLoading ? (
+          <div className="text-white/60 text-sm">Cargando gráfico…</div>
+        ) : checkinByType.length === 0 ? (
+          <div className="text-white/50 text-sm">
+            No hay datos por tipo de entrada para este filtro.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {checkinByType.map((item, idx) => {
+              const maxUsed = Math.max(...checkinByType.map((x) => x.used), 1);
+              const widthPercent = Math.max(
+                8,
+                Math.round((item.used / maxUsed) * 100)
+              );
+
+              const percentOfTotal =
+                item.total > 0 ? Math.round((item.used / item.total) * 100) : 0;
+
+              return (
+                <div key={`${item.label}-${idx}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-white/80 text-sm font-medium">
+                      {item.label}
+                    </div>
+                    <div className="text-white/50 text-xs">
+                      Usados: {item.used} · Total: {item.total} · {percentOfTotal}%
+                    </div>
+                  </div>
+
+                  <div className="w-full h-3 rounded-full bg-black/40 border border-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#007AFF] to-[#00C2FF]"
+                      style={{ width: `${widthPercent}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

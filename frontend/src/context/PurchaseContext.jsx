@@ -22,17 +22,6 @@ const CURRENCY_BY_COUNTRY = {
   'Perú': { code: 'PEN', symbol: 'S/', name: 'Sol Peruano' }
 };
 
-// Tax rates by country
-const TAX_RATES = {
-  'México': 0.16,
-  'Estados Unidos': 0.08,
-  'España': 0.21,
-  'Argentina': 0.21,
-  'Colombia': 0.19,
-  'Chile': 0.19,
-  'Perú': 0.18
-};
-
 const getStoredState = () => {
   try {
     const stored = sessionStorage.getItem(PURCHASE_STATE_KEY);
@@ -127,9 +116,14 @@ const normalizeEventFromApi = (evt) => {
   const saleTypeRaw = evt.saleType || 'GENERAL';
   const saleType = String(saleTypeRaw).toLowerCase();
 
-  const firstFunction = Array.isArray(evt.functions) && evt.functions.length > 0
-    ? evt.functions[0]
-    : null;
+  const functions = Array.isArray(evt.functions)
+    ? evt.functions.map((func) => ({
+        ...func,
+        taxRate: Number(func?.taxRate || 0),
+      }))
+    : [];
+
+  const firstFunction = functions.length > 0 ? functions[0] : null;
 
   return {
     ...evt,
@@ -167,7 +161,7 @@ const normalizeEventFromApi = (evt) => {
             phone: evt.producerPhone || '',
           }
         : null,
-    functions: Array.isArray(evt.functions) ? evt.functions : [],
+    functions,
     ticketTypes: Array.isArray(evt.ticketTypes) ? evt.ticketTypes : [],
   };
 };
@@ -287,7 +281,7 @@ export const PurchaseProvider = ({ children }) => {
   }, [fetchEventById, selectEvent]);
 
   const selectFunction = useCallback((func) => {
-    setSelectedFunction(func);
+    setSelectedFunction(func ? { ...func, taxRate: Number(func?.taxRate || 0) } : null);
   }, []);
 
   const updateTickets = useCallback((tickets) => {
@@ -353,11 +347,8 @@ export const PurchaseProvider = ({ children }) => {
   }, [selectedEvent]);
 
   const getTaxRate = useCallback(() => {
-    if (!selectedEvent?.country) {
-      return TAX_RATES['Estados Unidos'];
-    }
-    return TAX_RATES[selectedEvent.country] || TAX_RATES['Estados Unidos'];
-  }, [selectedEvent]);
+    return Number(selectedFunction?.taxRate || 0);
+  }, [selectedFunction]);
 
   const getTicketsSubtotal = useCallback(() => {
     return selectedTickets.reduce((sum, ticket) => {
@@ -393,19 +384,22 @@ export const PurchaseProvider = ({ children }) => {
   const getTax = useCallback(() => {
     const subtotal = getSubtotal();
     const taxRate = getTaxRate();
-    return Math.round(subtotal * taxRate);
+    return Number((subtotal * taxRate).toFixed(2));
   }, [getSubtotal, getTaxRate]);
 
   const getTotal = useCallback(() => {
     const subtotal = getSubtotal();
     const tax = getTax();
     const fee = getServiceFee();
-    return subtotal + fee + tax;
+    return Number((subtotal + fee + tax).toFixed(2));
   }, [getSubtotal, getTax, getServiceFee]);
 
   const formatPrice = useCallback((amount) => {
     const currency = getCurrency();
-    return `${currency.symbol}${Number(amount || 0).toLocaleString()}`;
+    return `${currency.symbol}${Number(amount || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   }, [getCurrency]);
 
   const isPurchaseReady = useCallback(() => {
@@ -535,7 +529,7 @@ export const PurchaseProvider = ({ children }) => {
     const subtotal = getSubtotal();
     const tax = getTax();
     const total = getTotal();
-    const hasItems = subtotal > 0;
+    const serviceFee = subtotal > 0 ? getServiceFee() : 0;
 
     return {
       event: selectedEvent,
@@ -547,7 +541,7 @@ export const PurchaseProvider = ({ children }) => {
       currency,
       taxRate,
       subtotal,
-      serviceFee: hasItems ? getServiceFee() : 0,
+      serviceFee,
       tax,
       total,
       isPurchaseReady: isPurchaseReady()

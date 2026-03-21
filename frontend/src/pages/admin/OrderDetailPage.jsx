@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  RotateCcw,
+  Ban,
+  RefreshCw,
 } from "lucide-react";
 
 import api from "../../api/api";
@@ -23,10 +26,21 @@ export default function OrderDetailPage() {
 
   const [user, setUser] = useState(null);
   const [order, setOrder] = useState(null);
+  const [refundableData, setRefundableData] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [qrOpen, setQrOpen] = useState(false);
+
+  const [selectedTicketIds, setSelectedTicketIds] = useState([]);
+  const [refundMode, setRefundMode] = useState("INTERNAL");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundNotes, setRefundNotes] = useState("");
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundMsg, setRefundMsg] = useState("");
+  const [refundError, setRefundError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -44,24 +58,71 @@ export default function OrderDetailPage() {
     };
   }, []);
 
+  const loadOrder = async () => {
+    const res = await api.get(`/orders/${id}`);
+    const payload =
+      res.data?.data?.data ??
+      res.data?.data ??
+      res.data ??
+      null;
+
+    setOrder(payload);
+  };
+
+  const loadRefundableTickets = async () => {
+    try {
+      const res = await api.get(`/orders/${id}/refundable-tickets`);
+      const payload =
+        res.data?.data?.data ??
+        res.data?.data ??
+        res.data ??
+        null;
+
+      setRefundableData(payload);
+    } catch {
+      setRefundableData(null);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
 
-    const loadOrder = async () => {
+    const init = async () => {
       setLoading(true);
       setErrorMsg("");
+      setRefundMsg("");
+      setRefundError("");
 
       try {
-        const res = await api.get(`/orders/${id}`);
-        const payload = 
-           res.data?.data?.data ??
-           res.data?.data ??
-           res.data ??
-           null;
+        const [orderRes, refundableRes] = await Promise.allSettled([
+          api.get(`/orders/${id}`),
+          api.get(`/orders/${id}/refundable-tickets`),
+        ]);
 
         if (!alive) return;
-        setOrder(payload);
-      } catch (e) {
+
+        if (orderRes.status === "fulfilled") {
+          const payload =
+            orderRes.value.data?.data?.data ??
+            orderRes.value.data?.data ??
+            orderRes.value.data ??
+            null;
+          setOrder(payload);
+        } else {
+          throw new Error("No pude cargar la orden");
+        }
+
+        if (refundableRes.status === "fulfilled") {
+          const payload =
+            refundableRes.value.data?.data?.data ??
+            refundableRes.value.data?.data ??
+            refundableRes.value.data ??
+            null;
+          setRefundableData(payload);
+        } else {
+          setRefundableData(null);
+        }
+      } catch {
         if (!alive) return;
         setErrorMsg("No pude cargar el detalle de la orden.");
       } finally {
@@ -69,7 +130,7 @@ export default function OrderDetailPage() {
       }
     };
 
-    if (id) loadOrder();
+    if (id) init();
 
     return () => {
       alive = false;
@@ -79,12 +140,138 @@ export default function OrderDetailPage() {
   const money = (n) => {
     const v = Number(n);
     const safe = Number.isFinite(v) ? v : 0;
-    return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return `$${safe.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
+
+  const refundableById = useMemo(() => {
+    const map = new Map();
+    const tickets = refundableData?.tickets || [];
+    for (const t of tickets) {
+      map.set(t.id, t);
+    }
+    return map;
+  }, [refundableData]);
 
   const firstTicket = order?.tickets?.[0];
   const firstFunction = firstTicket?.function;
   const firstEvent = firstFunction?.event;
+
+  const activeTicketsCount =
+    order?.tickets?.filter((t) => t.status === "ACTIVE").length || 0;
+
+  const refundableTickets =
+    order?.tickets?.filter((t) => refundableById.get(t.id)?.refundable) || [];
+
+  const selectedTickets = order?.tickets?.filter((t) =>
+    selectedTicketIds.includes(t.id)
+  ) || [];
+
+  const selectedSummary = useMemo(() => {
+    return selectedTickets.reduce(
+      (acc, t) => {
+        acc.subtotal += Number(t.unitPrice || 0);
+        acc.serviceFee += Number(t.serviceFeeAmount || 0);
+        acc.salesTax += Number(t.salesTaxAmount || 0);
+        acc.total += Number(t.totalAmount || 0);
+        return acc;
+      },
+      { subtotal: 0, serviceFee: 0, salesTax: 0, total: 0 }
+    );
+  }, [selectedTickets]);
+
+  const toggleTicket = (ticketId) => {
+    const info = refundableById.get(ticketId);
+    if (!info?.refundable) return;
+
+    setSelectedTicketIds((prev) =>
+      prev.includes(ticketId)
+        ? prev.filter((id) => id !== ticketId)
+        : [...prev, ticketId]
+    );
+  };
+
+  const toggleSelectAllRefundable = () => {
+    const ids = refundableTickets.map((t) => t.id);
+
+    const allSelected =
+      ids.length > 0 && ids.every((ticketId) => selectedTicketIds.includes(ticketId));
+
+    if (allSelected) {
+      setSelectedTicketIds([]);
+    } else {
+      setSelectedTicketIds(ids);
+    }
+  };
+
+  const handleProcessRefund = async () => {
+    if (selectedTicketIds.length === 0) {
+      setRefundError("Selecciona al menos un ticket.");
+      return;
+    }
+
+    setRefundLoading(true);
+    setRefundMsg("");
+    setRefundError("");
+
+    try {
+      await api.post(`/orders/${id}/refunds`, {
+        ticketIds: selectedTicketIds,
+        mode: refundMode,
+        reason: refundReason || null,
+        notes: refundNotes || null,
+        processedByUserId: user?.id || null,
+      });
+
+      await Promise.all([loadOrder(), loadRefundableTickets()]);
+
+      setSelectedTicketIds([]);
+      setRefundReason("");
+      setRefundNotes("");
+      setRefundMsg(
+        refundMode === "STRIPE"
+          ? "Refund procesado correctamente en Stripe."
+          : "Cancelación interna procesada correctamente."
+      );
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "No pude procesar la operación.";
+      setRefundError(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  const ticketStatusBadge = (ticket) => {
+    if (ticket.status === "REFUNDED") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-500/10 border border-blue-500/30 text-blue-300">
+          <RotateCcw size={12} />
+          Refund
+        </span>
+      );
+    }
+
+    if (ticket.status === "CANCELLED") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-orange-500/10 border border-orange-500/30 text-orange-300">
+          <Ban size={12} />
+          Cancelado
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/10 border border-green-500/30 text-green-300">
+        <CheckCircle2 size={12} />
+        Activo
+      </span>
+    );
+  };
 
   return (
     <AdminLayout user={user}>
@@ -101,7 +288,7 @@ export default function OrderDetailPage() {
 
           <h1 className="text-2xl font-bold text-white">Detalle de Orden</h1>
           <p className="text-white/50 text-sm">
-            Información completa de la transacción y sus tickets.
+            Información completa de la transacción, tickets y refunds.
           </p>
         </div>
       </div>
@@ -121,7 +308,6 @@ export default function OrderDetailPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            {/* Order summary */}
             <div className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
@@ -131,8 +317,13 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
 
-                <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
-                  {order.status}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
+                    {order.status}
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
+                    Tickets activos: {activeTicketsCount}
+                  </div>
                 </div>
               </div>
 
@@ -186,29 +377,49 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Totals */}
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="text-white font-semibold mb-4">Totales</div>
 
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between text-white/70">
-                  <span>Subtotal</span>
+                  <span>Subtotal original</span>
                   <span>{money(order.subtotal)}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-white/70">
-                  <span>Service Fee</span>
+                  <span>Service Fee original</span>
                   <span>{money(order.serviceFee)}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-white/70">
-                  <span>Sales Tax</span>
+                  <span>Sales Tax original</span>
                   <span>{money(order.salesTax)}</span>
                 </div>
 
                 <div className="border-t border-white/10 pt-3 flex items-center justify-between text-white font-semibold">
-                  <span>Total</span>
+                  <span>Total original</span>
                   <span>{money(order.total)}</span>
+                </div>
+
+                <div className="border-t border-white/10 pt-3 flex items-center justify-between text-orange-300">
+                  <span>Cancelado interno</span>
+                  <span>{money(order.cancelledTotal)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-blue-300">
+                  <span>Refund Stripe</span>
+                  <span>{money(order.refundedTotal)}</span>
+                </div>
+
+                <div className="border-t border-white/10 pt-3 flex items-center justify-between text-green-300 font-semibold">
+                  <span>Neto retenido</span>
+                  <span>
+                    {money(
+                      Number(order.total || 0) -
+                        Number(order.cancelledTotal || 0) -
+                        Number(order.refundedTotal || 0)
+                    )}
+                  </span>
                 </div>
 
                 <div className="pt-2 text-white/50 text-xs">
@@ -218,11 +429,25 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Tickets */}
           <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-5">
-            <div className="flex items-center gap-2 text-white font-semibold mb-4">
-              <Ticket size={16} />
-              Tickets incluidos
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+              <div className="flex items-center gap-2 text-white font-semibold">
+                <Ticket size={16} />
+                Tickets incluidos
+              </div>
+
+              {refundableTickets.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAllRefundable}
+                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 text-sm hover:bg-white/10"
+                >
+                  {refundableTickets.length > 0 &&
+                  refundableTickets.every((t) => selectedTicketIds.includes(t.id))
+                    ? "Deseleccionar refundables"
+                    : "Seleccionar refundables"}
+                </button>
+              )}
             </div>
 
             {!order.tickets || order.tickets.length === 0 ? (
@@ -234,9 +459,12 @@ export default function OrderDetailPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="text-white/50 text-xs">
+                      <th className="py-2 pr-3 font-semibold">Sel.</th>
                       <th className="py-2 pr-3 font-semibold">Ticket ID</th>
                       <th className="py-2 pr-3 font-semibold">Tipo</th>
                       <th className="py-2 pr-3 font-semibold">Asiento</th>
+                      <th className="py-2 pr-3 font-semibold">Monto</th>
+                      <th className="py-2 pr-3 font-semibold">Estado ticket</th>
                       <th className="py-2 pr-3 font-semibold">QR</th>
                       <th className="py-2 pr-3 font-semibold">Check-In</th>
                       <th className="py-2 pr-0 font-semibold">Usado en</th>
@@ -244,115 +472,410 @@ export default function OrderDetailPage() {
                   </thead>
 
                   <tbody>
-                    {order.tickets.map((t) => (
-                      <tr key={t.id} className="border-t border-white/10">
-                        <td className="py-3 pr-3 text-white/70 text-xs font-mono">
-                          {t.id.slice(0, 8)}
-                        </td>
+                    {order.tickets.map((t) => {
+                      const refundInfo = refundableById.get(t.id);
+                      const canSelect = !!refundInfo?.refundable;
 
-                        <td className="py-3 pr-3 text-white/80 text-sm">
-                          {t.ticketType?.name || "-"}
-                        </td>
+                      return (
+                        <tr key={t.id} className="border-t border-white/10">
+                          <td className="py-3 pr-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedTicketIds.includes(t.id)}
+                              onChange={() => toggleTicket(t.id)}
+                              disabled={!canSelect || refundLoading}
+                              className="h-4 w-4 accent-[#007AFF] disabled:opacity-40"
+                              title={refundInfo?.blockedReason || ""}
+                            />
+                          </td>
 
-                        <td className="py-3 pr-3 text-white/70 text-sm">
-                          {t.seatId || "-"}
-                        </td>
+                          <td className="py-3 pr-3 text-white/70 text-xs font-mono">
+                            {t.id.slice(0, 8)}
+                          </td>
 
-                        <td className="py-3 pr-3 text-white/70 text-xs font-mono">
-                          <button
-                           onClick={() => {
-                             setSelectedTicket(t);
-                             setQrOpen(true);
-                           }}
-                          className="flex items-center gap-2 text-[#007AFF] hover:underline"
-                       >
-                         <QrCode size={14} />
-                         <span>{t.qrCode ? t.qrCode.slice(0, 10) : "-"}</span>
-                      </button>
-                    </td>
+                          <td className="py-3 pr-3 text-white/80 text-sm">
+                            {t.ticketType?.name || "-"}
+                          </td>
 
-                        <td className="py-3 pr-3">
-                          {t.checkedIn ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/10 border border-green-500/30 text-green-300">
-                              <CheckCircle2 size={12} />
-                              Usado
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-white/5 border border-white/10 text-white/60">
-                              <XCircle size={12} />
-                              Pendiente
-                            </span>
-                          )}
-                        </td>
+                          <td className="py-3 pr-3 text-white/70 text-sm">
+                            {t.seatId || "-"}
+                          </td>
 
-                        <td className="py-3 pr-0 text-white/60 text-sm">
-                          {t.checkedInAt
-                            ? new Date(t.checkedInAt).toLocaleString()
-                            : "-"}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="py-3 pr-3 text-white/80 text-sm">
+                            {money(t.totalAmount)}
+                          </td>
+
+                          <td className="py-3 pr-3">
+                            <div className="flex flex-col gap-1">
+                              {ticketStatusBadge(t)}
+                              {!canSelect && refundInfo?.blockedReason && (
+                                <span className="text-[11px] text-white/40">
+                                  {refundInfo.blockedReason}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3 pr-3 text-white/70 text-xs font-mono">
+                            <button
+                              onClick={() => {
+                                setSelectedTicket(t);
+                                setQrOpen(true);
+                              }}
+                              className="flex items-center gap-2 text-[#007AFF] hover:underline"
+                            >
+                              <QrCode size={14} />
+                              <span>{t.qrCode ? t.qrCode.slice(0, 10) : "-"}</span>
+                            </button>
+                          </td>
+
+                          <td className="py-3 pr-3">
+                            {t.checkedIn ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/10 border border-green-500/30 text-green-300">
+                                <CheckCircle2 size={12} />
+                                Usado
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-white/5 border border-white/10 text-white/60">
+                                <XCircle size={12} />
+                                Pendiente
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 pr-0 text-white/60 text-sm">
+                            {t.checkedInAt
+                              ? new Date(t.checkedInAt).toLocaleString()
+                              : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-5">
+            <div className="flex items-center gap-2 text-white font-semibold mb-4">
+              <RefreshCw size={16} />
+              Refunds / Cancelaciones
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 rounded-xl bg-black/30 border border-white/10 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/60 text-sm mb-2">
+                      Tipo de operación
+                    </label>
+                    <select
+                      value={refundMode}
+                      onChange={(e) => setRefundMode(e.target.value)}
+                      className="w-full rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white outline-none"
+                      disabled={refundLoading}
+                    >
+                      <option value="INTERNAL">Cancelación interna (sin Stripe)</option>
+                      <option value="STRIPE">Refund real en Stripe</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/60 text-sm mb-2">
+                      Tickets seleccionados
+                    </label>
+                    <div className="rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white">
+                      {selectedTicketIds.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-white/60 text-sm mb-2">
+                    Motivo
+                  </label>
+                  <input
+                    type="text"
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    placeholder="Ej: solicitud del cliente, error operativo, cortesía..."
+                    className="w-full rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white outline-none"
+                    disabled={refundLoading}
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-white/60 text-sm mb-2">
+                    Notas internas
+                  </label>
+                  <textarea
+                    value={refundNotes}
+                    onChange={(e) => setRefundNotes(e.target.value)}
+                    placeholder="Notas opcionales para auditoría interna..."
+                    rows={4}
+                    className="w-full rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white outline-none resize-none"
+                    disabled={refundLoading}
+                  />
+                </div>
+
+                {refundError ? (
+                  <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200 text-sm">
+                    {refundError}
+                  </div>
+                ) : null}
+
+                {refundMsg ? (
+                  <div className="mt-4 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-green-200 text-sm">
+                    {refundMsg}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleProcessRefund}
+                    disabled={refundLoading || selectedTicketIds.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {refundLoading ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        Procesando...
+                      </>
+                    ) : refundMode === "STRIPE" ? (
+                      <>
+                        <RotateCcw size={16} />
+                        Ejecutar Refund Stripe
+                      </>
+                    ) : (
+                      <>
+                        <Ban size={16} />
+                        Ejecutar Cancelación Interna
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTicketIds([]);
+                      setRefundReason("");
+                      setRefundNotes("");
+                      setRefundError("");
+                      setRefundMsg("");
+                    }}
+                    className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                    disabled={refundLoading}
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-black/30 border border-white/10 p-4">
+                <div className="text-white font-semibold mb-3">Resumen seleccionado</div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between text-white/70">
+                    <span>Subtotal</span>
+                    <span>{money(selectedSummary.subtotal)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-white/70">
+                    <span>Service Fee</span>
+                    <span>{money(selectedSummary.serviceFee)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-white/70">
+                    <span>Sales Tax</span>
+                    <span>{money(selectedSummary.salesTax)}</span>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-3 flex items-center justify-between text-white font-semibold">
+                    <span>Total</span>
+                    <span>{money(selectedSummary.total)}</span>
+                  </div>
+
+                  <div className="pt-2 text-white/40 text-xs">
+                    Solo se pueden seleccionar tickets activos y no usados.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-5">
+            <div className="flex items-center gap-2 text-white font-semibold mb-4">
+              <RotateCcw size={16} />
+              Historial de ajustes
+            </div>
+
+            {!order.refunds || order.refunds.length === 0 ? (
+              <div className="text-white/50 text-sm">
+                Esta orden aún no tiene refunds o cancelaciones registradas.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {order.refunds.map((refund) => (
+                  <div
+                    key={refund.id}
+                    className="rounded-xl border border-white/10 bg-black/30 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="text-white font-medium">
+                          {refund.type === "STRIPE"
+                            ? "Refund Stripe"
+                            : "Cancelación Interna"}
+                        </div>
+                        <div className="text-white/40 text-xs mt-1 font-mono">
+                          {refund.id}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs">
+                          {refund.status}
+                        </div>
+                        <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs">
+                          {money(refund.total)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="text-white/70">
+                        <span className="text-white/40">Fecha:</span>{" "}
+                        {refund.createdAt
+                          ? new Date(refund.createdAt).toLocaleString()
+                          : "-"}
+                      </div>
+
+                      <div className="text-white/70">
+                        <span className="text-white/40">Procesado por:</span>{" "}
+                        {refund.processedByUser?.name ||
+                          refund.processedByUser?.email ||
+                          "-"}
+                      </div>
+
+                      <div className="text-white/70">
+                        <span className="text-white/40">Motivo:</span>{" "}
+                        {refund.reason || "-"}
+                      </div>
+
+                      <div className="text-white/70">
+                        <span className="text-white/40">Stripe Refund ID:</span>{" "}
+                        {refund.stripeRefundId || "-"}
+                      </div>
+                    </div>
+
+                    {refund.notes ? (
+                      <div className="mt-3 text-sm text-white/70">
+                        <span className="text-white/40">Notas:</span> {refund.notes}
+                      </div>
+                    ) : null}
+
+                    {refund.items?.length > 0 ? (
+                      <div className="mt-4 overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead>
+                            <tr className="text-white/50 text-xs">
+                              <th className="py-2 pr-3 font-semibold">Ticket</th>
+                              <th className="py-2 pr-3 font-semibold">Tipo</th>
+                              <th className="py-2 pr-3 font-semibold">Asiento</th>
+                              <th className="py-2 pr-0 font-semibold">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {refund.items.map((item) => (
+                              <tr key={item.id} className="border-t border-white/10">
+                                <td className="py-2 pr-3 text-white/70 text-xs font-mono">
+                                  {item.ticketId.slice(0, 8)}
+                                </td>
+                                <td className="py-2 pr-3 text-white/80 text-sm">
+                                  {item.ticket?.ticketType?.name || "-"}
+                                </td>
+                                <td className="py-2 pr-3 text-white/70 text-sm">
+                                  {item.ticket?.seatId || "-"}
+                                </td>
+                                <td className="py-2 pr-0 text-white/80 text-sm">
+                                  {money(item.totalAmount)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </>
       )}
 
-{qrOpen && selectedTicket && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-    <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-[420px] relative">
+      {qrOpen && selectedTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-[420px] relative">
+            <button
+              onClick={() => setQrOpen(false)}
+              className="absolute top-3 right-3 text-white/60 hover:text-white"
+            >
+              <X size={18} />
+            </button>
 
-      <button
-        onClick={() => setQrOpen(false)}
-        className="absolute top-3 right-3 text-white/60 hover:text-white"
-      >
-        <X size={18} />
-      </button>
+            <div className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+              <QrCode size={18} />
+              Ticket QR
+            </div>
 
-      <div className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-        <QrCode size={18} />
-        Ticket QR
-      </div>
+            <div className="flex justify-center mb-4">
+              <div className="bg-white p-4 rounded-lg">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${selectedTicket.qrCode}`}
+                  alt="QR Code"
+                />
+              </div>
+            </div>
 
-      <div className="flex justify-center mb-4">
-        <div className="bg-white p-4 rounded-lg">
-          {/* QR REAL */}
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${selectedTicket.qrCode}`}
-            alt="QR Code"
-          />
-        </div>
-      </div>
+            <div className="space-y-2 text-sm text-white/70">
+              <div>
+                <span className="text-white/40">Ticket ID:</span>{" "}
+                {selectedTicket.id}
+              </div>
 
-      <div className="space-y-2 text-sm text-white/70">
-        <div>
-          <span className="text-white/40">Ticket ID:</span>{" "}
-          {selectedTicket.id}
-        </div>
+              <div>
+                <span className="text-white/40">Tipo:</span>{" "}
+                {selectedTicket.ticketType?.name || "-"}
+              </div>
 
-        <div>
-          <span className="text-white/40">Tipo:</span>{" "}
-          {selectedTicket.ticketType?.name || "-"}
-        </div>
+              <div>
+                <span className="text-white/40">Monto:</span>{" "}
+                {money(selectedTicket.totalAmount)}
+              </div>
 
-        <div>
-          <span className="text-white/40">Estado:</span>{" "}
-          {selectedTicket.checkedIn ? "Usado" : "Pendiente"}
-        </div>
+              <div>
+                <span className="text-white/40">Estado ticket:</span>{" "}
+                {selectedTicket.status || "ACTIVE"}
+              </div>
 
-        {selectedTicket.checkedInAt && (
-          <div>
-            <span className="text-white/40">Usado en:</span>{" "}
-            {new Date(selectedTicket.checkedInAt).toLocaleString()}
+              <div>
+                <span className="text-white/40">Check-In:</span>{" "}
+                {selectedTicket.checkedIn ? "Usado" : "Pendiente"}
+              </div>
+
+              {selectedTicket.checkedInAt && (
+                <div>
+                  <span className="text-white/40">Usado en:</span>{" "}
+                  {new Date(selectedTicket.checkedInAt).toLocaleString()}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
+        </div>
+      )}
     </AdminLayout>
   );
 }

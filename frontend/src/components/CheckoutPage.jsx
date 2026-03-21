@@ -21,18 +21,40 @@ import {
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
 import { createGuestOrder } from '../services/orders.service';
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
+import api from '../api/api';
 
-const MOCK_LOGGED_IN_USER = {
-  id: 'user-123',
-  firstName: 'Juan',
-  lastName: 'García',
-  email: 'juan.garcia@email.com',
-  phone: '+52 55 1234 5678',
-  isLoggedIn: true
-};
-
-const IS_USER_LOGGED_IN = true;
 const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
+
+const stripePromise = loadStripe(
+  process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || ''
+);
+
+const cardElementOptions = {
+  style: {
+    base: {
+      color: '#ffffff',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '16px',
+      fontSmoothing: 'antialiased',
+      '::placeholder': {
+        color: 'rgba(255,255,255,0.3)',
+      },
+      iconColor: '#007AFF',
+    },
+    invalid: {
+      color: '#f87171',
+      iconColor: '#f87171',
+    },
+  },
+  hidePostalCode: true,
+};
 
 const getStoredSeatsioSession = () => {
   try {
@@ -43,163 +65,112 @@ const getStoredSeatsioSession = () => {
   }
 };
 
-const MockStripePaymentElement = ({ onReady, onError, disabled }) => {
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [cardError, setCardError] = useState('');
+const splitFullName = (fullName = '') => {
+  const clean = String(fullName || '').trim();
+  if (!clean) {
+    return {
+      firstName: '',
+      lastName: '',
+    };
+  }
+
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      lastName: '',
+    };
+  }
+
+  return {
+    firstName: parts.slice(0, -1).join(' '),
+    lastName: parts.slice(-1).join(' '),
+  };
+};
+
+const StripeCardSection = ({ disabled, onReady, onError }) => {
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-      onReady?.();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [onReady]);
-
-  const formatCardNumber = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(' ') : v;
+  const handleReady = () => {
+    setIsReady(true);
+    onReady?.();
   };
 
-  const formatExpiry = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + ' / ' + v.substring(2, 4);
-    }
-    return v;
-  };
-
-  const handleCardChange = (e) => {
-    const formatted = formatCardNumber(e.target.value);
-    if (formatted.replace(/\s/g, '').length <= 16) {
-      setCardNumber(formatted);
-      setCardError('');
+  const handleChange = (event) => {
+    if (event.error) {
+      onError?.(event.error.message);
+    } else {
+      onError?.('');
     }
   };
-
-  const handleExpiryChange = (e) => {
-    const raw = e.target.value.replace(/\s+/g, '').replace(/\//g, '');
-    if (raw.length <= 4) {
-      setExpiry(formatExpiry(raw));
-    }
-  };
-
-  const handleCvcChange = (e) => {
-    const v = e.target.value.replace(/[^0-9]/gi, '');
-    if (v.length <= 4) {
-      setCvc(v);
-    }
-  };
-
-  if (!isReady) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 text-[#007AFF] animate-spin" />
-        <span className="ml-2 text-white/60 text-sm">Cargando métodos de pago...</span>
-      </div>
-    );
-  }
 
   return (
     <div className={`space-y-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex space-x-2 mb-4">
         <button
           className="flex-1 py-2.5 px-4 bg-[#007AFF]/10 border-2 border-[#007AFF] rounded-lg flex items-center justify-center space-x-2 text-white text-sm font-medium"
-          disabled={disabled}
+          disabled
           type="button"
         >
           <CreditCard size={16} />
           <span>Tarjeta</span>
         </button>
+
         <button
-          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm hover:border-white/20 transition-colors"
-          disabled={disabled}
-          title="Apple Pay disponible en dispositivos compatibles"
+          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm"
+          disabled
           type="button"
+          title="Apple Pay disponible luego según configuración Stripe y dispositivo"
         >
           <Apple size={16} />
           <span>Apple Pay</span>
         </button>
+
         <button
-          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm hover:border-white/20 transition-colors"
-          disabled={disabled}
-          title="Otros métodos según país"
+          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm"
+          disabled
           type="button"
+          title="Otros métodos según país"
         >
           <Wallet size={16} />
           <span>Más</span>
         </button>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <label className="block text-white/60 text-xs mb-1.5">Número de tarjeta</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={cardNumber}
-              onChange={handleCardChange}
-              placeholder="1234 5678 9012 3456"
-              disabled={disabled}
-              className="w-full px-4 py-3 bg-[#1E1E1E] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all font-mono"
-              data-testid="stripe-card-number"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-white/60 text-xs mb-1.5">Vencimiento</label>
-            <input
-              type="text"
-              value={expiry}
-              onChange={handleExpiryChange}
-              placeholder="MM / AA"
-              disabled={disabled}
-              className="w-full px-4 py-3 bg-[#1E1E1E] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all font-mono"
-              data-testid="stripe-expiry"
-            />
-          </div>
-          <div>
-            <label className="block text-white/60 text-xs mb-1.5">CVC</label>
-            <input
-              type="text"
-              value={cvc}
-              onChange={handleCvcChange}
-              placeholder="123"
-              disabled={disabled}
-              className="w-full px-4 py-3 bg-[#1E1E1E] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all font-mono"
-              data-testid="stripe-cvc"
-            />
-          </div>
-        </div>
-      </div>
-
-      {cardError && (
-        <div className="flex items-center space-x-2 text-red-400 text-sm">
-          <AlertTriangle size={14} />
-          <span>{cardError}</span>
+      {!isReady && (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="w-6 h-6 text-[#007AFF] animate-spin" />
+          <span className="ml-2 text-white/60 text-sm">Cargando Stripe...</span>
         </div>
       )}
+
+      <div>
+        <label className="block text-white/60 text-xs mb-1.5">
+          Datos de tarjeta
+        </label>
+
+        <div className="px-4 py-4 bg-[#1E1E1E] border border-white/10 rounded-lg focus-within:ring-2 focus-within:ring-[#007AFF] transition-all">
+          <CardElement
+            options={cardElementOptions}
+            onReady={handleReady}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
 
       <div className="flex items-center justify-center space-x-1 pt-2">
         <Lock size={12} className="text-white/40" />
         <span className="text-white/40 text-xs">Pago seguro con</span>
-        <span className="text-white/40 text-xs font-bold">Stripe (mock)</span>
+        <span className="text-white/40 text-xs font-bold">Stripe</span>
       </div>
     </div>
   );
 };
 
-const CheckoutPage = () => {
+const CheckoutForm = () => {
+  const stripe = useStripe();
+  const elements = useElements();
+
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -227,8 +198,9 @@ const CheckoutPage = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const [isLoggedIn] = useState(IS_USER_LOGGED_IN);
-  const [currentUser] = useState(IS_USER_LOGGED_IN ? MOCK_LOGGED_IN_USER : null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [stripeReady, setStripeReady] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -236,13 +208,71 @@ const CheckoutPage = () => {
   const [checkoutLocked, setCheckoutLocked] = useState(false);
 
   useEffect(() => {
+    let alive = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const token =
+          localStorage.getItem('ptl_token') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('access_token') ||
+          localStorage.getItem('pt_token');
+
+        if (!token) {
+          if (!alive) return;
+          setIsLoggedIn(false);
+          setCurrentUser(null);
+          return;
+        }
+
+        const res = await api.get('/auth/me');
+        const me = res.data?.data ?? res.data;
+
+        if (!alive) return;
+
+        const userId = me?.userId || me?.id || null;
+        const email = me?.email || '';
+        const name = me?.name || '';
+
+        const parts = splitFullName(name);
+
+        setCurrentUser({
+          id: userId,
+          name,
+          firstName: parts.firstName,
+          lastName: parts.lastName,
+          email,
+          phone: '',
+          role: me?.role || null,
+          isLoggedIn: true,
+        });
+
+        setIsLoggedIn(true);
+      } catch {
+        if (!alive) return;
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+      } finally {
+        if (alive) setAuthLoading(false);
+      }
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (isLoggedIn && currentUser) {
-      setFormData({
-        firstName: currentUser.firstName || '',
-        lastName: currentUser.lastName || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || ''
-      });
+      setFormData((prev) => ({
+        ...prev,
+        firstName: prev.firstName || currentUser.firstName || '',
+        lastName: prev.lastName || currentUser.lastName || '',
+        email: prev.email || currentUser.email || '',
+        phone: prev.phone || currentUser.phone || ''
+      }));
     }
   }, [isLoggedIn, currentUser]);
 
@@ -275,7 +305,7 @@ const CheckoutPage = () => {
   }, [purchaseTimer?.isExpired, hasSelections, expirePurchase, isSeatedEvent, navigate, id]);
 
   const handleStripeReady = useCallback(() => setStripeReady(true), []);
-  const handleStripeError = useCallback((error) => setPaymentError(error), []);
+  const handleStripeError = useCallback((error) => setPaymentError(error || ''), []);
 
   const timerMessage = useMemo(() => {
     if (purchaseTimer?.isExpired) {
@@ -346,10 +376,30 @@ const CheckoutPage = () => {
     );
   };
 
+  const extractClientSecret = (resp) => {
+    return (
+      resp?.data?.data?.clientSecret ||
+      resp?.data?.clientSecret ||
+      resp?.clientSecret ||
+      null
+    );
+  };
+
   const handlePayNow = async () => {
     if (isProcessingPayment || checkoutLocked || isTimerBlocking) return;
     if (!acceptTerms) return;
     if (!validateForm()) return;
+
+    if (!stripe || !elements) {
+      setPaymentError('Stripe aún no está listo. Intenta nuevamente en unos segundos.');
+      return;
+    }
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setPaymentError('No se pudo inicializar el formulario de tarjeta.');
+      return;
+    }
 
     if (!event?.id) {
       alert('No se encontró el evento seleccionado. Vuelve al evento e intenta de nuevo.');
@@ -386,14 +436,12 @@ const CheckoutPage = () => {
     setIsProcessingPayment(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      const isSuccess = Math.random() > 0.1;
-
-      if (!isSuccess) {
-        throw new Error('Tu tarjeta fue rechazada. Por favor, verifica los datos o intenta con otra tarjeta.');
-      }
-
       setCheckoutLocked(true);
+
+      const isRealAuthedCustomer =
+        isLoggedIn &&
+        !!currentUser?.id &&
+        !purchaseAsGuest;
 
       const payload = {
         functionId,
@@ -402,6 +450,7 @@ const CheckoutPage = () => {
         buyerPhone: formData.phone,
         items,
         holdToken: isSeatedEvent ? seatsioSession?.token : undefined,
+        userId: isRealAuthedCustomer ? currentUser.id : undefined,
 
         subtotal: Number(summary.subtotal || 0),
         serviceFee: Number(summary.serviceFee || 0),
@@ -413,12 +462,38 @@ const CheckoutPage = () => {
       console.log('[CheckoutPage] createGuestOrder response:', created);
 
       const orderIdReal = extractOrderId(created);
+      const backendTickets = extractBackendTickets(created);
+      const clientSecret = extractClientSecret(created);
+
       if (!orderIdReal) {
-        console.error('[CheckoutPage] No se pudo extraer orderId de la respuesta:', created);
         throw new Error('El backend no devolvió orderId. Revisa la respuesta en consola.');
       }
 
-      const backendTickets = extractBackendTickets(created);
+      if (!clientSecret) {
+        throw new Error('El backend no devolvió clientSecret de Stripe.');
+      }
+
+      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            email: formData.email,
+            phone: formData.phone,
+          },
+        },
+      });
+
+      if (paymentResult.error) {
+        throw new Error(
+          paymentResult.error.message ||
+            'Stripe no pudo procesar el pago. Intenta nuevamente.'
+        );
+      }
+
+      if (paymentResult.paymentIntent?.status !== 'succeeded') {
+        throw new Error('El pago no fue confirmado por Stripe.');
+      }
 
       const confirmationData = {
         orderId: orderIdReal,
@@ -426,6 +501,8 @@ const CheckoutPage = () => {
         event: {
           id: event.id,
           title: event.title,
+          image: event.image,
+          imageUrl: event.imageUrl || event.image,
           date: selectedFunction?.date || event.date,
           time: selectedFunction?.time || event.time,
           venue: event.venue,
@@ -439,6 +516,7 @@ const CheckoutPage = () => {
         total: summary.total,
         currency: summary.currency,
         paymentMethod: 'card',
+        paymentIntentId: paymentResult.paymentIntent.id,
         timestamp: new Date().toISOString()
       };
 
@@ -449,6 +527,7 @@ const CheckoutPage = () => {
 
       navigate(`/evento/${id}/confirmacion/${orderIdReal}`);
     } catch (error) {
+      console.error('[CheckoutPage] Error al procesar el pago:', error);
       setCheckoutLocked(false);
       setPaymentError(error.message || 'Error al procesar el pago. Por favor, intenta de nuevo.');
     } finally {
@@ -460,13 +539,14 @@ const CheckoutPage = () => {
     navigate(`/evento/${id}/resumen`);
   };
 
-  const canPayNow =
+    const canPayNow =
     acceptTerms &&
     stripeReady &&
     hasSelections &&
     !isProcessingPayment &&
     !checkoutLocked &&
-    !isTimerBlocking;
+    !isTimerBlocking &&
+    !authLoading;
 
   if (!event || !hasSelections) {
     return (
@@ -478,7 +558,10 @@ const CheckoutPage = () => {
               <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
                 <ShoppingCart size={32} className="text-white/40" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <h2
+                className="text-2xl font-bold text-white mb-2"
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
                 No hay selecciones
               </h2>
               <p className="text-white/60 mb-6">No tienes entradas seleccionadas para comprar.</p>
@@ -503,7 +586,10 @@ const CheckoutPage = () => {
       <div className="pt-32 pb-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <h1
+              className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight mb-2"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
               Checkout
             </h1>
             <p className="text-white/60 text-sm sm:text-base">Completa tus datos y realiza el pago</p>
@@ -544,11 +630,16 @@ const CheckoutPage = () => {
                     <User size={20} className="text-[#007AFF]" />
                   </div>
                   <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    <h2
+                      className="text-lg sm:text-xl font-bold text-white tracking-tight"
+                      style={{ fontFamily: "'Outfit', sans-serif" }}
+                    >
                       Información del comprador
                     </h2>
-                    {isLoggedIn && (
-                      <p className="text-white/50 text-xs">Sesión iniciada como {currentUser?.email}</p>
+                    {isLoggedIn && currentUser && !authLoading && (
+                      <p className="text-white/50 text-xs">
+                        Sesión iniciada como {currentUser?.email}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -566,9 +657,13 @@ const CheckoutPage = () => {
                         value={formData.firstName}
                         onChange={handleInputChange}
                         disabled={checkoutLocked || isTimerBlocking}
-                        className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.firstName ? 'border-red-500' : 'border-white/10'}`}
+                        className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${
+                          errors.firstName ? 'border-red-500' : 'border-white/10'
+                        }`}
                       />
-                      {errors.firstName && <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>}
+                      {errors.firstName && (
+                        <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-white/70 text-sm mb-2" htmlFor="lastName">
@@ -581,9 +676,13 @@ const CheckoutPage = () => {
                         value={formData.lastName}
                         onChange={handleInputChange}
                         disabled={checkoutLocked || isTimerBlocking}
-                        className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.lastName ? 'border-red-500' : 'border-white/10'}`}
+                        className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${
+                          errors.lastName ? 'border-red-500' : 'border-white/10'
+                        }`}
                       />
-                      {errors.lastName && <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>}
+                      {errors.lastName && (
+                        <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>
+                      )}
                     </div>
                   </div>
 
@@ -599,7 +698,9 @@ const CheckoutPage = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       disabled={checkoutLocked || isTimerBlocking}
-                      className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.email ? 'border-red-500' : 'border-white/10'}`}
+                      className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${
+                        errors.email ? 'border-red-500' : 'border-white/10'
+                      }`}
                     />
                     {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                   </div>
@@ -616,14 +717,20 @@ const CheckoutPage = () => {
                       value={formData.phone}
                       onChange={handleInputChange}
                       disabled={checkoutLocked || isTimerBlocking}
-                      className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${errors.phone ? 'border-red-500' : 'border-white/10'}`}
+                      className={`w-full px-4 py-3 bg-[#1E1E1E] border rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all disabled:opacity-50 ${
+                        errors.phone ? 'border-red-500' : 'border-white/10'
+                      }`}
                     />
                     {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
-                  {!isLoggedIn && (
+                  {isLoggedIn ? (
+                    <div className="rounded-xl bg-[#007AFF]/10 border border-[#007AFF]/20 px-4 py-3 text-sm text-white/80">
+                      Esta compra se asociará automáticamente a tu cuenta.
+                    </div>
+                  ) : (
                     <label className="flex items-start space-x-3 cursor-pointer group">
                       <div className="relative mt-0.5">
                         <input
@@ -633,11 +740,21 @@ const CheckoutPage = () => {
                           disabled={checkoutLocked || isTimerBlocking}
                           className="sr-only"
                         />
-                        <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${purchaseAsGuest ? 'bg-[#007AFF] border-[#007AFF]' : 'border-white/30 group-hover:border-white/50'}`}>
-                          {purchaseAsGuest && <Check size={12} className="text-white" strokeWidth={3} />}
+                        <div
+                          className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
+                            purchaseAsGuest
+                              ? 'bg-[#007AFF] border-[#007AFF]'
+                              : 'border-white/30 group-hover:border-white/50'
+                          }`}
+                        >
+                          {purchaseAsGuest && (
+                            <Check size={12} className="text-white" strokeWidth={3} />
+                          )}
                         </div>
                       </div>
-                      <span className="text-white/70 text-sm">Comprar como invitado (sin crear cuenta)</span>
+                      <span className="text-white/70 text-sm">
+                        Comprar como invitado (sin crear cuenta)
+                      </span>
                     </label>
                   )}
 
@@ -650,12 +767,28 @@ const CheckoutPage = () => {
                         disabled={checkoutLocked || isTimerBlocking}
                         className="sr-only"
                       />
-                      <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${acceptTerms ? 'bg-[#007AFF] border-[#007AFF]' : 'border-white/30 group-hover:border-white/50'}`}>
-                        {acceptTerms && <Check size={12} className="text-white" strokeWidth={3} />}
+                      <div
+                        className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
+                          acceptTerms
+                            ? 'bg-[#007AFF] border-[#007AFF]'
+                            : 'border-white/30 group-hover:border-white/50'
+                        }`}
+                      >
+                        {acceptTerms && (
+                          <Check size={12} className="text-white" strokeWidth={3} />
+                        )}
                       </div>
                     </div>
                     <span className="text-white/70 text-sm">
-                      Acepto los <a href="#" className="text-[#007AFF] hover:underline">Términos y Condiciones</a> y la <a href="#" className="text-[#007AFF] hover:underline">Política de Privacidad</a> <span className="text-red-400">*</span>
+                      Acepto los{' '}
+                      <a href="#" className="text-[#007AFF] hover:underline">
+                        Términos y Condiciones
+                      </a>{' '}
+                      y la{' '}
+                      <a href="#" className="text-[#007AFF] hover:underline">
+                        Política de Privacidad
+                      </a>{' '}
+                      <span className="text-red-400">*</span>
                     </span>
                   </label>
                 </div>
@@ -667,14 +800,17 @@ const CheckoutPage = () => {
                     <CreditCard size={20} className="text-[#FF9500]" />
                   </div>
                   <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    <h2
+                      className="text-lg sm:text-xl font-bold text-white tracking-tight"
+                      style={{ fontFamily: "'Outfit', sans-serif" }}
+                    >
                       Pago
                     </h2>
-                    <p className="text-white/50 text-xs">Selecciona tu método de pago</p>
+                    <p className="text-white/50 text-xs">Procesado de forma segura con Stripe</p>
                   </div>
                 </div>
 
-                <MockStripePaymentElement
+                <StripeCardSection
                   onReady={handleStripeReady}
                   onError={handleStripeError}
                   disabled={checkoutLocked || !acceptTerms || isTimerBlocking}
@@ -713,13 +849,22 @@ const CheckoutPage = () => {
             <div className="lg:col-span-2">
               <div className="lg:sticky lg:top-32 space-y-6">
                 <div className="bg-[#121212] rounded-2xl border border-white/10 p-5">
-                  <h3 className="text-base font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  <h3
+                    className="text-base font-bold text-white mb-4 tracking-tight"
+                    style={{ fontFamily: "'Outfit', sans-serif" }}
+                  >
                     Evento
                   </h3>
                   <div className="flex gap-3">
-                    <img src={event.image} alt={event.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-semibold text-sm leading-tight line-clamp-2">{event.title}</h4>
+                      <h4 className="text-white font-semibold text-sm leading-tight line-clamp-2">
+                        {event.title}
+                      </h4>
                       <div className="mt-1 space-y-0.5">
                         <div className="flex items-center space-x-1.5 text-xs text-white/60">
                           <Calendar size={12} className="text-[#007AFF]" />
@@ -739,7 +884,9 @@ const CheckoutPage = () => {
                   {hasMultipleFunctions && selectedFunction && (
                     <div className="mt-3 pt-3 border-t border-white/10">
                       <span className="text-white/50 text-xs">Función: </span>
-                      <span className="text-[#007AFF] text-xs font-semibold">{selectedFunction.date} - {selectedFunction.time}</span>
+                      <span className="text-[#007AFF] text-xs font-semibold">
+                        {selectedFunction.date} - {selectedFunction.time}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -760,6 +907,30 @@ const CheckoutPage = () => {
 
       <Footer />
     </div>
+  );
+};
+
+const CheckoutPage = () => {
+  const publishableKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+
+  if (!publishableKey) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 text-center">
+        <div className="bg-[#121212] border border-red-500/20 rounded-2xl p-6 max-w-lg">
+          <h2 className="text-white text-2xl font-bold mb-3">Falta configuración de Stripe</h2>
+          <p className="text-white/60">
+            Debes agregar <span className="text-[#FF9500] font-mono">REACT_APP_STRIPE_PUBLISHABLE_KEY</span> en el
+            archivo .env del frontend y reiniciar la aplicación.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <CheckoutForm />
+    </Elements>
   );
 };
 
