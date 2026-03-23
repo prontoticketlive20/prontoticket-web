@@ -14,10 +14,11 @@ import {
   BadgeDollarSign,
   Filter,
   XCircle,
-} from "lucide-react";
+ } from "lucide-react";
 
 import api, { setAuthToken, getAuthToken } from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
+import { FileBarChart2 } from "lucide-react";
 
 // ---------- Helpers ----------
 function toISOStartOfDay(dateStr) {
@@ -546,25 +547,44 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 disabled:opacity-60"
-            type="button"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            <span className="text-sm font-semibold">Actualizar</span>
-          </button>
+  <button
+    onClick={refresh}
+    disabled={loading}
+    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 disabled:opacity-60"
+    type="button"
+  >
+    <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+    <span className="text-sm font-semibold">Actualizar</span>
+  </button>
 
-          <button
-            onClick={handleCreateEvent}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold shadow-lg shadow-[#007AFF]/20 hover:brightness-110 active:scale-[0.99]"
-            type="button"
-          >
-            <Plus size={16} />
-            <span className="text-sm">Crear evento</span>
-          </button>
-        </div>
+  <button
+    onClick={handleCreateEvent}
+    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold shadow-lg shadow-[#007AFF]/20 hover:brightness-110 active:scale-[0.99]"
+    type="button"
+  >
+    <Plus size={16} />
+    <span className="text-sm">Crear evento</span>
+  </button>
+
+  <button
+    onClick={() => navigate("/admin/manual-sales")}
+    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-semibold shadow-lg shadow-[#FF9500]/20 hover:brightness-110 active:scale-[0.99]"
+    type="button"
+  >
+    <DollarSign size={16} />
+    <span className="text-sm">Venta Manual</span>
+  </button>
+
+<button
+  onClick={() => navigate("/admin/reports/event-close")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#34C759] to-[#1faa4a] text-white font-semibold shadow-lg shadow-[#34C759]/20 hover:brightness-110 active:scale-[0.99]"
+  type="button"
+>
+  <FileBarChart2 size={16} />
+  <span className="text-sm">Reporte cierre</span>
+</button>
+
+</div>
       </div>
 
       <div className="mb-5 rounded-2xl border border-white/10 bg-[#121212] p-4">

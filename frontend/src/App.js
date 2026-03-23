@@ -20,6 +20,8 @@ import EventFunctionsPage from "./pages/admin/EventFunctionsPage";
 import FunctionPricingPage from "./pages/admin/FunctionPricingPage";
 import EventTicketTypesPage from "./pages/admin/EventTicketTypesPage";
 import EditEventPage from "./pages/admin/EditEventPage";
+import ManualSalesPage from "./pages/admin/ManualSalesPage";
+import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
 
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
@@ -128,6 +130,28 @@ function App() {
                   <ProtectedRoute>
                     <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
                       <AdminDashboard />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/manual-sales"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <ManualSalesPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/reports/event-close"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                      <EventCloseReportPage />
                     </AdminRoute>
                   </ProtectedRoute>
                 }
