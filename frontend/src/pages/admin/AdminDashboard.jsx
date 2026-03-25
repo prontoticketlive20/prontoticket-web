@@ -584,6 +584,15 @@ export default function AdminDashboard() {
   <span className="text-sm">Reporte cierre</span>
 </button>
 
+<button
+  onClick={() => navigate("/admin/orders")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#6b7280] to-[#4b5563] text-white font-semibold shadow-lg shadow-black/20 hover:brightness-110 active:scale-[0.99]"
+  type="button"
+>
+  <Receipt size={16} />
+  <span className="text-sm">Órdenes</span>
+</button>
+
 </div>
       </div>
 

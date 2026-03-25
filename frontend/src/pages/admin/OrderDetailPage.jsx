@@ -42,6 +42,12 @@ export default function OrderDetailPage() {
   const [refundMsg, setRefundMsg] = useState("");
   const [refundError, setRefundError] = useState("");
 
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+  const [resendError, setResendError] = useState("");
+
   useEffect(() => {
     let alive = true;
 
@@ -92,6 +98,8 @@ export default function OrderDetailPage() {
       setErrorMsg("");
       setRefundMsg("");
       setRefundError("");
+      setResendMsg("");
+      setResendError("");
 
       try {
         const [orderRes, refundableRes] = await Promise.allSettled([
@@ -246,6 +254,34 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleResendTickets = async () => {
+    if (!resendEmail) {
+      setResendError("Debes ingresar un email.");
+      return;
+    }
+
+    setResendLoading(true);
+    setResendMsg("");
+    setResendError("");
+
+    try {
+      await api.post(`/orders/${id}/resend`, {
+        email: resendEmail,
+      });
+
+      setResendMsg("Tickets reenviados correctamente.");
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "No pude reenviar los tickets.";
+
+      setResendError(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const ticketStatusBadge = (ticket) => {
     if (ticket.status === "REFUNDED") {
       return (
@@ -324,6 +360,19 @@ export default function OrderDetailPage() {
                   <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
                     Tickets activos: {activeTicketsCount}
                   </div>
+                  <button
+                    onClick={() => {
+                      setResendOpen(true);
+                      setResendEmail(order?.buyerEmail || order?.user?.email || "");
+                      setResendMsg("");
+                      setResendError("");
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90"
+                    type="button"
+                  >
+                    <Mail size={16} />
+                    Reenviar tickets
+                  </button>
                 </div>
               </div>
 
@@ -816,12 +865,86 @@ export default function OrderDetailPage() {
         </>
       )}
 
+      {resendOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-[420px] relative">
+            <button
+              onClick={() => setResendOpen(false)}
+              className="absolute top-3 right-3 text-white/60 hover:text-white"
+              type="button"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+              <Mail size={18} />
+              Reenviar tickets
+            </div>
+
+            <div className="text-sm text-white/60 mb-4">
+              Puedes reenviar los tickets al email original o corregirlo.
+            </div>
+
+            <input
+              type="email"
+              value={resendEmail}
+              onChange={(e) => setResendEmail(e.target.value)}
+              placeholder="correo@ejemplo.com"
+              className="w-full rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white outline-none mb-4"
+              disabled={resendLoading}
+            />
+
+            {resendError && (
+              <div className="mb-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-red-200 text-sm">
+                {resendError}
+              </div>
+            )}
+
+            {resendMsg && (
+              <div className="mb-3 rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-green-200 text-sm">
+                {resendMsg}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleResendTickets}
+                disabled={resendLoading}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90 disabled:opacity-50"
+                type="button"
+              >
+                {resendLoading ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Mail size={16} />
+                    Reenviar
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setResendOpen(false)}
+                className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                type="button"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {qrOpen && selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
           <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-[420px] relative">
             <button
               onClick={() => setQrOpen(false)}
               className="absolute top-3 right-3 text-white/60 hover:text-white"
+              type="button"
             >
               <X size={18} />
             </button>

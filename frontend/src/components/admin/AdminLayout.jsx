@@ -3,13 +3,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   CalendarDays,
-  Ticket,
   Users,
   LogOut,
   Settings,
   PlusSquare,
   DollarSign,
   FileBarChart2,
+  Receipt,
 } from "lucide-react";
 
 import { setAuthToken } from "../../api/api";
@@ -27,6 +27,11 @@ export default function AdminLayout({ children, user }) {
     ...(isAdminOrProducer
       ? [
           {
+            to: "/admin/orders",
+            label: "Órdenes",
+            icon: Receipt,
+          },
+          {
             to: "/admin/manual-sales",
             label: "Venta manual",
             icon: DollarSign,
@@ -38,7 +43,6 @@ export default function AdminLayout({ children, user }) {
           },
         ]
       : []),
-    { to: "/admin/tickets", label: "Tickets", icon: Ticket },
     { to: "/admin/users", label: "Usuarios", icon: Users },
     { to: "/admin/settings", label: "Configuración", icon: Settings },
   ];

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Save, Image as ImageIcon, Star } from "lucide-react";
+import { ArrowLeft, CalendarDays, Save, Image as ImageIcon, Star, User2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import api, { getAuthToken, setAuthToken } from "../../api/api";
@@ -27,6 +27,7 @@ const FEATURED_ORDER_OPTIONS = [
 export default function CreateEventPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [producers, setProducers] = useState([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -44,6 +45,7 @@ export default function CreateEventPage() {
     duration: "",
     producerEmail: "",
     producerPhone: "",
+    producerId: "",
     isFeatured: false,
     featuredOrder: "",
     isSeason: false,
@@ -77,12 +79,46 @@ export default function CreateEventPage() {
         if (!alive) return;
         setUser(data);
 
+        const nextForm = {
+          producerEmail: data?.email || "",
+          producerId: "",
+          producerPhone: "",
+        };
+
+        if (data?.role === "PRODUCER") {
+          nextForm.producerId = data?.id || data?.userId || "";
+        }
+
         setForm((prev) => ({
           ...prev,
-          producerEmail: prev.producerEmail || data?.email || "",
+          producerEmail: prev.producerEmail || nextForm.producerEmail,
+          producerId: prev.producerId || nextForm.producerId,
+          producerPhone: prev.producerPhone || nextForm.producerPhone,
         }));
+
+        if (data?.role === "ADMIN") {
+          const producersRes = await api.get("/users", {
+            params: { page: 1, limit: 200 },
+          });
+
+          const payload =
+            producersRes.data?.data?.data ??
+            producersRes.data?.data ??
+            producersRes.data ??
+            [];
+
+          const usersList = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+          const producerList = usersList.filter((u) => u.role === "PRODUCER");
+          if (!alive) return;
+          setProducers(producerList);
+        }
       } catch (e) {
-        // no bloqueamos la pantalla por esto
+        // no bloqueamos la pantalla
       }
     })();
 
@@ -102,6 +138,20 @@ export default function CreateEventPage() {
 
     return () => URL.revokeObjectURL(objectUrl);
   }, [imageFile]);
+
+  useEffect(() => {
+    if (!user || user.role !== "ADMIN" || !form.producerId || producers.length === 0) {
+      return;
+    }
+
+    const selectedProducer = producers.find((p) => p.id === form.producerId);
+    if (!selectedProducer) return;
+
+    setForm((prev) => ({
+      ...prev,
+      producerEmail: selectedProducer.email || prev.producerEmail || "",
+    }));
+  }, [form.producerId, producers, user]);
 
   const handleChange = (field, value) => {
     setForm((prev) => {
@@ -146,6 +196,10 @@ export default function CreateEventPage() {
         throw new Error("Debes seleccionar la posición del evento destacado.");
       }
 
+      if (user?.role === "ADMIN" && !form.producerId) {
+        throw new Error("Debes asignar un productor al evento.");
+      }
+
       const payload = new FormData();
 
       payload.append("title", form.title.trim());
@@ -165,6 +219,7 @@ export default function CreateEventPage() {
       payload.append("duration", form.duration.trim());
       payload.append("producerEmail", form.producerEmail.trim());
       payload.append("producerPhone", form.producerPhone.trim());
+      payload.append("producerId", form.producerId || "");
       payload.append("isFeatured", String(Boolean(form.isFeatured)));
       payload.append("featuredOrder", form.featuredOrder);
       payload.append("isSeason", String(Boolean(form.isSeason)));
@@ -468,6 +523,44 @@ export default function CreateEventPage() {
                   ) : null}
                 </div>
               </div>
+
+              {user?.role === "ADMIN" ? (
+                <div className="md:col-span-2">
+                  <label className="text-xs text-white/60">Productor asignado *</label>
+                  <div className="mt-1 relative">
+                    <User2
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"
+                    />
+                    <select
+                      value={form.producerId}
+                      onChange={(e) => handleChange("producerId", e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white outline-none focus:border-white/20"
+                    >
+                      <option value="">Selecciona un productor</option>
+                      {producers.map((producer) => (
+                        <option key={producer.id} value={producer.id}>
+                          {producer.name || producer.email}
+                          {producer.email ? ` (${producer.email})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-white/40 mt-2">
+                    Este campo es obligatorio para ADMIN.
+                  </p>
+                </div>
+              ) : (
+                <div className="md:col-span-2 rounded-xl border border-[#007AFF]/20 bg-[#007AFF]/10 px-4 py-3">
+                  <div className="text-xs text-white/50">Productor asignado</div>
+                  <div className="text-white font-semibold mt-1">
+                    {user?.name || user?.email || "Producer"}
+                  </div>
+                  <div className="text-white/50 text-xs mt-1">
+                    Este evento se asignará automáticamente a tu usuario.
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-white/60">Producer Email</label>

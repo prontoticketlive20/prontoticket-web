@@ -14,6 +14,7 @@ import AdminRoute from "./components/AdminRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import OrdersPage from "./pages/admin/OrdersPage";
 import OrderDetailPage from "./pages/admin/OrderDetailPage";
 import CreateEventPage from "./pages/admin/CreateEventPage";
 import EventFunctionsPage from "./pages/admin/EventFunctionsPage";
@@ -155,8 +156,19 @@ function App() {
                     </AdminRoute>
                   </ProtectedRoute>
                 }
-              />
+              /> 
 
+             <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                       <OrdersPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                 }
+               />
+              
               <Route
                 path="/admin/orders/:id"
                 element={
