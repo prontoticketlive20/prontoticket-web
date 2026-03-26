@@ -23,6 +23,7 @@ import EventTicketTypesPage from "./pages/admin/EventTicketTypesPage";
 import EditEventPage from "./pages/admin/EditEventPage";
 import ManualSalesPage from "./pages/admin/ManualSalesPage";
 import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
+import FinancialReportPage from "./pages/admin/FinancialReportPage";
 
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
@@ -175,6 +176,17 @@ function App() {
                   <ProtectedRoute>
                     <AdminRoute allowedRoles={["ADMIN"]}>
                       <OrderDetailPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/reports/financial"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN"]}>
+                      <FinancialReportPage />
                     </AdminRoute>
                   </ProtectedRoute>
                 }

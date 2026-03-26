@@ -10,6 +10,7 @@ import {
   DollarSign,
   FileBarChart2,
   Receipt,
+  Landmark,
 } from "lucide-react";
 
 import { setAuthToken } from "../../api/api";
@@ -19,6 +20,8 @@ export default function AdminLayout({ children, user }) {
 
   const isAdminOrProducer =
     user?.role === "ADMIN" || user?.role === "PRODUCER";
+
+  const isAdmin = user?.role === "ADMIN";
 
   const menu = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -43,6 +46,15 @@ export default function AdminLayout({ children, user }) {
           },
         ]
       : []),
+    ...(isAdmin
+      ? [
+          {
+            to: "/admin/reports/financial",
+            label: "Reporte financiero",
+            icon: Landmark,
+          },
+        ]
+      : []),
     { to: "/admin/users", label: "Usuarios", icon: Users },
     { to: "/admin/settings", label: "Configuración", icon: Settings },
   ];
@@ -58,7 +70,6 @@ export default function AdminLayout({ children, user }) {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex">
-      {/* Sidebar */}
       <aside className="w-[260px] hidden md:flex flex-col border-r border-white/10 bg-[#0E0E0E]">
         <div className="p-5 border-b border-white/10">
           <div className="text-lg font-bold">
@@ -106,9 +117,7 @@ export default function AdminLayout({ children, user }) {
         </div>
       </aside>
 
-      {/* Content */}
       <main className="flex-1">
-        {/* Topbar */}
         <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-white/10 bg-[#0E0E0E]">
           <div className="text-white/80 font-semibold">
             Panel de Administración
