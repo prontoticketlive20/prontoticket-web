@@ -293,12 +293,34 @@ export const PurchaseProvider = ({ children }) => {
   }, []);
 
   const addSeat = useCallback((seat) => {
-    setSelectedSeats((prev) => {
-      const exists = prev.some((s) => String(s.id) === String(seat.id));
-      if (exists) return prev;
-      return [...prev, seat];
-    });
-  }, []);
+  setSelectedSeats((prev) => {
+    const exists = prev.some((s) => String(s.id) === String(seat.id));
+    if (exists) return prev;
+    return [...prev, { ...seat, quantity: Number(seat.quantity || 1) }];
+  });
+}, []);
+
+const upsertSeat = useCallback((seat) => {
+  setSelectedSeats((prev) => {
+    const normalized = {
+      ...seat,
+      quantity: Number(seat.quantity || 1),
+    };
+
+    const index = prev.findIndex((s) => String(s.id) === String(normalized.id));
+
+    if (index === -1) {
+      return [...prev, normalized];
+    }
+
+    const clone = [...prev];
+    clone[index] = {
+      ...clone[index],
+      ...normalized,
+    };
+    return clone;
+  });
+}, []);
 
   const removeSeat = useCallback((seatId) => {
     setSelectedSeats((prev) => prev.filter((s) => String(s.id) !== String(seatId)));
@@ -357,8 +379,11 @@ export const PurchaseProvider = ({ children }) => {
   }, [selectedTickets]);
 
   const getSeatsSubtotal = useCallback(() => {
-    return selectedSeats.reduce((sum, seat) => sum + Number(seat.price || 0), 0);
-  }, [selectedSeats]);
+  return selectedSeats.reduce((sum, seat) => {
+    const qty = Number(seat.quantity || 1);
+    return sum + (Number(seat.price || 0) * qty);
+  }, 0);
+}, [selectedSeats]);
 
   const getSubtotal = useCallback(() => {
     if (selectedEvent?.saleType === 'seated') {
@@ -368,11 +393,12 @@ export const PurchaseProvider = ({ children }) => {
   }, [selectedEvent, getTicketsSubtotal, getSeatsSubtotal]);
 
   const getServiceFee = useCallback(() => {
-    if (selectedEvent?.saleType === 'seated') {
-      return selectedSeats.reduce((sum, seat) => {
-        return sum + Number(seat.serviceFee || 0);
-      }, 0);
-    }
+  if (selectedEvent?.saleType === 'seated') {
+    return selectedSeats.reduce((sum, seat) => {
+      const qty = Number(seat.quantity || 1);
+      return sum + (Number(seat.serviceFee || 0) * qty);
+    }, 0);
+  }
 
     return selectedTickets.reduce((sum, ticket) => {
       const fee = Number(ticket.serviceFee || 0);
@@ -580,6 +606,7 @@ export const PurchaseProvider = ({ children }) => {
     updateTickets,
     updateSeats,
     addSeat,
+    upsertSeat,
     removeSeat,
     clearPurchase,
     expirePurchase,

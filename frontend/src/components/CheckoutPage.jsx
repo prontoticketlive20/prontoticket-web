@@ -341,20 +341,31 @@ const CheckoutForm = () => {
   };
 
   const buildGuestItems = () => {
-    if (!isSeatedEvent) {
-      return (selectedTickets || [])
-        .filter((t) => Number(t.quantity || 0) > 0)
-        .map((t) => ({
-          ticketTypeId: t.id,
-          quantity: Number(t.quantity || 0),
-        }));
-    }
+  if (!isSeatedEvent) {
+    return (selectedTickets || [])
+      .filter((t) => Number(t.quantity || 0) > 0)
+      .map((t) => ({
+        ticketTypeId: t.id,
+        quantity: Number(t.quantity || 0),
+      }));
+  }
 
-    return (selectedSeats || []).map((s) => ({
-      ticketTypeId: s.ticketTypeId,
-      seatId: s.id,
-    }));
-  };
+  return (selectedSeats || [])
+    .map((s) => {
+      if (s.isGeneralAdmission) {
+        return {
+          ticketTypeId: s.ticketTypeId,
+          quantity: Number(s.quantity || 1),
+        };
+      }
+
+      return {
+        ticketTypeId: s.ticketTypeId,
+        seatId: s.id,
+      };
+    })
+    .filter(Boolean);
+};
 
   const extractOrderId = (resp) => {
     return (

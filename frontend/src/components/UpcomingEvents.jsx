@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import EventCard from "./EventCard";
 import { Clock } from "lucide-react";
-import { fetchEvents } from "../services/events.service";
+import api from "../api/api";
 
 const normalizeText = (value) =>
   String(value || "")
@@ -10,6 +10,46 @@ const normalizeText = (value) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+
+const formatEventForCard = (event) => {
+  const firstFn = Array.isArray(event?.functions) ? event.functions[0] : null;
+  const firstDate = firstFn?.date ? new Date(firstFn.date) : null;
+  const hasValidDate = firstDate && !Number.isNaN(firstDate.getTime());
+
+  return {
+    id: event.id,
+    title: event.title,
+    slug: event.slug,
+    description: event.description || "",
+    category: event.category,
+    saleType: event.saleType,
+    image: event.imageUrl || "",
+    imageUrl: event.imageUrl || "",
+    location: event.location || firstFn?.venueName || "",
+    venue: firstFn?.venueName || "",
+    city: firstFn?.city || "",
+    country: firstFn?.country || "",
+    date: hasValidDate
+      ? firstDate.toLocaleDateString()
+      : "",
+    time: hasValidDate
+      ? firstDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+    isFeatured: event.isFeatured === true,
+    featuredOrder: event.featuredOrder ?? null,
+    useExternalTicket: Boolean(event.useExternalTicket),
+    externalTicketUrl: event.externalTicketUrl || "",
+    startingPrice: Number(event.startingPrice || 0),
+    functions: Array.isArray(event?.functions) ? event.functions : [],
+    _raw: {
+      ...event,
+      functions: Array.isArray(event?.functions) ? event.functions : [],
+    },
+  };
+};
 
 const UpcomingEvents = () => {
   const location = useLocation();
@@ -21,8 +61,10 @@ const UpcomingEvents = () => {
 
     const load = async () => {
       try {
-        const data = await fetchEvents();
-        if (mounted) setEvents(data);
+        const res = await api.get("/events/public/catalog");
+        const raw = res.data?.data ?? res.data ?? [];
+        const rows = Array.isArray(raw) ? raw : [];
+        if (mounted) setEvents(rows.map(formatEventForCard));
       } catch (e) {
         console.error("[UpcomingEvents] Error cargando eventos:", e);
         if (mounted) setEvents([]);

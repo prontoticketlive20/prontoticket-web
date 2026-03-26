@@ -274,45 +274,63 @@ const PurchaseSummaryPage = () => {
 
                 <div className="space-y-4">
                   {isSeatedEvent && hasSeatSelections ? (
-                    selectedSeats.map((seat, index) => (
-                      <div
-                        key={seat.id || index}
-                        className="p-4 bg-[#1E1E1E] rounded-xl border border-white/5"
-                        data-testid={`ticket-item-${index}`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="text-white font-bold text-sm sm:text-base">
-                              Asiento {seat.number || seat.seat}
-                            </h3>
-                            <p className="text-white/60 text-xs sm:text-sm">Cantidad: 1</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[#FF9500] font-bold text-base sm:text-lg">
-                              {formatPrice(seat.price)}
-                            </div>
-                          </div>
-                        </div>
+                    selectedSeats.map((seat, index) => {
+  const qty = Number(seat.quantity || 1);
+  const isGA = Boolean(seat.isGeneralAdmission);
 
-                        <div className="pt-3 mt-3 border-t border-white/10">
-                          <div className="grid grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <span className="text-white/50 text-xs block">Sección</span>
-                              <div className="text-white font-semibold text-sm">{seat.section}</div>
-                            </div>
-                            <div>
-                              <span className="text-white/50 text-xs block">Fila</span>
-                              <div className="text-white font-semibold text-sm">{seat.row}</div>
-                            </div>
-                            <div>
-                              <span className="text-white/50 text-xs block">Asiento</span>
-                              <div className="text-white font-semibold text-sm">{seat.number || seat.seat}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
+  return (
+    <div
+      key={seat.id || index}
+      className="p-4 bg-[#1E1E1E] rounded-xl border border-white/5"
+      data-testid={`ticket-item-${index}`}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="text-white font-bold text-sm sm:text-base">
+            {isGA
+              ? `Área ${seat.section || seat.number || seat.seat}`
+              : `Asiento ${seat.number || seat.seat}`}
+          </h3>
+          <p className="text-white/60 text-xs sm:text-sm">Cantidad: {qty}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-[#FF9500] font-bold text-base sm:text-lg">
+            {formatPrice(Number(seat.price || 0) * qty)}
+          </div>
+          {qty > 1 && (
+            <div className="text-white/50 text-xs">
+              {formatPrice(seat.price)} c/u
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="pt-3 mt-3 border-t border-white/10">
+        {isGA ? (
+          <span className="text-white/70 text-sm italic">
+            Libre asignación
+          </span>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <span className="text-white/50 text-xs block">Sección</span>
+              <div className="text-white font-semibold text-sm">{seat.section}</div>
+            </div>
+            <div>
+              <span className="text-white/50 text-xs block">Fila</span>
+              <div className="text-white font-semibold text-sm">{seat.row}</div>
+            </div>
+            <div>
+              <span className="text-white/50 text-xs block">Asiento</span>
+              <div className="text-white font-semibold text-sm">{seat.number || seat.seat}</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+})
+) : (
                     selectedTickets.filter(t => t.quantity > 0).map((ticket, index) => (
                       <div
                         key={ticket.id || index}

@@ -47,6 +47,35 @@ const getCategoryLabel = (object) =>
   object?.categoryLabel ||
   '';
 
+const getObjectType = (object) => String(object?.objectType || '').trim();
+
+const isGeneralAdmissionObject = (object) => {
+  const objectType = normalizeText(getObjectType(object));
+  return (
+    objectType.includes('generaladmission') ||
+    objectType.includes('general admission') ||
+    objectType.includes('general')
+  );
+};
+
+const getObjectQuantity = (object) => {
+  const candidates = [
+    object?.numSelected,
+    object?.selectedQuantity,
+    object?.quantity,
+    object?.amount,
+  ];
+
+  for (const value of candidates) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) {
+      return n;
+    }
+  }
+
+  return 1;
+};
+
 const getStoredSeatsioSession = () => {
   try {
     const raw = sessionStorage.getItem(SEATSIO_SESSION_STORAGE_KEY);
@@ -79,17 +108,18 @@ const SeatsSelectionPage = () => {
   const syncingSelectionRef = useRef(false);
 
   const {
-    selectedEvent,
-    selectEvent,
-    selectedFunction,
-    selectFunction,
-    addSeat,
-    removeSeat,
-    selectedSeats,
-    formatPrice,
-    getServiceFee,
-    getStoredEventId,
-  } = usePurchase();
+  selectedEvent,
+  selectEvent,
+  selectedFunction,
+  selectFunction,
+  addSeat,
+  upsertSeat,
+  removeSeat,
+  selectedSeats,
+  formatPrice,
+  getServiceFee,
+  getStoredEventId,
+} = usePurchase();
 
   const [event, setEvent] = useState(selectedEvent || null);
   const [timeRemaining, setTimeRemaining] = useState(600);
@@ -310,10 +340,10 @@ const SeatsSelectionPage = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const subtotal = selectedSeats.reduce(
-    (sum, seat) => sum + Number(seat.price || 0),
-    0
-  );
+  const subtotal = selectedSeats.reduce((sum, seat) => {
+  const qty = Number(seat.quantity || 1);
+  return sum + (Number(seat.price || 0) * qty);
+}, 0);
 
   const serviceFee = selectedSeats.length > 0 ? getServiceFee() : 0;
   const total = subtotal + serviceFee;
@@ -392,49 +422,94 @@ const SeatsSelectionPage = () => {
   };
 
   const handleSeatSelected = (object) => {
-    if (syncingSelectionRef.current) return;
+  if (syncingSelectionRef.current) return;
 
-    const categoryLabel = getCategoryLabel(object);
-    const displayedLabel = getDisplayedLabel(object);
-    const rowLabel = getRowLabel(object);
+  const categoryLabel = getCategoryLabel(object);
+  const displayedLabel = getDisplayedLabel(object);
+  const rowLabel = getRowLabel(object);
+  const objectType = getObjectType(object);
+  const isGA = isGeneralAdmissionObject(object);
 
-    const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
+  const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
 
-    if (!matchedPricing) {
-      console.error(
-        `[SeatsSelectionPage] No encontré pricing/ticketType para la categoría Seats.io "${categoryLabel}".`
-      );
-      return;
-    }
+  if (!matchedPricing) {
+    console.error(
+      `[SeatsSelectionPage] No encontré pricing/ticketType para la categoría Seats.io "${categoryLabel}".`
+    );
+    return;
+  }
 
-    const seatId = String(object?.id || displayedLabel);
+  const seatId = String(object?.id || displayedLabel);
+  if (!seatId) return;
 
-    if (!seatId || selectedSeatIds.has(seatId)) {
-      return;
-    }
+  const quantity = isGA ? Math.max(1, getObjectQuantity(object)) : 1;
 
-    addSeat({
-      id: seatId,
-      seat: displayedLabel,
-      number: displayedLabel,
-      section: categoryLabel || matchedPricing.ticketTypeName || 'Asiento',
-      row: rowLabel,
-      price: Number(matchedPricing.price || 0),
-      serviceFee: Number(matchedPricing.serviceFee || 0),
-      ticketTypeId: matchedPricing.ticketTypeId,
-      functionId: selectedFunction?.id || null,
-      objectType: object?.objectType || 'Seat',
-    });
+  const payload = {
+    id: seatId,
+    seat: displayedLabel,
+    number: displayedLabel,
+    section: categoryLabel || matchedPricing.ticketTypeName || (isGA ? 'General' : 'Asiento'),
+    row: rowLabel,
+    price: Number(matchedPricing.price || 0),
+    serviceFee: Number(matchedPricing.serviceFee || 0),
+    ticketTypeId: matchedPricing.ticketTypeId,
+    functionId: selectedFunction?.id || null,
+    objectType: objectType || 'Seat',
+    quantity,
+    isGeneralAdmission: isGA,
   };
+
+  if (isGA) {
+    upsertSeat(payload);
+    return;
+  }
+
+  if (selectedSeatIds.has(seatId)) {
+    return;
+  }
+
+  addSeat(payload);
+};
 
   const handleSeatDeselected = (object) => {
-    if (syncingSelectionRef.current) return;
+  if (syncingSelectionRef.current) return;
 
-    const seatId = String(object?.id || getDisplayedLabel(object));
-    if (seatId) {
-      removeSeat(seatId);
+  const seatId = String(object?.id || getDisplayedLabel(object));
+  if (!seatId) return;
+
+  if (isGeneralAdmissionObject(object)) {
+    const quantity = getObjectQuantity(object);
+
+    if (quantity > 0) {
+      const categoryLabel = getCategoryLabel(object);
+      const displayedLabel = getDisplayedLabel(object);
+      const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
+
+      if (!matchedPricing) {
+        removeSeat(seatId);
+        return;
+      }
+
+      upsertSeat({
+        id: seatId,
+        seat: displayedLabel,
+        number: displayedLabel,
+        section: categoryLabel || matchedPricing.ticketTypeName || 'General',
+        row: '',
+        price: Number(matchedPricing.price || 0),
+        serviceFee: Number(matchedPricing.serviceFee || 0),
+        ticketTypeId: matchedPricing.ticketTypeId,
+        functionId: selectedFunction?.id || null,
+        objectType: getObjectType(object) || 'generalAdmissionArea',
+        quantity,
+        isGeneralAdmission: true,
+      });
+      return;
     }
-  };
+  }
+
+  removeSeat(seatId);
+};
 
   if (loadingEvent || !event) {
     return (
@@ -532,8 +607,8 @@ const SeatsSelectionPage = () => {
 
               {!canSelectSeats ? (
                 <div
-                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden flex items-center justify-center text-center p-8"
-                  style={{ minHeight: '500px', height: '60vh' }}
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-visible flex items-center justify-center text-center p-8"
+                  style={{ minHeight: '620px', height: '72vh' }}
                 >
                   <div>
                     <AlertTriangle
@@ -551,7 +626,7 @@ const SeatsSelectionPage = () => {
               ) : !seatmapKey ? (
                 <div
                   className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-red-500/30 overflow-hidden flex items-center justify-center text-center p-8"
-                  style={{ minHeight: '500px', height: '60vh' }}
+                  style={{ minHeight: '620px', height: '72vh' }}
                 >
                   <div>
                     <AlertTriangle
@@ -570,7 +645,7 @@ const SeatsSelectionPage = () => {
               ) : pricingLoading ? (
                 <div
                   className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden flex items-center justify-center text-center p-8"
-                  style={{ minHeight: '500px', height: '60vh' }}
+                  style={{ minHeight: '620px', height: '72vh' }}
                 >
                   <div className="flex flex-col items-center">
                     <Loader2 className="w-8 h-8 animate-spin text-[#007AFF] mb-4" />
@@ -581,8 +656,8 @@ const SeatsSelectionPage = () => {
                 </div>
               ) : (
                 <div
-                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-hidden"
-                  style={{ minHeight: '500px', height: '60vh' }}
+                  className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-visible"
+                  style={{ minHeight: '760px', height: '82vh' }}
                   data-testid="seatsio-map-container"
                 >
                   {!chartReady && !chartError && (
@@ -622,10 +697,33 @@ const SeatsSelectionPage = () => {
                       setChartError('');
                     }}
                     onChartRendered={(chart) => {
-                      chartRef.current = chart;
-                      setChartReady(true);
-                      setChartError('');
-                    }}
+                    chartRef.current = chart;
+                    setChartReady(true);
+                    setChartError('');
+
+                    const adjustView = async () => {
+                       try {
+                       if (typeof chart?.zoomToFit === 'function') {
+                         await chart.zoomToFit();
+                           }
+
+                    if (typeof chart?.resetView === 'function') {
+                       await chart.resetView();
+                      }
+                      } catch (error) {
+                    console.warn(
+                 '[SeatsSelectionPage] No pude ajustar la vista inicial del plano:',
+                error
+             );
+           }
+        };
+
+            adjustView();
+
+           setTimeout(() => {
+          adjustView();
+          }, 300);
+      }}
                     onSessionInitialized={(holdToken) => {
                       const payload = {
                         token: holdToken?.token,
@@ -668,7 +766,7 @@ const SeatsSelectionPage = () => {
                         error?.message || 'Error cargando el mapa de Seats.io.'
                       );
                     }}
-                    fitTo="width"
+                    
                     maxSelectedObjects={10}
                   />
                 </div>
@@ -718,18 +816,21 @@ const SeatsSelectionPage = () => {
                         className="flex items-center justify-between p-3 bg-[#1E1E1E] rounded-xl border border-white/5"
                       >
                         <div className="flex-1">
-                          <div className="text-white font-semibold text-sm">
-                            Asiento {seat.number || seat.seat}
-                          </div>
-                          <div className="text-white/50 text-xs">
-                            {seat.section || 'Categoría'}
-                            {seat.row ? ` - Fila ${seat.row}` : ''}
-                          </div>
+                        <div className="text-white font-semibold text-sm">
+                          {seat.isGeneralAdmission
+                          ? `Área ${seat.section || seat.number || seat.seat}`
+                          : `Asiento ${seat.number || seat.seat}`}
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="text-[#FF9500] font-bold">
-                            {formatPrice(seat.price)}
-                          </span>
+                        <div className="text-white/50 text-xs">
+                          {seat.isGeneralAdmission
+                          ? `Cantidad: ${seat.quantity || 1}`
+                          : `${seat.section || 'Categoría'}${seat.row ? ` - Fila ${seat.row}` : ''}`}
+                        </div>
+                    </div>
+                       <div className="flex items-center space-x-3">
+                       <span className="text-[#FF9500] font-bold">
+                       {formatPrice(Number(seat.price || 0) * Number(seat.quantity || 1))}
+                       </span>
                           <button
                             onClick={() => handleRemoveSeat(seat.id)}
                             className="p-1 hover:bg-white/10 rounded-full transition-colors"

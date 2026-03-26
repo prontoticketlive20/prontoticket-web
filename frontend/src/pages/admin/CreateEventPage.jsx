@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Save, Image as ImageIcon, Star, User2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Save,
+  Image as ImageIcon,
+  Star,
+  User2,
+  Eye,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import api, { getAuthToken, setAuthToken } from "../../api/api";
@@ -46,6 +54,7 @@ export default function CreateEventPage() {
     producerEmail: "",
     producerPhone: "",
     producerId: "",
+    isPublished: true,
     isFeatured: false,
     featuredOrder: "",
     isSeason: false,
@@ -118,7 +127,7 @@ export default function CreateEventPage() {
           setProducers(producerList);
         }
       } catch (e) {
-        // no bloqueamos la pantalla
+        console.error("[CreateEventPage] Error cargando usuario/productores:", e);
       }
     })();
 
@@ -220,6 +229,7 @@ export default function CreateEventPage() {
       payload.append("producerEmail", form.producerEmail.trim());
       payload.append("producerPhone", form.producerPhone.trim());
       payload.append("producerId", form.producerId || "");
+      payload.append("isPublished", String(Boolean(form.isPublished)));
       payload.append("isFeatured", String(Boolean(form.isFeatured)));
       payload.append("featuredOrder", form.featuredOrder);
       payload.append("isSeason", String(Boolean(form.isSeason)));
@@ -433,6 +443,33 @@ export default function CreateEventPage() {
                   />
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Eye size={18} className="text-[#007AFF]" />
+              <div className="text-white font-semibold">Cartelera pública</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="inline-flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isPublished}
+                    onChange={(e) => handleChange("isPublished", e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-black/40"
+                  />
+                  <span className="text-sm text-white/80">
+                    Mostrar este evento en la cartelera pública
+                  </span>
+                </label>
+                <p className="text-xs text-white/40 mt-2">
+                  Además del control manual, el backend lo ocultará automáticamente
+                  cuando pasen aproximadamente 9 horas desde el inicio de su última función visible.
+                </p>
+              </div>
             </div>
           </div>
 

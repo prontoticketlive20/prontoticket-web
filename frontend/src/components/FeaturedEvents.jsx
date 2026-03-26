@@ -1,7 +1,47 @@
 import React, { useEffect, useMemo, useState } from "react";
 import EventCard from "./EventCard";
 import { Star } from "lucide-react";
-import { fetchEvents } from "../services/events.service";
+import api from "../api/api";
+
+const formatEventForCard = (event) => {
+  const firstFn = Array.isArray(event?.functions) ? event.functions[0] : null;
+  const firstDate = firstFn?.date ? new Date(firstFn.date) : null;
+  const hasValidDate = firstDate && !Number.isNaN(firstDate.getTime());
+
+  return {
+    id: event.id,
+    title: event.title,
+    slug: event.slug,
+    description: event.description || "",
+    category: event.category,
+    saleType: event.saleType,
+    image: event.imageUrl || "",
+    imageUrl: event.imageUrl || "",
+    location: event.location || firstFn?.venueName || "",
+    venue: firstFn?.venueName || "",
+    city: firstFn?.city || "",
+    country: firstFn?.country || "",
+    date: hasValidDate
+      ? firstDate.toLocaleDateString()
+      : "",
+    time: hasValidDate
+      ? firstDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+    isFeatured: event.isFeatured === true,
+    featuredOrder: event.featuredOrder ?? null,
+    useExternalTicket: Boolean(event.useExternalTicket),
+    externalTicketUrl: event.externalTicketUrl || "",
+    startingPrice: Number(event.startingPrice || 0),
+    functions: Array.isArray(event?.functions) ? event.functions : [],
+    _raw: {
+      ...event,
+      functions: Array.isArray(event?.functions) ? event.functions : [],
+    },
+  };
+};
 
 const FeaturedEvents = () => {
   const [events, setEvents] = useState([]);
@@ -12,8 +52,12 @@ const FeaturedEvents = () => {
 
     const load = async () => {
       try {
-        const data = await fetchEvents();
-        if (mounted) setEvents(data);
+        const res = await api.get("/events/public/featured");
+        const raw = res.data?.data ?? res.data ?? [];
+        const rows = Array.isArray(raw) ? raw : [];
+        if (mounted) {
+          setEvents(rows.map(formatEventForCard));
+        }
       } catch (e) {
         console.error("[FeaturedEvents] Error cargando eventos:", e);
         if (mounted) setEvents([]);
@@ -30,8 +74,7 @@ const FeaturedEvents = () => {
   }, []);
 
   const featuredEvents = useMemo(() => {
-    return events
-      .filter((event) => event.isFeatured === true)
+    return [...events]
       .sort((a, b) => {
         const orderA = Number(a.featuredOrder || 999);
         const orderB = Number(b.featuredOrder || 999);

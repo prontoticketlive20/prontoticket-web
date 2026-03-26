@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Save, Image as ImageIcon, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Save,
+  Image as ImageIcon,
+  Star,
+  Eye,
+  User2,
+} from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import api, { getAuthToken, setAuthToken } from "../../api/api";
@@ -29,6 +37,7 @@ export default function EditEventPage() {
   const { id } = useParams();
 
   const [user, setUser] = useState(null);
+  const [producers, setProducers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
@@ -47,6 +56,8 @@ export default function EditEventPage() {
     duration: "",
     producerEmail: "",
     producerPhone: "",
+    producerId: "",
+    isPublished: true,
     isFeatured: false,
     featuredOrder: "",
     isSeason: false,
@@ -75,17 +86,44 @@ export default function EditEventPage() {
 
     const load = async () => {
       try {
-        const [meRes, eventRes] = await Promise.all([
-          api.get("/auth/me"),
-          api.get(`/events/${id}`),
-        ]);
-
+        const meRes = await api.get("/auth/me");
         const me = meRes.data?.data ?? meRes.data;
+
+        if (!alive) return;
+        setUser(me);
+
+        let producerList = [];
+
+        if (me?.role === "ADMIN") {
+          const producersRes = await api.get("/users", {
+            params: { page: 1, limit: 200 },
+          });
+
+          const payload =
+            producersRes.data?.data?.data ??
+            producersRes.data?.data ??
+            producersRes.data ??
+            [];
+
+          const usersList = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+          producerList = usersList.filter((u) => u.role === "PRODUCER");
+
+          if (!alive) return;
+          setProducers(producerList);
+        }
+
+        const eventRes = await api.get(`/events/${id}`);
         const evt = eventRes.data?.data ?? eventRes.data;
 
         if (!alive) return;
 
-        setUser(me);
+        const selectedProducer =
+          producerList.find((p) => p.id === evt?.producerId) || null;
 
         setForm({
           title: evt?.title || "",
@@ -104,8 +142,19 @@ export default function EditEventPage() {
           ageLimit: evt?.ageLimit || "",
           doors: evt?.doors || "",
           duration: evt?.duration || "",
-          producerEmail: evt?.producerEmail || me?.email || "",
+          producerEmail:
+            evt?.producerEmail ||
+            selectedProducer?.email ||
+            me?.email ||
+            "",
           producerPhone: evt?.producerPhone || "",
+          producerId:
+            evt?.producerId ||
+            (me?.role === "PRODUCER" ? me?.id || me?.userId || "" : ""),
+          isPublished:
+            evt?.isPublished !== null && evt?.isPublished !== undefined
+              ? Boolean(evt.isPublished)
+              : true,
           isFeatured: Boolean(evt?.isFeatured),
           featuredOrder:
             evt?.featuredOrder !== null && evt?.featuredOrder !== undefined
@@ -116,6 +165,7 @@ export default function EditEventPage() {
 
         setImagePreview(evt?.imageUrl || "");
       } catch (e) {
+        console.error("[EditEventPage] Error cargando evento:", e);
         setErrorMsg("No pude cargar el evento para editar.");
       } finally {
         if (alive) setLoading(false);
@@ -137,6 +187,20 @@ export default function EditEventPage() {
 
     return () => URL.revokeObjectURL(objectUrl);
   }, [imageFile]);
+
+  useEffect(() => {
+    if (!user || user.role !== "ADMIN" || !form.producerId || producers.length === 0) {
+      return;
+    }
+
+    const selectedProducer = producers.find((p) => p.id === form.producerId);
+    if (!selectedProducer) return;
+
+    setForm((prev) => ({
+      ...prev,
+      producerEmail: selectedProducer.email || prev.producerEmail || "",
+    }));
+  }, [form.producerId, producers, user]);
 
   const handleChange = (field, value) => {
     setForm((prev) => {
@@ -181,6 +245,10 @@ export default function EditEventPage() {
         throw new Error("Debes seleccionar la posición del evento destacado.");
       }
 
+      if (user?.role === "ADMIN" && !form.producerId) {
+        throw new Error("Debes asignar un productor al evento.");
+      }
+
       const payload = new FormData();
 
       payload.append("title", form.title.trim());
@@ -200,6 +268,8 @@ export default function EditEventPage() {
       payload.append("duration", form.duration.trim());
       payload.append("producerEmail", form.producerEmail.trim());
       payload.append("producerPhone", form.producerPhone.trim());
+      payload.append("producerId", form.producerId || "");
+      payload.append("isPublished", String(Boolean(form.isPublished)));
       payload.append("isFeatured", String(Boolean(form.isFeatured)));
       payload.append("featuredOrder", form.featuredOrder);
       payload.append("isSeason", String(Boolean(form.isSeason)));
@@ -415,6 +485,33 @@ export default function EditEventPage() {
 
           <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
             <div className="flex items-center gap-2 mb-4">
+              <Eye size={18} className="text-[#007AFF]" />
+              <div className="text-white font-semibold">Cartelera pública</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="inline-flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isPublished}
+                    onChange={(e) => handleChange("isPublished", e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-black/40"
+                  />
+                  <span className="text-sm text-white/80">
+                    Mostrar este evento en la cartelera pública
+                  </span>
+                </label>
+                <p className="text-xs text-white/40 mt-2">
+                  Aunque esté publicado manualmente, el backend lo ocultará automáticamente
+                  cuando ya haya pasado la ventana operativa de visibilidad.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+            <div className="flex items-center gap-2 mb-4">
               <Star size={18} className="text-[#FF9500]" />
               <div className="text-white font-semibold">Evento destacado</div>
             </div>
@@ -487,6 +584,44 @@ export default function EditEventPage() {
                   ) : null}
                 </div>
               </div>
+
+              {user?.role === "ADMIN" ? (
+                <div className="md:col-span-2">
+                  <label className="text-xs text-white/60">Productor asignado *</label>
+                  <div className="mt-1 relative">
+                    <User2
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"
+                    />
+                    <select
+                      value={form.producerId}
+                      onChange={(e) => handleChange("producerId", e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white outline-none focus:border-white/20"
+                    >
+                      <option value="">Selecciona un productor</option>
+                      {producers.map((producer) => (
+                        <option key={producer.id} value={producer.id}>
+                          {producer.name || producer.email}
+                          {producer.email ? ` (${producer.email})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-white/40 mt-2">
+                    Este campo es obligatorio para ADMIN.
+                  </p>
+                </div>
+              ) : (
+                <div className="md:col-span-2 rounded-xl border border-[#007AFF]/20 bg-[#007AFF]/10 px-4 py-3">
+                  <div className="text-xs text-white/50">Productor asignado</div>
+                  <div className="text-white font-semibold mt-1">
+                    {user?.name || user?.email || "Producer"}
+                  </div>
+                  <div className="text-white/50 text-xs mt-1">
+                    Este evento permanece asignado automáticamente a tu usuario.
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-white/60">Producer Email</label>
