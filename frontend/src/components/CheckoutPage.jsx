@@ -33,14 +33,8 @@ import api from '../api/api';
 const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
 
 const getStripePublishableKey = () => {
-  return (
-    import.meta?.env?.VITE_STRIPE_PUBLIC_KEY ||
-    process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY ||
-    process.env.REACT_APP_STRIPE_PUBLIC_KEY ||
-    ''
-  );
+  return import.meta?.env?.VITE_STRIPE_PUBLIC_KEY || '';
 };
-
 const stripePromise = loadStripe(getStripePublishableKey());
 
 const cardElementOptions = {
