@@ -919,7 +919,7 @@ const CheckoutForm = () => {
 };
 
 const CheckoutPage = () => {
-  const publishableKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+  const publishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 
   if (!publishableKey) {
     return (
@@ -927,7 +927,7 @@ const CheckoutPage = () => {
         <div className="bg-[#121212] border border-red-500/20 rounded-2xl p-6 max-w-lg">
           <h2 className="text-white text-2xl font-bold mb-3">Falta configuración de Stripe</h2>
           <p className="text-white/60">
-            Debes agregar <span className="text-[#FF9500] font-mono">REACT_APP_STRIPE_PUBLISHABLE_KEY</span> en el
+            Debes agregar <span className="text-[#FF9500] font-mono">VITE_STRIPE_PUBLIC_KEY</span> en el
             archivo .env del frontend y reiniciar la aplicación.
           </p>
         </div>
