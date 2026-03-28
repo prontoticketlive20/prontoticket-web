@@ -714,66 +714,66 @@ const CheckInPage = () => {
         }
 
         // Fallback local
-        const parsed = parseQRCodeData(qrData);
-        if (!parsed) {
-          setScanResult({
-            valid: false,
-            status: 'invalid',
-            message: 'Código no reconocido. Pega el Ticket ID exacto o usa un QR válido.',
-            errorCode: 'INVALID_FORMAT',
-            displayInfo: null,
-          });
-          setScanStatus('warning');
+        // const parsed = parseQRCodeData(qrData);
+        // if (!parsed) {
+        //  setScanResult({
+        //    valid: false,
+        //    status: 'invalid',
+        //    message: 'Código no reconocido. Pega el Ticket ID exacto o usa un QR válido.',
+        //    errorCode: 'INVALID_FORMAT',
+        //    displayInfo: null,
+        //  });
+        //  setScanStatus('warning');
 
-          addToHistory({
-            success: false,
-            message: 'Formato no reconocido',
-            ticketId: null,
-            time: new Date().toLocaleTimeString(),
-          });
+        //  addToHistory({
+        //    success: false,
+        //    message: 'Formato no reconocido',
+        //    ticketId: null,
+        //    time: new Date().toLocaleTimeString(),
+        //  });
 
-          setTimeout(() => setScanStatus('idle'), 3500);
-          return;
-        }
+        //  setTimeout(() => setScanStatus('idle'), 3500);
+        //  return;
+        //}
 
-        const validation = validateTicketLocal(qrData, {
-          expectedEventId: eventId,
-          expectedFunctionId: functionId,
-        });
+        // const validation = validateTicketLocal(qrData, {
+        //  expectedEventId: eventId,
+        //  expectedFunctionId: functionId,
+        // });
 
-        setScanResult(validation);
-        if (validation.valid) {
-          setScanStatus('success');
-          addToHistory({
-            success: true,
-            message: 'Admitido (local)',
-            ticketId: validation.ticketId,
-            displayInfo: validation.displayInfo,
-            time: new Date().toLocaleTimeString(),
-          });
-        } else if (validation.status === 'used') {
-          setScanStatus('denied');
-          addToHistory({
-            success: false,
-            message: 'Ya utilizado (local)',
-            ticketId: validation.ticketId,
-            displayInfo: validation.displayInfo,
-            time: new Date().toLocaleTimeString(),
-          });
-        } else {
-          setScanStatus('warning');
-          addToHistory({
-            success: false,
-            message: validation.message || 'No válido (local)',
-            ticketId: validation.ticketId,
-            displayInfo: validation.displayInfo,
-            time: new Date().toLocaleTimeString(),
-          });
-        }
+        // setScanResult(validation);
+        // if (validation.valid) {
+        //  setScanStatus('success');
+        //  addToHistory({
+        //    success: true,
+        //    message: 'Admitido (local)',
+        //    ticketId: validation.ticketId,
+        //    displayInfo: validation.displayInfo,
+        //    time: new Date().toLocaleTimeString(),
+        //  });
+        // } else if (validation.status === 'used') {
+        //  setScanStatus('denied');
+        //  addToHistory({
+        //    success: false,
+        //    message: 'Ya utilizado (local)',
+        //    ticketId: validation.ticketId,
+        //    displayInfo: validation.displayInfo,
+        //    time: new Date().toLocaleTimeString(),
+        //  });
+        // } else {
+        //  setScanStatus('warning');
+        //  addToHistory({
+        //    success: false,
+        //    message: validation.message || 'No válido (local)',
+        //    ticketId: validation.ticketId,
+        //    displayInfo: validation.displayInfo,
+        //    time: new Date().toLocaleTimeString(),
+        //  });
+        // }
 
-        setTimeout(() => setScanStatus('idle'), 3500);
-      }
-    },
+        // setTimeout(() => setScanStatus('idle'), 3500);
+       }
+     },
     [addToHistory, fastMode, refreshStatsNow, selectedEvent, selectedFunction]
   );
 
