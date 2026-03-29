@@ -19,16 +19,19 @@ export default function FunctionPricingPage() {
         const func = functionRes.data?.data || functionRes.data || null;
         setFunctionData(func);
 
-        const pricingRes = await api.get(`/function-ticket-types/function/${functionId}`);
+        const pricingRes = await api.get(
+          `/function-ticket-types/function/${functionId}`
+        );
+
         const pricingList = Array.isArray(pricingRes.data)
           ? pricingRes.data
-          : (pricingRes.data?.data || []);
+          : pricingRes.data?.data || [];
 
         setPricing(
           pricingList.map((item) => ({
             ...item,
-            price: item.price ?? 0,
-            available: item.available ?? 0
+            price: item.price ?? "",
+            available: item.available ?? ""
           }))
         );
       } catch (err) {
@@ -39,10 +42,10 @@ export default function FunctionPricingPage() {
     loadData();
   }, [functionId]);
 
-  const handleFieldChange = (id, field, value) => {
+  const handleFieldChange = (ticketTypeId, field, value) => {
     setPricing((prev) =>
       prev.map((item) =>
-        item.id === id
+        item.ticketTypeId === ticketTypeId
           ? {
               ...item,
               [field]: value
@@ -57,22 +60,42 @@ export default function FunctionPricingPage() {
       setSaving(true);
 
       for (const item of pricing) {
-        await api.patch(`/function-ticket-types/${item.id}`, {
-          price: Number(item.price),
-          available: Number(item.available)
-        });
+        const price = Number(item.price || 0);
+        const available = Number(item.available || 0);
+
+        if (!item.isConfigured) {
+          // 🔥 CREAR NUEVO
+          if (price > 0) {
+            await api.post(`/function-ticket-types`, {
+              functionId,
+              ticketTypeId: item.ticketTypeId,
+              price,
+              available
+            });
+          }
+        } else {
+          // 🔥 ACTUALIZAR EXISTENTE
+          await api.patch(`/function-ticket-types/${item.id}`, {
+            price,
+            available
+          });
+        }
       }
 
-      const pricingRes = await api.get(`/function-ticket-types/function/${functionId}`);
+      // Reload
+      const pricingRes = await api.get(
+        `/function-ticket-types/function/${functionId}`
+      );
+
       const pricingList = Array.isArray(pricingRes.data)
         ? pricingRes.data
-        : (pricingRes.data?.data || []);
+        : pricingRes.data?.data || [];
 
       setPricing(
         pricingList.map((item) => ({
           ...item,
-          price: item.price ?? 0,
-          available: item.available ?? 0
+          price: item.price ?? "",
+          available: item.available ?? ""
         }))
       );
     } catch (err) {
@@ -110,20 +133,21 @@ export default function FunctionPricingPage() {
               <th className="text-left p-3">Tipo</th>
               <th className="text-left p-3">Precio</th>
               <th className="text-left p-3">Inventario</th>
+              <th className="text-left p-3">Estado</th>
             </tr>
           </thead>
 
           <tbody>
             {pricing.length === 0 && (
               <tr>
-                <td colSpan="3" className="p-4 text-center text-white/40">
-                  No hay pricing configurado para esta función
+                <td colSpan="4" className="p-4 text-center text-white/40">
+                  No hay ticket types disponibles
                 </td>
               </tr>
             )}
 
             {pricing.map((item) => (
-              <tr key={item.id} className="border-t border-white/10">
+              <tr key={item.ticketTypeId} className="border-t border-white/10">
                 <td className="p-3 font-medium">
                   {item.ticketType?.name || "Tipo"}
                 </td>
@@ -133,7 +157,7 @@ export default function FunctionPricingPage() {
                     type="number"
                     value={item.price}
                     onChange={(e) =>
-                      handleFieldChange(item.id, "price", e.target.value)
+                      handleFieldChange(item.ticketTypeId, "price", e.target.value)
                     }
                     className="w-full bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
                   />
@@ -144,10 +168,18 @@ export default function FunctionPricingPage() {
                     type="number"
                     value={item.available}
                     onChange={(e) =>
-                      handleFieldChange(item.id, "available", e.target.value)
+                      handleFieldChange(item.ticketTypeId, "available", e.target.value)
                     }
                     className="w-full bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
                   />
+                </td>
+
+                <td className="p-3">
+                  {item.isConfigured ? (
+                    <span className="text-green-400 text-sm">Activo</span>
+                  ) : (
+                    <span className="text-yellow-400 text-sm">Nuevo</span>
+                  )}
                 </td>
               </tr>
             ))}
