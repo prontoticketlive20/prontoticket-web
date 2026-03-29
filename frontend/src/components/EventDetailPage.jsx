@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { usePurchase } from '../context/PurchaseContext';
+import { loadEventPixels, trackViewContent } from "../utils/eventPixels";
 
 const VALID_SALE_TYPES = ['seated', 'general'];
 
@@ -125,6 +126,8 @@ const EventDetailPage = () => {
 
         setEvent(normalized);
         selectEvent(normalized);
+        loadEventPixels(normalized);
+        trackViewContent(normalized);
         setPolicies(DEFAULT_POLICIES);
 
         if (normalized?.functions?.length === 1) {

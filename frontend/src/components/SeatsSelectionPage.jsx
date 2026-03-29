@@ -15,6 +15,7 @@ import {
 import api from '../api/api';
 import { fetchEventById } from '../services/events.service';
 import { usePurchase } from '../context/PurchaseContext';
+import { trackAddToCart } from "../utils/eventPixels";
 
 const VALID_SALE_TYPES = ['seated', 'general'];
 
@@ -395,10 +396,23 @@ const SeatsSelectionPage = () => {
   };
 
   const handleContinueToSummary = () => {
-    if (canContinueToSummary) {
-      navigate(`/evento/${id}/resumen`);
-    }
-  };
+  if (!canContinueToSummary) return;
+
+  trackAddToCart({
+    event,
+    total,
+    currency: "USD",
+    items: (selectedSeats || []).map((seat) => ({
+      ticketTypeId: seat.ticketTypeId,
+      name: seat.ticketTypeName || seat.section || "Seat",
+      quantity: Number(seat.quantity || 1),
+      price: Number(seat.price || 0),
+      seatId: seat.id,
+    })),
+  });
+
+  navigate(`/evento/${id}/resumen`);
+};
 
   const handleRemoveSeat = async (seatId) => {
     const chart = chartRef.current;

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePurchase } from "../context/PurchaseContext";
 import api from "../api/api";
+import { trackAddToCart } from "../utils/eventPixels";
 
 export default function TicketSelection({ event, onClose }) {
   const navigate = useNavigate();
@@ -129,9 +130,28 @@ export default function TicketSelection({ event, onClose }) {
     return selectedTicketsArray.reduce((sum, t) => sum + t.price * t.quantity, 0);
   }, [selectedTicketsArray]);
 
-  const canContinue = selectedTicketsArray.length > 0;
+    const canContinue = selectedTicketsArray.length > 0;
 
   const handleContinue = () => {
+    const totalAddToCart = selectedTicketsArray.reduce((acc, item) => {
+      const qty = Number(item.quantity || 0);
+      return acc + qty * (Number(item.price || 0) + Number(item.serviceFee || 0));
+    }, 0);
+
+    trackAddToCart({
+      event,
+      total: totalAddToCart,
+      currency: "USD",
+      items: selectedTicketsArray
+        .filter((item) => Number(item.quantity || 0) > 0)
+        .map((item) => ({
+          ticketTypeId: item.id,
+          name: item.name,
+          quantity: Number(item.quantity || 0),
+          price: Number(item.price || 0),
+        })),
+    });
+
     updateTickets(selectedTicketsArray);
     onClose?.();
     navigate(`/evento/${event.id}/resumen`);

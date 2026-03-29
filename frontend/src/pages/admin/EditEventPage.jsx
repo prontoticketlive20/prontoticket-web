@@ -61,7 +61,10 @@ export default function EditEventPage() {
     isFeatured: false,
     featuredOrder: "",
     isSeason: false,
-  });
+    facebookPixelId: "",
+    tiktokPixelId: "",
+    gtmId: "",
+   });
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -148,6 +151,9 @@ export default function EditEventPage() {
             me?.email ||
             "",
           producerPhone: evt?.producerPhone || "",
+          facebookPixelId: evt?.facebookPixelId || "",
+          tiktokPixelId: evt?.tiktokPixelId || "",
+          gtmId: evt?.gtmId || "",
           producerId:
             evt?.producerId ||
             (me?.role === "PRODUCER" ? me?.id || me?.userId || "" : ""),
@@ -273,6 +279,9 @@ export default function EditEventPage() {
       payload.append("isFeatured", String(Boolean(form.isFeatured)));
       payload.append("featuredOrder", form.featuredOrder);
       payload.append("isSeason", String(Boolean(form.isSeason)));
+      payload.append("facebookPixelId", form.facebookPixelId.trim());
+      payload.append("tiktokPixelId", form.tiktokPixelId.trim());
+      payload.append("gtmId", form.gtmId.trim());
 
       if (imageFile) {
         payload.append("image", imageFile);
@@ -657,6 +666,51 @@ export default function EditEventPage() {
               </div>
             </div>
           </div>
+
+          // PIXELS
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+  <div className="mb-4">
+    <h3 className="text-base font-semibold text-white">Pixels y tracking</h3>
+    <p className="text-sm text-white/50 mt-1">
+      Opcional. Úsalo cuando el productor active campañas con Facebook, TikTok o GTM.
+    </p>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label className="block text-sm text-white/70 mb-2">Facebook Pixel ID</label>
+      <input
+        type="text"
+        value={form.facebookPixelId}
+        onChange={(e) => handleChange("facebookPixelId", e.target.value)}
+        placeholder="Ej: 123456789012345"
+        className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white"
+      />
+    </div>
+
+    <div>
+      <label className="block text-sm text-white/70 mb-2">TikTok Pixel ID</label>
+      <input
+        type="text"
+        value={form.tiktokPixelId}
+        onChange={(e) => handleChange("tiktokPixelId", e.target.value)}
+        placeholder="Ej: CXXXXXXXXXXXX"
+        className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white"
+      />
+    </div>
+
+    <div>
+      <label className="block text-sm text-white/70 mb-2">Google Tag Manager ID</label>
+      <input
+        type="text"
+        value={form.gtmId}
+        onChange={(e) => handleChange("gtmId", e.target.value)}
+        placeholder="Ej: GTM-XXXXXXX"
+        className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white"
+      />
+    </div>
+  </div>
+</div>
 
           <div className="flex items-center justify-end gap-3">
             <Link

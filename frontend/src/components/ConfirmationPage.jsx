@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
 import logoProntoTicketLiveLarge from '../assets/logo-prontoticketlive-large.png';
+import { loadEventPixels, trackPurchase } from "../utils/eventPixels";
 
 const ConfirmationPage = () => {
   const { id, orderId: orderIdFromUrl } = useParams();
@@ -56,6 +57,36 @@ const ConfirmationPage = () => {
       navigate('/');
     }
   }, [clearPurchase, navigate, orderIdFromUrl]);
+
+  useEffect(() => {
+    if (!confirmationData?.event?.id || !confirmationData?.orderId) return;
+
+    const purchaseKey = `pixel_purchase_${confirmationData.orderId}`;
+    const alreadyTracked = sessionStorage.getItem(purchaseKey);
+
+    if (alreadyTracked) return;
+
+    loadEventPixels(confirmationData.event);
+
+    const items = Array.isArray(confirmationData.tickets)
+      ? confirmationData.tickets.map((ticket) => ({
+          ticketTypeId: ticket.id,
+          name: ticket.name || ticket.type || "Ticket",
+          quantity: Number(ticket.quantity || 1),
+          price: Number(ticket.price || 0),
+        }))
+      : [];
+
+    trackPurchase({
+      event: confirmationData.event,
+      orderId: confirmationData.orderId,
+      total: Number(confirmationData.total || 0),
+      currency: confirmationData.currency || "USD",
+      items,
+    });
+
+    sessionStorage.setItem(purchaseKey, "1");
+  }, [confirmationData]);
 
   const handleCopyOrderId = () => {
     if (confirmationData?.orderId) {
