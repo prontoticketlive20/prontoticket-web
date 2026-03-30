@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { User, Mail, Lock, ArrowLeft, Loader2, BadgeCheck } from "lucide-react";
 import api from "../api/api";
@@ -7,6 +7,8 @@ import icono2026 from "../assets/icono_2026.png";
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
+  const captchaContainerRef = useRef(null);
+  const widgetIdRef = useRef(null);
 
   const from = location.state?.from?.pathname || "/account";
 
@@ -14,9 +16,67 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const turnstileSiteKey = process.env.REACT_APP_TURNSTILE_SITE_KEY || "";
+
+  useEffect(() => {
+    if (!turnstileSiteKey) return;
+
+    const existingScript = document.querySelector(
+      'script[src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"]'
+    );
+
+    const renderWidget = () => {
+      if (!window.turnstile || !captchaContainerRef.current) return;
+      if (widgetIdRef.current !== null) return;
+
+      widgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: turnstileSiteKey,
+        theme: "dark",
+        callback: (token) => {
+          setTurnstileToken(token || "");
+        },
+        "expired-callback": () => {
+          setTurnstileToken("");
+        },
+        "error-callback": () => {
+          setTurnstileToken("");
+        },
+      });
+    };
+
+    if (existingScript) {
+      if (window.turnstile) {
+        renderWidget();
+      } else {
+        existingScript.addEventListener("load", renderWidget, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src =
+      "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderWidget;
+    document.head.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [turnstileSiteKey]);
+
+  const resetTurnstile = () => {
+    if (window.turnstile && widgetIdRef.current !== null) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+    setTurnstileToken("");
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -45,6 +105,16 @@ export default function Register() {
       return;
     }
 
+    if (!turnstileSiteKey) {
+      setErrorMsg("No está configurado el captcha de seguridad.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      setErrorMsg("Debes completar el captcha de seguridad.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -52,6 +122,7 @@ export default function Register() {
         name: trimmedName,
         email: normalizedEmail,
         password,
+        turnstileToken,
       });
 
       const token =
@@ -96,13 +167,13 @@ export default function Register() {
 
       if (Array.isArray(backendMessage)) {
         setErrorMsg(backendMessage.join(", "));
-      } else if (
-        String(backendMessage).toLowerCase().includes("exists")
-      ) {
+      } else if (String(backendMessage).toLowerCase().includes("exists")) {
         setErrorMsg("Ese email ya está registrado.");
       } else {
         setErrorMsg(String(backendMessage));
       }
+
+      resetTurnstile();
     } finally {
       setLoading(false);
     }
@@ -202,6 +273,15 @@ export default function Register() {
                   autoComplete="new-password"
                   required
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-white/65 mb-2 block">Verificación de seguridad</label>
+              <div
+                className="rounded-2xl border border-white/10 bg-white/5 p-3 flex justify-center"
+              >
+                <div ref={captchaContainerRef} />
               </div>
             </div>
 
