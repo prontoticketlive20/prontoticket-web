@@ -319,7 +319,7 @@ const CheckInPage = () => {
         const data = me?.data ?? me;
         const role = data?.role;
 
-        const allowed = ['ADMIN', 'SCANNER'];
+        const allowed = ['ADMIN', 'SCANNER', 'PRODUCER'];
         if (role && !allowed.includes(role)) {
           setAuthToken(null);
           setIsLoggedIn(false);
@@ -495,7 +495,7 @@ const CheckInPage = () => {
       const data = me?.data ?? me;
       const role = data?.role;
 
-      const allowed = ['ADMIN', 'SCANNER'];
+      const allowed = ['ADMIN', 'SCANNER', 'PRODUCER'];
       if (role && !allowed.includes(role)) {
         setAuthToken(null);
         setIsLoggedIn(false);

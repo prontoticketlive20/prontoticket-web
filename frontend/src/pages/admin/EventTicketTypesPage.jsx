@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../api/api";
 
@@ -14,37 +14,37 @@ export default function EventTicketTypesPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const loadTicketTypes = async () => {
-    try {
-      setErrorMsg("");
-      const res = await api.get(`/ticket-types/event/${eventId}`);
-      const raw = res.data?.data ?? res.data ?? [];
-      const list = Array.isArray(raw) ? raw : [];
+  const loadTicketTypes = useCallback(async () => {
+  try {
+    setErrorMsg("");
+    const res = await api.get(`/ticket-types/event/${eventId}`);
+    const raw = res.data?.data ?? res.data ?? [];
+    const list = Array.isArray(raw) ? raw : [];
 
-      setTicketTypes(
-        list.map((item) => ({
-          ...item,
-          editName: item.name || "",
-          editServiceFee:
-            item.serviceFee !== null && item.serviceFee !== undefined
-              ? String(item.serviceFee)
-              : "0",
-          editIsActive:
-            item.isActive !== null && item.isActive !== undefined
-              ? Boolean(item.isActive)
-              : true,
-        }))
-      );
-    } catch (err) {
-      console.error("Error loading ticket types", err);
-      setTicketTypes([]);
-      setErrorMsg("No pude cargar los Ticket Types.");
-    }
-  };
+    setTicketTypes(
+      list.map((item) => ({
+        ...item,
+        editName: item.name || "",
+        editServiceFee:
+          item.serviceFee !== null && item.serviceFee !== undefined
+            ? String(item.serviceFee)
+            : "0",
+        editIsActive:
+          item.isActive !== null && item.isActive !== undefined
+            ? Boolean(item.isActive)
+            : true,
+      }))
+    );
+  } catch (err) {
+    console.error("Error loading ticket types", err);
+    setTicketTypes([]);
+    setErrorMsg("No pude cargar los Ticket Types.");
+  }
+}, [eventId]);
 
   useEffect(() => {
-    if (eventId) loadTicketTypes();
-  }, [eventId]);
+  if (eventId) loadTicketTypes();
+}, [eventId, loadTicketTypes]);
 
   const createTicketType = async () => {
     try {

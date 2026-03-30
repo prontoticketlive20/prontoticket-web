@@ -11,6 +11,7 @@ import {
   FileBarChart2,
   Receipt,
   Landmark,
+  ScanLine,
 } from "lucide-react";
 
 import { setAuthToken } from "../../api/api";
@@ -29,6 +30,11 @@ export default function AdminLayout({ children, user }) {
     { to: "/admin/events/new", label: "Crear evento", icon: PlusSquare },
     ...(isAdminOrProducer
       ? [
+          {
+            to: "/checkin",
+            label: "Scanner / Check-In",
+            icon: ScanLine,
+          },
           {
             to: "/admin/orders",
             label: "Órdenes",

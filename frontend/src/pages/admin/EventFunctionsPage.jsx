@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/api";
 
@@ -48,36 +48,36 @@ export default function EventFunctionsPage() {
     return `${toPercentValue(value)}%`;
   };
 
-  const loadFunctions = async () => {
-    try {
-      const res = await api.get(`/event-functions/event/${eventId}`);
-      const functionsData = res.data?.data || [];
+  const loadFunctions = useCallback(async () => {
+  try {
+    const res = await api.get(`/event-functions/event/${eventId}`);
+    const functionsData = res.data?.data || [];
 
-      setFunctions(
-        functionsData.sort((a, b) => new Date(a.date) - new Date(b.date))
-      );
-    } catch (err) {
-      console.error("Error loading functions", err);
-      setFunctions([]);
-    }
-  };
+    setFunctions(
+      functionsData.sort((a, b) => new Date(a.date) - new Date(b.date))
+    );
+  } catch (err) {
+    console.error("Error loading functions", err);
+    setFunctions([]);
+  }
+}, [eventId]);
 
-  const loadEvent = async () => {
-    try {
-      const res = await api.get(`/events/${eventId}`);
-      const eventData = res.data?.data || null;
-      setEvent(eventData);
-    } catch (err) {
-      console.error("Error loading event", err);
-    }
-  };
+  const loadEvent = useCallback(async () => {
+  try {
+    const res = await api.get(`/events/${eventId}`);
+    const eventData = res.data?.data || null;
+    setEvent(eventData);
+  } catch (err) {
+    console.error("Error loading event", err);
+  }
+}, [eventId]);
 
   useEffect(() => {
-    if (eventId) {
-      loadFunctions();
-      loadEvent();
-    }
-  }, [eventId]);
+  if (eventId) {
+    loadFunctions();
+    loadEvent();
+  }
+}, [eventId, loadFunctions, loadEvent]);
 
   const createFunction = async () => {
     try {
