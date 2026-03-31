@@ -29,9 +29,7 @@ const formatEventForCard = (event) => {
     venue: firstFn?.venueName || "",
     city: firstFn?.city || "",
     country: firstFn?.country || "",
-    date: hasValidDate
-      ? firstDate.toLocaleDateString()
-      : "",
+    date: hasValidDate ? firstDate.toLocaleDateString() : "",
     time: hasValidDate
       ? firstDate.toLocaleTimeString([], {
           hour: "2-digit",
@@ -51,10 +49,14 @@ const formatEventForCard = (event) => {
   };
 };
 
+const INITIAL_VISIBLE = 8;
+const LOAD_MORE_STEP = 4;
+
 const UpcomingEvents = () => {
   const location = useLocation();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
   useEffect(() => {
     let mounted = true;
@@ -97,7 +99,11 @@ const UpcomingEvents = () => {
     );
   }, [filters]);
 
-  const upcomingEvents = useMemo(() => {
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [location.search]);
+
+  const filteredEvents = useMemo(() => {
     const parseEventDate = (event) => {
       const firstRawDate = event?._raw?.functions?.[0]?.date;
       if (!firstRawDate) return Number.MAX_SAFE_INTEGER;
@@ -119,7 +125,7 @@ const UpcomingEvents = () => {
       return normalizeText(`${dd}/${mm}/${yyyy} ${dd}-${mm}-${yyyy} ${yyyy}`);
     };
 
-    const filtered = events
+    return events
       .filter((event) => event.isFeatured !== true)
       .filter((event) => {
         const title = normalizeText(event.title);
@@ -144,9 +150,18 @@ const UpcomingEvents = () => {
         return matchQ && matchCountry && matchCity && matchVenueDate;
       })
       .sort((a, b) => parseEventDate(a) - parseEventDate(b));
+  }, [events, filters]);
 
-    return hasActiveFilters ? filtered : filtered.slice(0, 8);
-  }, [events, filters, hasActiveFilters]);
+  const displayedEvents = useMemo(() => {
+    if (hasActiveFilters) return filteredEvents;
+    return filteredEvents.slice(0, visibleCount);
+  }, [filteredEvents, hasActiveFilters, visibleCount]);
+
+  const canLoadMore = !hasActiveFilters && displayedEvents.length < filteredEvents.length;
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + LOAD_MORE_STEP);
+  };
 
   return (
     <section className="py-12 md:py-16 bg-gradient-to-b from-[#0A0A0A] to-[#121212]">
@@ -167,7 +182,7 @@ const UpcomingEvents = () => {
           <div className="text-white/60">Cargando próximos eventos...</div>
         )}
 
-        {!loading && upcomingEvents.length === 0 && (
+        {!loading && displayedEvents.length === 0 && (
           <div className="text-white/60">
             {hasActiveFilters
               ? "No encontramos eventos con esos criterios de búsqueda."
@@ -176,14 +191,15 @@ const UpcomingEvents = () => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-          {upcomingEvents.map((event) => (
+          {displayedEvents.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
         </div>
 
-        {!hasActiveFilters && upcomingEvents.length > 0 && (
+        {canLoadMore && (
           <div className="text-center mt-8">
             <button
+              onClick={handleLoadMore}
               className="px-8 py-3 bg-white/10 text-white font-semibold rounded-full transition-all duration-300 hover:bg-white/20 border border-white/10 hover:border-white/30 active:scale-95"
               data-testid="load-more-events-button"
             >

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "@/App.css";
 import {
   BrowserRouter,
@@ -45,12 +45,31 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AccountPage from "./pages/AccountPage";
 
+import faviconIcon from "./assets/icono_2026.png";
+
 const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   React.useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+
+  return null;
+};
+
+const FaviconManager = () => {
+  useEffect(() => {
+    let link = document.querySelector("link[rel='icon']");
+
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "icon");
+      document.head.appendChild(link);
+    }
+
+    link.setAttribute("type", "image/png");
+    link.setAttribute("href", faviconIcon);
+  }, []);
 
   return null;
 };
@@ -109,6 +128,7 @@ function App() {
     <div className="App">
       <PurchaseProvider>
         <BrowserRouter>
+          <FaviconManager />
           <ScrollToTop />
 
           <Routes>
@@ -157,19 +177,19 @@ function App() {
                     </AdminRoute>
                   </ProtectedRoute>
                 }
-              /> 
+              />
 
-             <Route
+              <Route
                 path="/admin/orders"
                 element={
                   <ProtectedRoute>
                     <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
-                       <OrdersPage />
+                      <OrdersPage />
                     </AdminRoute>
                   </ProtectedRoute>
-                 }
-               />
-              
+                }
+              />
+
               <Route
                 path="/admin/orders/:id"
                 element={
@@ -279,15 +299,9 @@ function App() {
                 element={<ConfirmationPage />}
               />
 
-              <Route
-                path="/my-tickets/:orderId"
-                element={<MyTicketsPage />}
-              />
+              <Route path="/my-tickets/:orderId" element={<MyTicketsPage />} />
 
-              <Route
-                path="/ticket/:ticketId"
-                element={<TicketPage />}
-              />
+              <Route path="/ticket/:ticketId" element={<TicketPage />} />
 
               <Route
                 path="/checkin"

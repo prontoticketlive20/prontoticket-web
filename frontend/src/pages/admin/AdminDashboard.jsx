@@ -593,6 +593,14 @@ export default function AdminDashboard() {
   <span className="text-sm">Órdenes</span>
 </button>
 
+<button
+  onClick={() => navigate("/checkin")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold shadow-lg shadow-[#007AFF]/20 hover:brightness-110 active:scale-[0.99]"
+  type="button"
+>
+  <span className="text-sm">Scanner</span>
+</button>
+
 </div>
       </div>
 

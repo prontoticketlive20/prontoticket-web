@@ -19,6 +19,7 @@ import {
 
 import api from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
+import icono2026 from "../../assets/icono_2026.png";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -47,6 +48,13 @@ export default function OrderDetailPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
   const [resendError, setResendError] = useState("");
+
+  const [revertLoadingId, setRevertLoadingId] = useState(null);
+  const [revertMsg, setRevertMsg] = useState("");
+  const [revertError, setRevertError] = useState("");
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [ticketToRevert, setTicketToRevert] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -173,9 +181,49 @@ export default function OrderDetailPage() {
   const refundableTickets =
     order?.tickets?.filter((t) => refundableById.get(t.id)?.refundable) || [];
 
-  const selectedTickets = order?.tickets?.filter((t) =>
+  const selectedTickets = useMemo(() => {
+  return (order?.tickets || []).filter((t) =>
     selectedTicketIds.includes(t.id)
-  ) || [];
+  );
+}, [order?.tickets, selectedTicketIds]);
+
+const canRevertCheckin =
+  user?.role === "ADMIN" || user?.role === "PRODUCER";
+
+const handleRevertCheckin = (ticket) => {
+  if (!ticket?.id) return;
+
+  setTicketToRevert(ticket);
+  setConfirmOpen(true);
+};
+
+const confirmRevert = async () => {
+  if (!ticketToRevert?.id) return;
+
+  setConfirmOpen(false);
+  setRevertMsg("");
+  setRevertError("");
+  setRevertLoadingId(ticketToRevert.id);
+
+  try {
+    await api.post("/checkin/revert", {
+      ticketId: ticketToRevert.id,
+    });
+
+    await Promise.all([loadOrder(), loadRefundableTickets()]);
+    setRevertMsg("Check-in revertido correctamente.");
+  } catch (e) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No pude revertir el check-in.";
+
+    setRevertError(Array.isArray(msg) ? msg.join(", ") : msg);
+  } finally {
+    setRevertLoadingId(null);
+    setTicketToRevert(null);
+  }
+};
 
   const selectedSummary = useMemo(() => {
     return selectedTickets.reduce(
@@ -311,70 +359,82 @@ export default function OrderDetailPage() {
 
   return (
     <AdminLayout user={user}>
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <div>
-          <button
-            onClick={() => navigate("/admin")}
-            className="mb-2 inline-flex items-center gap-2 text-sm text-[#007AFF] hover:underline"
-            type="button"
-          >
-            <ArrowLeft size={16} />
-            Volver al Dashboard
-          </button>
+  {revertMsg ? (
+    <div className="mb-4 rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-green-200">
+      {revertMsg}
+    </div>
+  ) : null}
 
-          <h1 className="text-2xl font-bold text-white">Detalle de Orden</h1>
-          <p className="text-white/50 text-sm">
-            Información completa de la transacción, tickets y refunds.
-          </p>
-        </div>
-      </div>
+  {revertError ? (
+    <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-200">
+      {revertError}
+    </div>
+  ) : null}
 
-      {loading ? (
-        <div className="rounded-2xl border border-white/10 bg-[#121212] p-6 text-white/70">
-          Cargando orden…
-        </div>
-      ) : errorMsg ? (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-200">
-          {errorMsg}
-        </div>
-      ) : !order ? (
-        <div className="rounded-2xl border border-white/10 bg-[#121212] p-6 text-white/70">
-          No se encontró la orden.
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#121212] p-5">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-white/50 text-xs">Order ID</div>
-                  <div className="text-white font-mono text-sm break-all">
-                    {order.id}
-                  </div>
-                </div>
+  <div className="flex items-center justify-between gap-3 mb-5">
+    <div>
+      <button
+        onClick={() => navigate("/admin")}
+        className="mb-2 inline-flex items-center gap-2 text-sm text-[#007AFF] hover:underline"
+        type="button"
+      >
+        <ArrowLeft size={16} />
+        Volver al Dashboard
+      </button>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
-                    {order.status}
-                  </div>
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
-                    Tickets activos: {activeTicketsCount}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setResendOpen(true);
-                      setResendEmail(order?.buyerEmail || order?.user?.email || "");
-                      setResendMsg("");
-                      setResendError("");
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90"
-                    type="button"
-                  >
-                    <Mail size={16} />
-                    Reenviar tickets
-                  </button>
-                </div>
+      <h1 className="text-2xl font-bold text-white">Detalle de Orden</h1>
+      <p className="text-white/50 text-sm">
+        Información completa de la transacción, tickets y refunds.
+      </p>
+    </div>
+  </div>
+
+  {loading ? (
+    <div className="rounded-2xl border border-white/10 bg-[#121212] p-6 text-white/70">
+      Cargando orden…
+    </div>
+  ) : errorMsg ? (
+    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-200">
+      {errorMsg}
+    </div>
+  ) : !order ? (
+    <div className="rounded-2xl border border-white/10 bg-[#121212] p-6 text-white/70">
+      No se encontró la orden.
+    </div>
+  ) : (
+    <>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#121212] p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-white/50 text-xs">Order ID</div>
+              <div className="text-white font-mono text-sm break-all">
+                {order.id}
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
+                {order.status}
+              </div>
+              <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
+                Tickets activos: {activeTicketsCount}
+              </div>
+              <button
+                onClick={() => {
+                  setResendOpen(true);
+                  setResendEmail(order?.buyerEmail || order?.user?.email || "");
+                  setResendMsg("");
+                  setResendError("");
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90"
+                type="button"
+              >
+                <Mail size={16} />
+                Reenviar tickets
+              </button>
+            </div>
+          </div>
 
               <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-xl bg-black/30 border border-white/10 p-4">
@@ -579,19 +639,37 @@ export default function OrderDetailPage() {
                           </td>
 
                           <td className="py-3 pr-3">
-                            {t.checkedIn ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/10 border border-green-500/30 text-green-300">
-                                <CheckCircle2 size={12} />
-                                Usado
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-white/5 border border-white/10 text-white/60">
-                                <XCircle size={12} />
-                                Pendiente
-                              </span>
-                            )}
-                          </td>
+  <div className="flex flex-col items-start gap-2">
+    {t.checkedIn ? (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-500/10 border border-green-500/30 text-green-300">
+        <CheckCircle2 size={12} />
+        Usado
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-white/5 border border-white/10 text-white/60">
+        <XCircle size={12} />
+        Pendiente
+      </span>
+    )}
 
+    {canRevertCheckin &&
+      t.status === "ACTIVE" &&
+      t.checkedIn && (
+        <button
+          onClick={() => handleRevertCheckin(t)}
+          disabled={revertLoadingId === t.id}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/15 disabled:opacity-60 text-xs"
+          type="button"
+        >
+          <RefreshCw
+            size={12}
+            className={revertLoadingId === t.id ? "animate-spin" : ""}
+          />
+          {revertLoadingId === t.id ? "Revirtiendo..." : "Volver a pendiente"}
+        </button>
+      )}
+  </div>
+</td>
                           <td className="py-3 pr-0 text-white/60 text-sm">
                             {t.checkedInAt
                               ? new Date(t.checkedInAt).toLocaleString()
@@ -937,6 +1015,62 @@ export default function OrderDetailPage() {
           </div>
         </div>
       )}
+
+      {confirmOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+    <div className="relative w-[420px] rounded-2xl border border-white/10 bg-[#0B0B0B] p-6 shadow-2xl">
+
+      {/* Botón cerrar */}
+      <button
+        onClick={() => setConfirmOpen(false)}
+        className="absolute top-3 right-3 text-white/50 hover:text-white"
+      >
+        <X size={18} />
+      </button>
+
+      {/* Logo / Icono */}
+      <div className="flex justify-center mb-4">
+        <img
+          src={icono2026}
+          alt="logo"
+          className="h-12 opacity-90"
+        />
+      </div>
+
+      {/* Título */}
+      <h2 className="text-white text-lg font-semibold text-center mb-2">
+        Confirmar acción
+      </h2>
+
+      {/* Texto */}
+      <p className="text-white/60 text-sm text-center mb-4">
+        ¿Deseas devolver este ticket a <span className="text-yellow-300">PENDIENTE</span>?
+      </p>
+
+      {/* Ticket ID */}
+      <div className="text-center text-xs text-white/40 mb-6 font-mono">
+        {ticketToRevert?.id}
+      </div>
+
+      {/* Botones */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setConfirmOpen(false)}
+          className="flex-1 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+        >
+          Cancelar
+        </button>
+
+        <button
+          onClick={confirmRevert}
+          className="flex-1 px-4 py-2 rounded-xl bg-[#007AFF] text-white hover:opacity-90"
+        >
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {qrOpen && selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
