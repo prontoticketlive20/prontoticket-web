@@ -33,7 +33,6 @@ const Header = () => {
     localStorage.removeItem("ptl_user_role");
   }, []);
 
-  // ✅ Ruta por rol
   const getDashboardPath = useCallback((role) => {
     if (role === "ADMIN") return "/admin";
     if (role === "SCANNER") return "/checkin";
@@ -116,10 +115,10 @@ const Header = () => {
   };
 
   const navLinks = [
-    { name: "Eventos", href: "#eventos" },
-    { name: "Sedes", href: "#sedes" },
-    { name: "Nosotros", href: "#nosotros" },
-    { name: "Contacto", href: "#contacto" },
+    { name: "Eventos", href: "/#eventos", external: false },
+    { name: "Nosotros", href: "/nosotros", external: false },
+    { name: "Términos de Uso", href: "/terminos", external: false },
+    { name: "Contacto", href: "/contacto", external: false },
   ];
 
   const dashboardPath = isAuthed ? getDashboardPath(userRole) : "/login";
@@ -146,16 +145,27 @@ const Header = () => {
           </Link>
 
           <nav className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="text-white/70 hover:text-white transition-colors duration-200 font-medium text-sm tracking-wide"
-                data-testid={`nav-link-${link.name.toLowerCase()}`}
-              >
-                {link.name}
-              </a>
-            ))}
+            {navLinks.map((link) =>
+              link.external ? (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  className="text-white/70 hover:text-white transition-colors duration-200 font-medium text-sm tracking-wide"
+                  data-testid={`nav-link-${link.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  {link.name}
+                </a>
+              ) : (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-white/70 hover:text-white transition-colors duration-200 font-medium text-sm tracking-wide"
+                  data-testid={`nav-link-${link.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  {link.name}
+                </Link>
+              )
+            )}
           </nav>
 
           <div className="hidden md:flex items-center space-x-4">
@@ -259,17 +269,29 @@ const Header = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 bg-black/95 border-t border-white/10">
             <nav className="flex flex-col space-y-4">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  className="text-white/70 hover:text-white transition-colors duration-200 font-medium px-4 py-2 text-sm"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  data-testid={`mobile-nav-link-${link.name.toLowerCase()}`}
-                >
-                  {link.name}
-                </a>
-              ))}
+              {navLinks.map((link) =>
+                link.external ? (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    className="text-white/70 hover:text-white transition-colors duration-200 font-medium px-4 py-2 text-sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    data-testid={`mobile-nav-link-${link.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    {link.name}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className="text-white/70 hover:text-white transition-colors duration-200 font-medium px-4 py-2 text-sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    data-testid={`mobile-nav-link-${link.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    {link.name}
+                  </Link>
+                )
+              )}
 
               <div className="px-4 pt-2 pb-4 border-t border-white/10">
                 <div className="flex items-center space-x-2 mb-3">

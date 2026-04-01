@@ -28,6 +28,10 @@ import FinancialReportPage from "./pages/admin/FinancialReportPage";
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
 
+import NosotrosPage from "./pages/NosotrosPage";
+import TermsPage from "./pages/TermsPage";
+import ContactoPage from "./pages/ContactoPage";
+
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import FeaturedEvents from "./components/FeaturedEvents";
@@ -134,6 +138,9 @@ function App() {
           <Routes>
             <Route element={<LayoutWithHeader />}>
               <Route path="/" element={<HomeContent />} />
+              <Route path="/nosotros" element={<NosotrosPage />} />
+              <Route path="/terminos" element={<TermsPage />} />
+              <Route path="/contacto" element={<ContactoPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
