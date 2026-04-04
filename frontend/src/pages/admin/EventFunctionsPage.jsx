@@ -82,14 +82,14 @@ export default function EventFunctionsPage() {
   const createFunction = async () => {
     try {
       await api.post("/event-functions", {
-        eventId,
-        date,
-        venueName,
-        city,
-        country,
-        seatmapKey,
-        taxRate: toDecimalValue(taxRate),
-      });
+      eventId,
+      date: date ? new Date(date).toISOString() : null,
+     venueName,
+     city,
+     country,
+     seatmapKey,
+     taxRate: toDecimalValue(taxRate),
+    });
 
       setDate("");
       setVenueName("");
@@ -127,13 +127,13 @@ export default function EventFunctionsPage() {
   const saveEdit = async (id) => {
     try {
       await api.patch(`/event-functions/${id}`, {
-        date: editDate,
-        venueName: editVenueName,
-        city: editCity,
-        country: editCountry,
-        seatmapKey: editSeatmapKey,
-        taxRate: toDecimalValue(editTaxRate),
-      });
+       date: editDate ? new Date(editDate).toISOString() : null,
+       venueName: editVenueName,
+       city: editCity,
+       country: editCountry,
+       seatmapKey: editSeatmapKey,
+       taxRate: toDecimalValue(editTaxRate),
+     });
 
       cancelEdit();
       loadFunctions();

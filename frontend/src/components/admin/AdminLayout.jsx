@@ -16,6 +16,7 @@ import {
 
 import { setAuthToken } from "../../api/api";
 
+
 export default function AdminLayout({ children, user }) {
   const navigate = useNavigate();
 
@@ -35,6 +36,13 @@ export default function AdminLayout({ children, user }) {
             label: "Scanner / Check-In",
             icon: ScanLine,
           },
+         
+          {
+            to: "/analytics",
+            label: "Analytics",
+            icon: FileBarChart2,
+          },
+
           {
             to: "/admin/orders",
             label: "Órdenes",

@@ -24,6 +24,7 @@ import EditEventPage from "./pages/admin/EditEventPage";
 import ManualSalesPage from "./pages/admin/ManualSalesPage";
 import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
 import FinancialReportPage from "./pages/admin/FinancialReportPage";
+import AnalyticsPage from './components/AnalyticsPage';
 
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
@@ -143,7 +144,8 @@ function App() {
               <Route path="/contacto" element={<ContactoPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              
               <Route
                 path="/dashboard"
                 element={
@@ -173,6 +175,17 @@ function App() {
                     </AdminRoute>
                   </ProtectedRoute>
                 }
+              />
+
+              <Route
+                path="/analytics"
+                element={
+                 <ProtectedRoute>
+                   <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                     <AnalyticsPage />
+                   </AdminRoute>
+                </ProtectedRoute>
+               }
               />
 
               <Route

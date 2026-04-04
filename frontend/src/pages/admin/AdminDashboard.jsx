@@ -19,6 +19,7 @@ import {
 import api, { setAuthToken, getAuthToken } from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { FileBarChart2 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 // ---------- Helpers ----------
 function toISOStartOfDay(dateStr) {
@@ -574,6 +575,15 @@ export default function AdminDashboard() {
     <DollarSign size={16} />
     <span className="text-sm">Venta Manual</span>
   </button>
+
+<button
+  onClick={() => navigate("/analytics")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#5b21b6] text-white font-semibold shadow-lg shadow-[#7c3aed]/20 hover:brightness-110 active:scale-[0.99]"
+  type="button"
+>
+  <BarChart3 size={16} />
+  <span className="text-sm">Analytics</span>
+</button>
 
 <button
   onClick={() => navigate("/admin/reports/event-close")}

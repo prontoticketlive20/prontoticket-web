@@ -19,6 +19,7 @@ import {
 
 import { usePurchase } from '../context/PurchaseContext';
 import { loadEventPixels, trackViewContent } from "../utils/eventPixels";
+import api from '../api/api';  //analytics
 
 const VALID_SALE_TYPES = ['seated', 'general'];
 
@@ -113,6 +114,16 @@ const EventDetailPage = () => {
   const { selectEvent, selectFunction: setContextFunction } = usePurchase();
 
   useEffect(() => {
+         if (!event?.id) return;
+
+         api.post('/orders/analytics/view', {
+           eventId: event.id,
+           functionId: selectedFunction?.id || '',
+         });
+    }, [event?.id, selectedFunction?.id]);
+
+  useEffect(() => {
+
     let mounted = true;
 
     const load = async () => {
@@ -130,6 +141,7 @@ const EventDetailPage = () => {
         trackViewContent(normalized);
         setPolicies(DEFAULT_POLICIES);
 
+            
         if (normalized?.functions?.length === 1) {
           const singleFunc = normalizeFunction(normalized.functions[0]);
           setSelectedFunction(singleFunc);
@@ -206,7 +218,25 @@ const EventDetailPage = () => {
     setContextFunction(safeFunction);
   };
 
-  const handleSelectTickets = () => {
+  const handleSelectTickets = async () => {
+
+  console.log('🔥 CLICK DISPARADO', event?.id, selectedFunction?.id);
+
+    // 🔥 ANALYTICS CLICK
+try {
+ 
+  console.log('CLICK ANALYTICS →', {
+  eventId: event?.id,
+  functionId: selectedFunction?.id
+});
+
+  await api.post('/orders/analytics/click', {
+    eventId: event.id,
+    functionId: selectedFunction?.id || null,
+  });
+} catch (err) {
+  console.error('Analytics click error', err);
+}
     if (!event) return;
 
     if (event.useExternalTicket && event.externalTicketUrl) {

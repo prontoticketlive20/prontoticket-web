@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import api from "../../api/api";
+import { SeatsioSeatingChart } from "@seatsio/seatsio-react";
 import {
   ArrowLeft,
   DollarSign,
@@ -17,8 +18,65 @@ import {
   Receipt,
   Percent,
   BadgeDollarSign,
+  Armchair,
+  X,
 } from "lucide-react";
 import icono2026 from "../../assets/icono_2026.png";
+
+const SEATSIO_WORKSPACE_KEY = "525c2c82-fb6b-4e5d-899f-8bed4d5c1130";
+const SEATSIO_REGION = "na";
+
+const normalizeText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const getDisplayedLabel = (object) =>
+  object?.labels?.displayedLabel ||
+  object?.labels?.own?.label ||
+  object?.label ||
+  object?.id ||
+  "";
+
+const getRowLabel = (object) =>
+  object?.labels?.parent?.label ||
+  object?.labels?.parent ||
+  object?.labels?.own?.row ||
+  "";
+
+const getCategoryLabel = (object) =>
+  object?.category?.label || object?.categoryLabel || "";
+
+const getObjectType = (object) => String(object?.objectType || "").trim();
+
+const isGeneralAdmissionObject = (object) => {
+  const objectType = normalizeText(getObjectType(object));
+  return (
+    objectType.includes("generaladmission") ||
+    objectType.includes("general admission") ||
+    objectType.includes("general")
+  );
+};
+
+const getObjectQuantity = (object) => {
+  const candidates = [
+    object?.numSelected,
+    object?.selectedQuantity,
+    object?.quantity,
+    object?.amount,
+  ];
+
+  for (const value of candidates) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) {
+      return n;
+    }
+  }
+
+  return 1;
+};
 
 export default function ManualSalesPage() {
   const [user, setUser] = useState(null);
@@ -40,6 +98,11 @@ export default function ManualSalesPage() {
   const [internalNotes, setInternalNotes] = useState("");
 
   const [items, setItems] = useState([]);
+  const [selectedSeats, setSelectedSeats] = useState([]);
+  const [holdTokenData, setHoldTokenData] = useState(null);
+  const [chartReady, setChartReady] = useState(false);
+  const [chartError, setChartError] = useState("");
+  const [holdCallsInProgress, setHoldCallsInProgress] = useState(false);
 
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingTicketTypes, setLoadingTicketTypes] = useState(false);
@@ -48,6 +111,8 @@ export default function ManualSalesPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successBox, setSuccessBox] = useState(null);
   const [quote, setQuote] = useState(null);
+
+  const chartRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +166,10 @@ export default function ManualSalesPage() {
     setSelectedFunction("");
     setTicketTypes([]);
     setItems([]);
+    setSelectedSeats([]);
+    setHoldTokenData(null);
+    setChartReady(false);
+    setChartError("");
     setQuote(null);
     setErrorMsg("");
     setSuccessBox(null);
@@ -113,6 +182,10 @@ export default function ManualSalesPage() {
       if (!selectedFunction) {
         setTicketTypes([]);
         setItems([]);
+        setSelectedSeats([]);
+        setHoldTokenData(null);
+        setChartReady(false);
+        setChartError("");
         setQuote(null);
         return;
       }
@@ -120,6 +193,10 @@ export default function ManualSalesPage() {
       setLoadingTicketTypes(true);
       setErrorMsg("");
       setSuccessBox(null);
+      setChartError("");
+      setSelectedSeats([]);
+      setHoldTokenData(null);
+      setChartReady(false);
 
       try {
         const res = await api.get(
@@ -172,13 +249,80 @@ export default function ManualSalesPage() {
     }
   }, [paymentMethod]);
 
+  const selectedEventObj = events.find((e) => e.id === selectedEvent) || null;
+  const selectedFunctionObj =
+    functions.find((f) => f.id === selectedFunction) || null;
+
+  const isSeatedFunction =
+    String(selectedEventObj?.saleType || "").toUpperCase() === "SEATED" &&
+    Boolean(selectedFunctionObj?.seatmapKey);
+
+  const pricingMap = useMemo(() => {
+    const map = new Map();
+
+    for (const item of ticketTypes) {
+      const label = normalizeText(item?.name);
+      if (!label) continue;
+
+      map.set(label, {
+        ticketTypeId: item.ticketTypeId,
+        ticketTypeName: item.name,
+        price: Number(item.price || 0),
+        remaining: Number(item.remaining || 0),
+      });
+    }
+
+    return map;
+  }, [ticketTypes]);
+
+  const seatsioPricing = useMemo(() => {
+    const prices = ticketTypes
+      .filter((item) => item?.name)
+      .map((item) => ({
+        category: item.name,
+        price: Number(item.price || 0),
+      }));
+
+    return {
+      priceFormatter: (price) => `$${Number(price || 0).toLocaleString()}`,
+      prices,
+    };
+  }, [ticketTypes]);
+
+  const seatedItems = useMemo(() => {
+    return selectedSeats.flatMap((seat) => {
+      if (seat.isGeneralAdmission) {
+        return [
+          {
+            ticketTypeId: seat.ticketTypeId,
+            quantity: Number(seat.quantity || 1),
+          },
+        ];
+      }
+
+      return [
+        {
+          ticketTypeId: seat.ticketTypeId,
+          seatId: seat.id,
+        },
+      ];
+    });
+  }, [selectedSeats]);
+
   useEffect(() => {
     let alive = true;
 
     const loadQuote = async () => {
-      const validItems = items.filter((i) => Number(i.quantity || 0) > 0);
+      const validItems = isSeatedFunction
+        ? seatedItems
+        : items.filter((i) => Number(i.quantity || 0) > 0);
 
       if (!selectedFunction || validItems.length === 0) {
+        setQuote(null);
+        return;
+      }
+
+      if (isSeatedFunction && !holdTokenData?.token) {
         setQuote(null);
         return;
       }
@@ -190,13 +334,11 @@ export default function ManualSalesPage() {
           functionId: selectedFunction,
           paymentMethod,
           items: validItems,
+          holdToken: isSeatedFunction ? holdTokenData?.token : undefined,
         });
 
         const payload =
-          res.data?.data?.data ||
-          res.data?.data ||
-          res.data ||
-          null;
+          res.data?.data?.data || res.data?.data || res.data || null;
 
         if (!alive) return;
         setQuote(payload);
@@ -214,7 +356,7 @@ export default function ManualSalesPage() {
     return () => {
       alive = false;
     };
-  }, [selectedFunction, paymentMethod, items]);
+  }, [selectedFunction, paymentMethod, items, seatedItems, isSeatedFunction, holdTokenData]);
 
   const reloadTicketTypes = async () => {
     if (!selectedFunction) return;
@@ -244,6 +386,10 @@ export default function ManualSalesPage() {
 
       setTicketTypes(normalized);
       setItems([]);
+      setSelectedSeats([]);
+      setHoldTokenData(null);
+      setChartReady(false);
+      setChartError("");
       setQuote(null);
     } catch (error) {
       console.error("[ManualSalesPage] Error reloading ticket types:", error);
@@ -260,6 +406,10 @@ export default function ManualSalesPage() {
     setExternalPaymentReference("");
     setInternalNotes("");
     setItems([]);
+    setSelectedSeats([]);
+    setHoldTokenData(null);
+    setChartReady(false);
+    setChartError("");
     setQuote(null);
 
     await reloadTicketTypes();
@@ -300,6 +450,18 @@ export default function ManualSalesPage() {
   };
 
   const selectedItemsDetailed = useMemo(() => {
+    if (isSeatedFunction) {
+      return selectedSeats.map((seat) => ({
+        ticketTypeId: seat.ticketTypeId,
+        quantity: Number(seat.quantity || 1),
+        name: seat.ticketTypeName || seat.section || "Asiento",
+        price: Number(seat.price || 0),
+        subtotal: Number(seat.price || 0) * Number(seat.quantity || 1),
+        seatLabel: seat.seat || seat.number || seat.id,
+        isGeneralAdmission: Boolean(seat.isGeneralAdmission),
+      }));
+    }
+
     return items
       .map((item) => {
         const pricing = ticketTypes.find((t) => t.ticketTypeId === item.ticketTypeId);
@@ -313,7 +475,7 @@ export default function ManualSalesPage() {
         };
       })
       .filter(Boolean);
-  }, [items, ticketTypes]);
+  }, [items, ticketTypes, selectedSeats, isSeatedFunction]);
 
   const totalTickets = useMemo(() => {
     if (quote?.ticketsCount != null) return Number(quote.ticketsCount || 0);
@@ -329,16 +491,130 @@ export default function ManualSalesPage() {
     totalTickets > 0 &&
     !!buyerName.trim() &&
     !!buyerEmail.trim() &&
-    !submitting;
-
-  const selectedEventObj = events.find((e) => e.id === selectedEvent) || null;
-  const selectedFunctionObj =
-    functions.find((f) => f.id === selectedFunction) || null;
+    !submitting &&
+    (!isSeatedFunction || !!holdTokenData?.token);
 
   const money = (n) => {
     const v = Number(n);
     const safe = Number.isFinite(v) ? v : 0;
     return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  };
+
+  const handleRemoveSeat = async (seatId) => {
+    const chart = chartRef.current;
+    const normalizedSeatId = String(seatId || "");
+
+    if (!normalizedSeatId) return;
+
+    try {
+      if (chart) {
+        await chart.deselectObjects([normalizedSeatId]);
+      }
+    } catch (err) {
+      console.error("[ManualSalesPage] No pude deseleccionar el asiento:", err);
+    } finally {
+      setSelectedSeats((prev) => prev.filter((seat) => seat.id !== normalizedSeatId));
+    }
+  };
+
+  const handleSeatSelected = (object) => {
+    const categoryLabel = getCategoryLabel(object);
+    const displayedLabel = getDisplayedLabel(object);
+    const rowLabel = getRowLabel(object);
+    const objectType = getObjectType(object);
+    const isGA = isGeneralAdmissionObject(object);
+
+    const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
+
+    if (!matchedPricing) {
+      console.error(
+        `[ManualSalesPage] No encontré pricing/ticketType para la categoría Seats.io "${categoryLabel}".`
+      );
+      setChartError(
+        `No encontré pricing para la categoría "${categoryLabel || "N/A"}".`
+      );
+      return;
+    }
+
+    const seatId = String(object?.id || displayedLabel);
+    if (!seatId) return;
+
+    const quantity = isGA ? Math.max(1, getObjectQuantity(object)) : 1;
+
+    const payload = {
+      id: seatId,
+      seat: displayedLabel,
+      number: displayedLabel,
+      section: categoryLabel || matchedPricing.ticketTypeName || (isGA ? "General" : "Asiento"),
+      row: rowLabel,
+      price: Number(matchedPricing.price || 0),
+      ticketTypeId: matchedPricing.ticketTypeId,
+      ticketTypeName: matchedPricing.ticketTypeName,
+      objectType: objectType || "Seat",
+      quantity,
+      isGeneralAdmission: isGA,
+    };
+
+    if (isGA) {
+      setSelectedSeats((prev) => {
+        const existingIndex = prev.findIndex((seat) => seat.id === seatId);
+        if (existingIndex >= 0) {
+          return prev.map((seat) =>
+            seat.id === seatId ? { ...seat, quantity } : seat
+          );
+        }
+        return [...prev, payload];
+      });
+      return;
+    }
+
+    setSelectedSeats((prev) => {
+      if (prev.some((seat) => seat.id === seatId)) return prev;
+      return [...prev, payload];
+    });
+  };
+
+  const handleSeatDeselected = (object) => {
+    const seatId = String(object?.id || getDisplayedLabel(object));
+    if (!seatId) return;
+
+    if (isGeneralAdmissionObject(object)) {
+      const quantity = getObjectQuantity(object);
+
+      if (quantity > 0) {
+        const categoryLabel = getCategoryLabel(object);
+        const displayedLabel = getDisplayedLabel(object);
+        const matchedPricing = pricingMap.get(normalizeText(categoryLabel));
+
+        if (!matchedPricing) {
+          setSelectedSeats((prev) => prev.filter((seat) => seat.id !== seatId));
+          return;
+        }
+
+        setSelectedSeats((prev) => {
+          const next = prev.filter((seat) => seat.id !== seatId);
+          return [
+            ...next,
+            {
+              id: seatId,
+              seat: displayedLabel,
+              number: displayedLabel,
+              section: categoryLabel || matchedPricing.ticketTypeName || "General",
+              row: "",
+              price: Number(matchedPricing.price || 0),
+              ticketTypeId: matchedPricing.ticketTypeId,
+              ticketTypeName: matchedPricing.ticketTypeName,
+              objectType: getObjectType(object) || "GeneralAdmission",
+              quantity,
+              isGeneralAdmission: true,
+            },
+          ];
+        });
+        return;
+      }
+    }
+
+    setSelectedSeats((prev) => prev.filter((seat) => seat.id !== seatId));
   };
 
   const handleSubmit = async () => {
@@ -357,6 +633,11 @@ export default function ManualSalesPage() {
       return;
     }
 
+    if (isSeatedFunction && !holdTokenData?.token) {
+      setErrorMsg("No pude obtener la reserva temporal de asientos.");
+      return;
+    }
+
     setSubmitting(true);
     setErrorMsg("");
     setSuccessBox(null);
@@ -369,7 +650,10 @@ export default function ManualSalesPage() {
         buyerPhone: buyerPhone.trim() || undefined,
         paymentMethod,
         salesChannel,
-        items: items.filter((i) => Number(i.quantity || 0) > 0),
+        items: isSeatedFunction
+          ? seatedItems
+          : items.filter((i) => Number(i.quantity || 0) > 0),
+        holdToken: isSeatedFunction ? holdTokenData?.token : undefined,
         externalPaymentReference:
           externalPaymentReference.trim() || undefined,
         internalNotes: internalNotes.trim() || undefined,
@@ -377,10 +661,7 @@ export default function ManualSalesPage() {
 
       const res = await api.post("/orders/admin/manual", payload);
       const resultData =
-        res.data?.data?.data ||
-        res.data?.data ||
-        res.data ||
-        null;
+        res.data?.data?.data || res.data?.data || res.data || null;
 
       await resetFormForNextSale(resultData);
     } catch (error) {
@@ -552,6 +833,21 @@ export default function ManualSalesPage() {
                   </select>
                 </div>
               </div>
+
+              {selectedEventObj ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs border bg-white/5 border-white/10 text-white/70">
+                    Tipo de venta: {String(selectedEventObj?.saleType || "GENERAL")}
+                  </span>
+
+                  {isSeatedFunction ? (
+                    <span className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs border bg-[#007AFF]/10 border-[#007AFF]/30 text-[#8ec5ff]">
+                      <Armchair size={13} />
+                      Evento con plano de sillas
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
@@ -700,73 +996,290 @@ export default function ManualSalesPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
-              <div className="flex items-center gap-2 text-white font-semibold mb-4">
-                <Ticket size={18} className="text-[#FF9500]" />
-                Tipos de entrada
-              </div>
+            {!isSeatedFunction ? (
+              <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+                <div className="flex items-center gap-2 text-white font-semibold mb-4">
+                  <Ticket size={18} className="text-[#FF9500]" />
+                  Tipos de entrada
+                </div>
 
-              {!selectedFunction ? (
-                <div className="text-white/50 text-sm">
-                  Selecciona una función para cargar los tipos de entrada.
-                </div>
-              ) : loadingTicketTypes ? (
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-8 flex flex-col items-center justify-center gap-4">
-                  <div className="w-20 h-20 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center shadow-xl shadow-black/20">
-                    <img
-                      src={icono2026}
-                      alt="ProntoTicketLive"
-                      className="w-12 h-12 object-contain animate-pulse"
-                    />
+                {!selectedFunction ? (
+                  <div className="text-white/50 text-sm">
+                    Selecciona una función para cargar los tipos de entrada.
                   </div>
-                  <div className="flex items-center gap-2 text-white/60 text-sm">
-                    <Loader2 size={16} className="animate-spin" />
-                    Cargando tipos de entrada…
+                ) : loadingTicketTypes ? (
+                  <div className="rounded-[24px] border border-white/10 bg-black/20 p-8 flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center shadow-xl shadow-black/20">
+                      <img
+                        src={icono2026}
+                        alt="ProntoTicketLive"
+                        className="w-12 h-12 object-contain animate-pulse"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-white/60 text-sm">
+                      <Loader2 size={16} className="animate-spin" />
+                      Cargando tipos de entrada…
+                    </div>
                   </div>
-                </div>
-              ) : ticketTypes.length === 0 ? (
-                <div className="text-white/50 text-sm">
-                  Esta función no tiene pricing configurado.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {ticketTypes.map((t) => {
-                    const selectedQty =
-                      items.find((i) => i.ticketTypeId === t.ticketTypeId)?.quantity || 0;
+                ) : ticketTypes.length === 0 ? (
+                  <div className="text-white/50 text-sm">
+                    Esta función no tiene pricing configurado.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {ticketTypes.map((t) => {
+                      const selectedQty =
+                        items.find((i) => i.ticketTypeId === t.ticketTypeId)?.quantity || 0;
 
-                    return (
-                      <div
-                        key={t.pricingId}
-                        className="rounded-xl border border-white/10 bg-black/20 p-4"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                          <div>
-                            <div className="text-white font-semibold">{t.name}</div>
-                            <div className="text-white/50 text-sm mt-1">
-                              Precio: {money(t.price)} · Disponibles: {t.remaining}
+                      return (
+                        <div
+                          key={t.pricingId}
+                          className="rounded-xl border border-white/10 bg-black/20 p-4"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                              <div className="text-white font-semibold">{t.name}</div>
+                              <div className="text-white/50 text-sm mt-1">
+                                Precio: {money(t.price)} · Disponibles: {t.remaining}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className="text-white/50 text-sm">Cantidad</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={t.remaining}
+                                value={selectedQty}
+                                onChange={(e) =>
+                                  updateQuantity(t.ticketTypeId, e.target.value)
+                                }
+                                className="w-24 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white outline-none focus:border-white/20"
+                              />
                             </div>
                           </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+                <div className="flex items-center gap-2 text-white font-semibold mb-4">
+                  <Armchair size={18} className="text-[#FF9500]" />
+                  Selección de sillas / plano
+                </div>
 
-                          <div className="flex items-center gap-3">
-                            <span className="text-white/50 text-sm">Cantidad</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max={t.remaining}
-                              value={selectedQty}
-                              onChange={(e) =>
-                                updateQuantity(t.ticketTypeId, e.target.value)
-                              }
-                              className="w-24 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white outline-none focus:border-white/20"
-                            />
+                {!selectedFunction ? (
+                  <div className="text-white/50 text-sm">
+                    Selecciona una función para cargar el plano.
+                  </div>
+                ) : loadingTicketTypes ? (
+                  <div className="rounded-[24px] border border-white/10 bg-black/20 p-8 flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center shadow-xl shadow-black/20">
+                      <img
+                        src={icono2026}
+                        alt="ProntoTicketLive"
+                        className="w-12 h-12 object-contain animate-pulse"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-white/60 text-sm">
+                      <Loader2 size={16} className="animate-spin" />
+                      Cargando plano y pricing…
+                    </div>
+                  </div>
+                ) : !selectedFunctionObj?.seatmapKey ? (
+                  <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-yellow-200 text-sm">
+                    Esta función está marcada como SEATED, pero no tiene seatmapKey configurado.
+                  </div>
+                ) : ticketTypes.length === 0 ? (
+                  <div className="text-white/50 text-sm">
+                    Esta función no tiene pricing configurado para el plano.
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/20"
+                      style={{ height: "60vh" }}
+                    >
+                      {!chartReady && !chartError && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1E1E1E]">
+                          <div className="flex flex-col items-center text-center p-8">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#007AFF] mb-4" />
+                            <p className="text-white/70 text-lg mb-2">
+                              Cargando mapa interactivo.
+                            </p>
+                            <p className="text-[#007AFF] text-xs">
+                              {selectedFunctionObj?.date
+                                ? new Date(selectedFunctionObj.date).toLocaleString()
+                                : ""}
+                            </p>
                           </div>
                         </div>
+                      )}
+
+                      {chartError ? (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1E1E1E]">
+                          <div className="flex flex-col items-center text-center p-8">
+                            <AlertTriangle className="w-8 h-8 text-red-400 mb-4" />
+                            <p className="text-white/80 text-lg mb-2">
+                              No pude cargar el mapa de asientos
+                            </p>
+                            <p className="text-white/50 text-sm">{chartError}</p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <SeatsioSeatingChart
+                        workspaceKey={SEATSIO_WORKSPACE_KEY}
+                        event={String(selectedFunctionObj?.seatmapKey || "").trim()}
+                        region={SEATSIO_REGION}
+                        session="continue"
+                        pricing={seatsioPricing}
+                        onRenderStarted={(chart) => {
+                          chartRef.current = chart;
+                          setChartError("");
+                        }}
+                        onChartRendered={(chart) => {
+                          chartRef.current = chart;
+                          setChartReady(true);
+                          setChartError("");
+
+                          const adjustView = async () => {
+                            try {
+                              if (typeof chart?.zoomToFit === "function") {
+                                await chart.zoomToFit();
+                              }
+
+                              if (typeof chart?.resetView === "function") {
+                                await chart.resetView();
+                              }
+                            } catch (error) {
+                              console.warn(
+                                "[ManualSalesPage] No pude ajustar la vista inicial del plano:",
+                                error
+                              );
+                            }
+                          };
+
+                          adjustView();
+                          setTimeout(() => {
+                            adjustView();
+                          }, 300);
+                        }}
+                        onSessionInitialized={(holdToken) => {
+                          const payload = {
+                            token: holdToken?.token,
+                            expiresAt: holdToken?.expiresAt,
+                            expiresInSeconds: holdToken?.expiresInSeconds,
+                            functionId: selectedFunctionObj?.id || null,
+                            eventKey: String(selectedFunctionObj?.seatmapKey || "").trim(),
+                          };
+
+                          setHoldTokenData(payload);
+                        }}
+                        onHoldCallsInProgress={() => {
+                          setHoldCallsInProgress(true);
+                        }}
+                        onHoldCallsComplete={() => {
+                          setHoldCallsInProgress(false);
+                        }}
+                        onHoldTokenExpired={() => {
+                          setHoldTokenData(null);
+                          setChartError(
+                            "La reserva temporal de asientos expiró. Selecciónalos de nuevo."
+                          );
+                          setSelectedSeats([]);
+                        }}
+                        onObjectSelected={handleSeatSelected}
+                        onObjectDeselected={handleSeatDeselected}
+                        onChartRenderingFailed={(chart, error) => {
+                          console.error(
+                            "[ManualSalesPage] Seats.io render error:",
+                            error
+                          );
+                          setChartReady(false);
+                          setChartError(
+                            error?.message || "Error cargando el mapa de Seats.io."
+                          );
+                        }}
+                        fitTo="width"
+                        maxSelectedObjects={20}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 mt-6 pt-6 border-t border-white/10">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded bg-[#007AFF]" />
+                        <span className="text-white/60 text-sm">Seleccionado</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded bg-white/20" />
+                        <span className="text-white/60 text-sm">Disponible</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded bg-white/10" />
+                        <span className="text-white/60 text-sm">Ocupado</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                      <div className="text-white font-semibold mb-3">
+                        Asientos seleccionados
+                      </div>
+
+                      {selectedSeats.length === 0 ? (
+                        <div className="text-white/50 text-sm">
+                          No hay sillas seleccionadas todavía.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedSeats.map((seat) => (
+                            <div
+                              key={seat.id}
+                              className="rounded-xl border border-white/10 bg-black/20 p-4 flex items-center justify-between gap-4"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-white font-semibold truncate">
+                                  {seat.seat || seat.number || seat.id}
+                                  {seat.isGeneralAdmission ? (
+                                    <span className="ml-2 text-white/50 text-xs">
+                                      x {Number(seat.quantity || 1)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="text-white/50 text-sm">
+                                  {seat.ticketTypeName || seat.section || "Asiento"}
+                                  {seat.row ? ` · Fila ${seat.row}` : ""}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0">
+                                <div className="text-white font-semibold">
+                                  {money(
+                                    Number(seat.price || 0) *
+                                      Number(seat.quantity || 1)
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSeat(seat.id)}
+                                  className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/15 flex items-center justify-center"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -804,6 +1317,15 @@ export default function ManualSalesPage() {
                   <span>Tickets</span>
                   <span>{totalTickets}</span>
                 </div>
+
+                {isSeatedFunction ? (
+                  <div className="flex items-center justify-between text-white/70">
+                    <span>Hold Token</span>
+                    <span className={holdTokenData?.token ? "text-green-300" : "text-white/40"}>
+                      {holdTokenData?.token ? "Activo" : "Pendiente"}
+                    </span>
+                  </div>
+                ) : null}
 
                 <div className="pt-2 space-y-3">
                   <div className="flex items-center justify-between text-white/70">
@@ -845,33 +1367,29 @@ export default function ManualSalesPage() {
                 </div>
               </div>
 
-              {quote?.items?.length > 0 ? (
+              {selectedItemsDetailed.length > 0 ? (
                 <div className="mt-5 pt-5 border-t border-white/10 space-y-2">
-                  {quote.items.map((item) => {
-                    const pricing = ticketTypes.find(
-                      (t) => t.ticketTypeId === item.ticketTypeId
-                    );
-
-                    return (
-                      <div
-                        key={item.ticketTypeId}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-white/70">
-                          {(pricing?.name || "Entrada")} x {item.quantity}
-                        </span>
-                        <span className="text-white/90">
-                          {money(item.total)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {selectedItemsDetailed.map((item, idx) => (
+                    <div
+                      key={`${item.ticketTypeId}-${item.seatLabel || idx}`}
+                      className="flex items-center justify-between text-sm gap-3"
+                    >
+                      <span className="text-white/70 min-w-0 truncate">
+                        {item.name}
+                        {item.seatLabel ? ` · ${item.seatLabel}` : ""}
+                        {item.quantity ? ` x ${item.quantity}` : ""}
+                      </span>
+                      <span className="text-white/90 shrink-0">
+                        {money(item.subtotal)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : null}
 
               <button
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || holdCallsInProgress}
                 className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 type="button"
               >
