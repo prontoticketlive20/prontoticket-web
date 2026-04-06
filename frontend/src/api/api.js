@@ -9,13 +9,7 @@ export const setAuthToken = (token) => {
 };
 
 export const getAuthToken = () => {
-  // compatibilidad por si quedó algo viejo guardado
-  return (
-    localStorage.getItem(TOKEN_KEY) ||
-    localStorage.getItem("pt_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("access_token")
-  );
+  return localStorage.getItem(TOKEN_KEY);
 };
 
 // ✅ ESTA era la función que te están pidiendo AdminRoute/ProtectedRoute
@@ -44,6 +38,9 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
+   
+   console.log("TOKEN EN REQUEST:", token);   
+
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
