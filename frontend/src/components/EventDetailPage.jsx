@@ -92,7 +92,9 @@ const normalizeEventFunctions = (evt) => {
   if (!evt) return evt;
 
   const functions = Array.isArray(evt.functions)
-    ? evt.functions.map((func) => normalizeFunction(func))
+    ? evt.functions
+        .filter((func) => func.isActive !== false) // 🔥 FIX REAL
+        .map((func) => normalizeFunction(func))
     : [];
 
   return {
@@ -220,59 +222,62 @@ const EventDetailPage = () => {
 
   const handleSelectTickets = async () => {
 
-  console.log('🔥 CLICK DISPARADO', event?.id, selectedFunction?.id);
+  
+   // 🔥 REDIRECCIÓN PRIMERO (FIX iPHONE)
+if (event.useExternalTicket && event.externalTicketUrl) {
+  window.location.href = event.externalTicketUrl;
 
-    // 🔥 ANALYTICS CLICK
-try {
- 
-  console.log('CLICK ANALYTICS →', {
-  eventId: event?.id,
-  functionId: selectedFunction?.id
-});
+  // 🔥 ANALYTICS EN BACKGROUND (NO BLOQUEA)
+  setTimeout(() => {
+    try {
+      console.log('CLICK ANALYTICS →', {
+        eventId: event?.id,
+        functionId: selectedFunction?.id
+      });
 
-  await api.post('/orders/analytics/click', {
-    eventId: event.id,
-    functionId: selectedFunction?.id || null,
-  });
-} catch (err) {
-  console.error('Analytics click error', err);
+      api.post('/orders/analytics/click', {
+        eventId: event.id,
+        functionId: selectedFunction?.id || null,
+      });
+    } catch (err) {
+      console.error('Analytics click error', err);
+    }
+  }, 0);
+
+  return;
 }
-    if (!event) return;
 
-    if (event.useExternalTicket && event.externalTicketUrl) {
-      window.open(event.externalTicketUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
+if (!event) return;
 
-    if (!hasValidSaleType) {
-      console.error('[ProntoTicketLive] Purchase blocked: Invalid saleType');
-      return;
-    }
+if (!hasValidSaleType) {
+  console.error('[ProntoTicketLive] Purchase blocked: Invalid saleType');
+  return;
+}
 
-    if (!canProceed) return;
+if (!canProceed) return;
 
-    if (normalizedSelectedFunction) {
-      setContextFunction(normalizedSelectedFunction);
-    }
+if (normalizedSelectedFunction) {
+  setContextFunction(normalizedSelectedFunction);
+}
 
-    if (isSeatedEvent) {
-      navigate(`/evento/${id}/asientos`);
-    } else if (isGeneralEvent) {
-      setShowTicketSelection(true);
-    }
-  };
+if (isSeatedEvent) {
+  navigate(`/evento/${id}/asientos`);
+} else if (isGeneralEvent) {
+  setShowTicketSelection(true);
+}
+};
 
-  if (!event) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A]">
-        <Header />
-        <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
-          Cargando evento...
-        </div>
-        <Footer />
+if (!event) {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A]">
+      <Header />
+      <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
+        Cargando evento...
       </div>
-    );
-  }
+      <Footer />
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">

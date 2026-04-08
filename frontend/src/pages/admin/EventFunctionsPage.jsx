@@ -49,47 +49,47 @@ export default function EventFunctionsPage() {
   };
 
   const loadFunctions = useCallback(async () => {
-  try {
-    const res = await api.get(`/event-functions/event/${eventId}`);
-    const functionsData = res.data?.data || [];
+    try {
+      const res = await api.get(`/event-functions/event/${eventId}`);
+      const functionsData = res.data?.data || [];
 
-    setFunctions(
-      functionsData.sort((a, b) => new Date(a.date) - new Date(b.date))
-    );
-  } catch (err) {
-    console.error("Error loading functions", err);
-    setFunctions([]);
-  }
-}, [eventId]);
+      setFunctions(
+        functionsData.sort((a, b) => new Date(a.date) - new Date(b.date))
+      );
+    } catch (err) {
+      console.error("Error loading functions", err);
+      setFunctions([]);
+    }
+  }, [eventId]);
 
   const loadEvent = useCallback(async () => {
-  try {
-    const res = await api.get(`/events/${eventId}`);
-    const eventData = res.data?.data || null;
-    setEvent(eventData);
-  } catch (err) {
-    console.error("Error loading event", err);
-  }
-}, [eventId]);
+    try {
+      const res = await api.get(`/events/${eventId}`);
+      const eventData = res.data?.data || null;
+      setEvent(eventData);
+    } catch (err) {
+      console.error("Error loading event", err);
+    }
+  }, [eventId]);
 
   useEffect(() => {
-  if (eventId) {
-    loadFunctions();
-    loadEvent();
-  }
-}, [eventId, loadFunctions, loadEvent]);
+    if (eventId) {
+      loadFunctions();
+      loadEvent();
+    }
+  }, [eventId, loadFunctions, loadEvent]);
 
   const createFunction = async () => {
     try {
       await api.post("/event-functions", {
-      eventId,
-      date: date ? new Date(date).toISOString() : null,
-     venueName,
-     city,
-     country,
-     seatmapKey,
-     taxRate: toDecimalValue(taxRate),
-    });
+        eventId,
+        date: date ? new Date(date).toISOString() : null,
+        venueName,
+        city,
+        country,
+        seatmapKey,
+        taxRate: toDecimalValue(taxRate),
+      });
 
       setDate("");
       setVenueName("");
@@ -101,6 +101,16 @@ export default function EventFunctionsPage() {
       loadFunctions();
     } catch (err) {
       console.error("Error creating function", err);
+    }
+  };
+
+  // 🔥 NUEVO: TOGGLE
+  const toggleFunction = async (id) => {
+    try {
+      await api.patch(`/event-functions/${id}/toggle`);
+      loadFunctions();
+    } catch (err) {
+      console.error("Error toggling function", err);
     }
   };
 
@@ -127,13 +137,13 @@ export default function EventFunctionsPage() {
   const saveEdit = async (id) => {
     try {
       await api.patch(`/event-functions/${id}`, {
-       date: editDate ? new Date(editDate).toISOString() : null,
-       venueName: editVenueName,
-       city: editCity,
-       country: editCountry,
-       seatmapKey: editSeatmapKey,
-       taxRate: toDecimalValue(editTaxRate),
-     });
+        date: editDate ? new Date(editDate).toISOString() : null,
+        venueName: editVenueName,
+        city: editCity,
+        country: editCountry,
+        seatmapKey: editSeatmapKey,
+        taxRate: toDecimalValue(editTaxRate),
+      });
 
       cancelEdit();
       loadFunctions();
@@ -232,6 +242,7 @@ export default function EventFunctionsPage() {
             <th className="text-left p-3">País</th>
             <th className="text-left p-3">Impuesto</th>
             <th className="text-left p-3">Pricing</th>
+            <th className="text-left p-3">Estado</th>
             <th className="text-left p-3">Acciones</th>
           </tr>
         </thead>
@@ -239,7 +250,7 @@ export default function EventFunctionsPage() {
         <tbody>
           {functions.length === 0 && (
             <tr>
-              <td colSpan="7" className="p-4 text-white/40 text-center">
+              <td colSpan="8" className="p-4 text-white/40 text-center">
                 Este evento aún no tiene funciones
               </td>
             </tr>
@@ -335,6 +346,16 @@ export default function EventFunctionsPage() {
                 </td>
 
                 <td className="p-3">
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-semibold ${
+                      f.isActive ? "bg-green-600" : "bg-red-600"
+                    }`}
+                  >
+                    {f.isActive ? "Activa" : "Inactiva"}
+                  </span>
+                </td>
+
+                <td className="p-3">
                   <div className="flex gap-2 flex-wrap">
                     {isEditing ? (
                       <>
@@ -353,6 +374,13 @@ export default function EventFunctionsPage() {
                       </>
                     ) : (
                       <>
+                        <button
+                          onClick={() => toggleFunction(f.id)}
+                          className="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm"
+                        >
+                          {f.isActive ? "Desactivar" : "Activar"}
+                        </button>
+
                         <button
                           onClick={() => startEdit(f)}
                           className="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-sm"

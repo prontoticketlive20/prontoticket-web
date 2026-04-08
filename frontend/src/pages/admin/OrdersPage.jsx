@@ -44,6 +44,7 @@ export default function OrdersPage() {
   const [toDate, setToDate] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedFunctionId, setSelectedFunctionId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -104,6 +105,7 @@ export default function OrdersPage() {
       if (toDate) params.to = toDate;
       if (selectedEventId) params.eventId = selectedEventId;
       if (selectedFunctionId) params.functionId = selectedFunctionId;
+      if (paymentMethod) params.paymentMethod = paymentMethod;
 
       const res = await api.get("/admin/orders", { params });
 
@@ -205,6 +207,21 @@ export default function OrdersPage() {
               <option value="PENDING">PENDING</option>
             </select>
           </div>
+
+         <div>
+              <label className="text-xs text-white/60">Forma de Pago</label>
+                <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="mt-1 w-full px-3 py-3 rounded-xl bg-black/40 border border-white/10 text-white outline-none       focus:border-white/20"
+              >
+             <option value="">All</option>
+             <option value="STRIPE">Stripe</option>
+             <option value="CASH">Cash</option>
+             <option value="CARD">Card</option>
+             <option value="COURTESY">Courtesy</option>
+             </select>
+         </div>
 
           <div>
             <label className="text-xs text-white/60">Evento</label>

@@ -45,10 +45,11 @@ export default function TicketSelection({ event, onClose }) {
           name: p.ticketType?.name || "Ticket",
           price: Number(p.price) || 0,
           serviceFee: Number(p.ticketType?.serviceFee || 0),
+          
           available:
-            p.available == null || Number(p.available) === 0
-              ? 999999
-              : Number(p.available),
+          p.available == null
+          ? 999999
+          : Math.max(0, Number(p.available) - Number(p.sold || 0)),
         }));
 
         setPricingTypes(mapped);
