@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -49,6 +49,17 @@ const PurchaseSummaryPage = () => {
   }, [id, selectedEvent, selectEvent, getStoredEventId, navigate]);
 
   const summary = getPurchaseSummary();
+
+  // 🎟️ DESCUENTOS
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountError, setDiscountError] = useState('');
+
+  const discountAmount = summary.subtotal * (discountPercent / 100);
+  const discountedSubtotal = summary.subtotal - discountAmount;
+  const recalculatedTax = discountedSubtotal * summary.taxRate;
+  const finalTotal = discountedSubtotal + summary.serviceFee + recalculatedTax;
+
   const event = selectedEvent || mockEvents[id] || mockEvents['1'];
 
   const isSeatedEvent = event?.saleType === 'seated';
@@ -87,9 +98,54 @@ const PurchaseSummaryPage = () => {
     return null;
   }, [purchaseTimer?.isExpired, purchaseTimer?.isWarning]);
 
+const applyDiscount = async () => {
+  try {
+    setDiscountError('');
+    // BORRAR CONSOLO.LOG
+    console.log('FUNCTION ID:', selectedFunction?.id);
+
+    console.log('ANTES DEL FETCH');
+
+    const res = await fetch('http://localhost:3000/api/discounts/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: discountCode,
+        functionId: selectedFunction?.id
+      })
+    });
+
+    const response = await res.json(); 
+
+console.log('DATA COMPLETA:', response);
+
+// ❌ validar correctamente
+if (!response.data?.valid) {
+  setDiscountPercent(0);
+  setDiscountError('Código inválido');
+  return;
+}
+
+// ✅ aplicar descuento correcto
+setDiscountPercent(response.data.discountPercent || 0);
+setDiscountError('');
+
+} catch (err) {
+  console.error(err);
+  setDiscountError('Error validando el código');
+}
+};
+
   const handleContinueToPayment = () => {
-    if (isTimerBlocking) return;
-    navigate(`/evento/${id}/checkout`);
+     if (isTimerBlocking) return;
+     navigate(`/evento/${id}/checkout`, {
+  state: {
+     discountPercent,
+     discountAmount,
+     finalTotal
+   }
+ });
+
   };
 
   const handleGoBack = () => {
@@ -413,6 +469,49 @@ const PurchaseSummaryPage = () => {
                       </span>
                     </div>
 
+                    {discountPercent > 0 && (
+                      <div className="flex justify-between text-sm text-green-400">
+                      <span>Descuento ({discountPercent}%)</span>
+                      <span>-{formatPrice(discountAmount)}</span>
+                    </div>
+                   )}
+                    
+                    {/* 🎟️ DESCUENTO PRO (FIX BOTÓN) */}
+<div className="mt-4 pt-4 border-t border-white/10">
+
+  <div className="flex w-full items-center gap-2">
+
+  <input
+  type="text"
+  placeholder="Código de descuento"
+  value={discountCode}
+  onChange={(e) => setDiscountCode(e.target.value)}
+  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#1a1a1a] text-white border border-white/10 focus:outline-none"
+/>
+
+  <button
+  onClick={() => {
+    console.log('CLICK BOTON');
+    applyDiscount();
+  }}
+    className="px-4 py-2 bg-[#FF9500] text-white rounded-lg font-semibold whitespace-nowrap hover:opacity-90 transition"
+  >
+    Aplicar
+  </button>
+
+</div>
+
+  {discountError && (
+    <p className="text-red-400 text-xs mt-2">{discountError}</p>
+  )}
+
+  {discountPercent > 0 && (
+    <p className="text-green-400 text-xs mt-2">
+      Código aplicado ({discountPercent}% OFF) ✅
+    </p>
+  )}
+
+</div>
                     <div className="pt-4 mt-4 border-t border-white/10">
                       <div className="flex justify-between items-baseline">
                         <span className="text-white font-bold text-base sm:text-lg">Total</span>
@@ -422,7 +521,7 @@ const PurchaseSummaryPage = () => {
                             style={{ fontFamily: "'Outfit', sans-serif" }}
                             data-testid="total-price"
                           >
-                            {formatPrice(summary.total)}
+                            {formatPrice(discountPercent > 0 ? finalTotal : summary.total)}
                           </div>
                           <div className="text-white/50 text-xs mt-1" data-testid="currency-code">
                             {summary.currency.code}

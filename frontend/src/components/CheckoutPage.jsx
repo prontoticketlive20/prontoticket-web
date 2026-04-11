@@ -29,6 +29,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import api from '../api/api';
+import { useLocation } from 'react-router-dom';
 
 const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
 
@@ -176,6 +177,12 @@ const CheckoutForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+const location = useLocation();
+
+const discountPercent = location.state?.discountPercent || 0;
+const discountAmount = location.state?.discountAmount || 0;
+const finalTotalFromSummary = location.state?.finalTotal;
+
   const {
     selectedEvent,
     selectedFunction,
@@ -279,6 +286,7 @@ const CheckoutForm = () => {
   }, [isLoggedIn, currentUser]);
 
   const summary = getPurchaseSummary();
+  const total = finalTotalFromSummary || summary.total;
   const event = selectedEvent;
   const isSeatedEvent = event?.saleType === 'seated';
   const hasMultipleFunctions = event?.functions && event.functions.length > 1;
@@ -343,32 +351,25 @@ const CheckoutForm = () => {
   };
 
   const buildGuestItems = () => {
+  console.log('SELECTED SEATS EN CHECKOUT:', selectedSeats);
+  // 🎟️ GENERAL ACCESS
   if (!isSeatedEvent) {
     return (selectedTickets || [])
       .filter((t) => Number(t.quantity || 0) > 0)
       .map((t) => ({
-        ticketTypeId: t.id,
+        ticketTypeId: t.ticketTypeId || t.id,
         quantity: Number(t.quantity || 0),
       }));
   }
 
-  return (selectedSeats || [])
-    .map((s) => {
-      if (s.isGeneralAdmission) {
-        return {
-          ticketTypeId: s.ticketTypeId,
-          quantity: Number(s.quantity || 1),
-        };
-      }
-
-      return {
-        ticketTypeId: s.ticketTypeId,
-        seatId: s.id,
-      };
-    })
-    .filter(Boolean);
+  // 🪑 SEATS.IO
+return (selectedSeats || []).map((s) => ({
+  ticketTypeId: s.ticketTypeId,
+  seatId: s.id, // 🔥 CLAVE para backend
+  
+ }));
 };
-
+      
   const extractOrderId = (resp) => {
     return (
       resp?.data?.data?.orderId ||
@@ -432,6 +433,7 @@ const CheckoutForm = () => {
     }
 
     const seatsioSession = isSeatedEvent ? getStoredSeatsioSession() : null;
+    console.log('SEATSIO SESSION:', seatsioSession);
 
     if (isSeatedEvent) {
       if (!seatsioSession?.token || !purchaseTimer?.isActive) {
@@ -456,7 +458,7 @@ const CheckoutForm = () => {
         !!currentUser?.id &&
         !purchaseAsGuest;
 
-      const payload = {
+       const payload = {
         functionId,
         buyerEmail: formData.email,
         buyerName: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -468,9 +470,10 @@ const CheckoutForm = () => {
         subtotal: Number(summary.subtotal || 0),
         serviceFee: Number(summary.serviceFee || 0),
         salesTax: Number(summary.tax || 0),
-        total: Number(summary.total || 0),
+        total: Number(total || 0),
       };
 
+       
       const created = await createGuestOrder(payload);
       console.log('[CheckoutPage] createGuestOrder response:', created);
 
@@ -508,6 +511,11 @@ const CheckoutForm = () => {
         throw new Error('El pago no fue confirmado por Stripe.');
       }
 
+      // 🔥 Confirmar orden en backend (SOLO si Stripe fue exitoso)
+     await api.post('/orders/confirm', {
+     orderId: orderIdReal,
+    });
+
       const confirmationData = {
         orderId: orderIdReal,
         backendTickets,
@@ -526,7 +534,7 @@ const CheckoutForm = () => {
         tickets: selectedTickets || [],
         seats: selectedSeats || [],
         buyer: formData,
-        total: summary.total,
+        total: total,
         currency: summary.currency,
         paymentMethod: 'card',
         paymentIntentId: paymentResult.paymentIntent.id,
@@ -852,7 +860,7 @@ const CheckoutForm = () => {
                   ) : (
                     <>
                       <Lock size={18} />
-                      <span>Pagar {formatPrice(summary.total)}</span>
+                      <span>Pagar {formatPrice(total)}</span>
                     </>
                   )}
                 </button>
@@ -926,7 +934,7 @@ const CheckoutForm = () => {
 const CheckoutPage = () => {
   const publishableKey = getStripePublishableKey();
 
-  if (!publishableKey) {
+    if (!publishableKey) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 text-center">
         <div className="bg-[#121212] border border-red-500/20 rounded-2xl p-6 max-w-lg">

@@ -461,7 +461,7 @@ const SeatsSelectionPage = () => {
   const payload = {
     id: seatId,
     seat: displayedLabel,
-    number: displayedLabel,
+    number: displayedLabel || seatId,
     section: categoryLabel || matchedPricing.ticketTypeName || (isGA ? 'General' : 'Asiento'),
     row: rowLabel,
     price: Number(matchedPricing.price || 0),
@@ -472,6 +472,8 @@ const SeatsSelectionPage = () => {
     quantity,
     isGeneralAdmission: isGA,
   };
+
+  console.log('ITEM GENERADO:', payload);
 
   if (isGA) {
     upsertSeat(payload);
