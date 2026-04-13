@@ -351,7 +351,7 @@ const finalTotalFromSummary = location.state?.finalTotal;
   };
 
   const buildGuestItems = () => {
-  console.log('SELECTED SEATS EN CHECKOUT:', selectedSeats);
+  
   // 🎟️ GENERAL ACCESS
   if (!isSeatedEvent) {
     return (selectedTickets || [])
@@ -365,9 +365,9 @@ const finalTotalFromSummary = location.state?.finalTotal;
   // 🪑 SEATS.IO
 return (selectedSeats || []).map((s) => ({
   ticketTypeId: s.ticketTypeId,
-  seatId: s.id, // 🔥 CLAVE para backend
+  seatId: s.id,
   
- }));
+}));
 };
       
   const extractOrderId = (resp) => {
@@ -427,14 +427,14 @@ return (selectedSeats || []).map((s) => ({
     }
 
     const items = buildGuestItems();
+    
     if (!items || items.length === 0) {
       alert('No hay entradas seleccionadas.');
       return;
     }
 
     const seatsioSession = isSeatedEvent ? getStoredSeatsioSession() : null;
-    console.log('SEATSIO SESSION:', seatsioSession);
-
+    
     if (isSeatedEvent) {
       if (!seatsioSession?.token || !purchaseTimer?.isActive) {
         alert('La reserva temporal de asientos expiró. Vuelve a seleccionar tus asientos.');
@@ -474,131 +474,165 @@ return (selectedSeats || []).map((s) => ({
       };
 
        
-      const created = await createGuestOrder(payload);
-      console.log('[CheckoutPage] createGuestOrder response:', created);
+      try {
+  
 
-      const orderIdReal = extractOrderId(created);
-      const backendTickets = extractBackendTickets(created);
-      const clientSecret = extractClientSecret(created);
+  let created;
 
-      if (!orderIdReal) {
-        throw new Error('El backend no devolvió orderId. Revisa la respuesta en consola.');
-      }
+try {
+  created = await createGuestOrder(payload);
+  console.log('🟢 RESPONSE CREATE ORDER:', created);
+} catch (error) {
+  console.log('🔥 ERROR BACKEND DATA:', error.response?.data);
+  console.log('🔥 ERROR STATUS:', error.response?.status);
+  console.log('🔥 ERROR COMPLETO:', error);
 
-      if (!clientSecret) {
-        throw new Error('El backend no devolvió clientSecret de Stripe.');
-      }
+  throw error;
+}
 
-      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: `${formData.firstName} ${formData.lastName}`.trim(),
-            email: formData.email,
-            phone: formData.phone,
-          },
-        },
-      });
+  const orderIdReal =
+  created?.data?.orderId ||
+  created?.data?.data?.orderId ||
+  created?.data?.order?.id ||
+  created?.orderId ||
+  created?.id ||
+  null;
 
-      if (paymentResult.error) {
-        throw new Error(
-          paymentResult.error.message ||
-            'Stripe no pudo procesar el pago. Intenta nuevamente.'
-        );
-      }
+const backendTickets = extractBackendTickets(created);
+const clientSecret = extractClientSecret(created);
 
-      if (paymentResult.paymentIntent?.status !== 'succeeded') {
-        throw new Error('El pago no fue confirmado por Stripe.');
-      }
+if (!orderIdReal) {
+  
+  throw new Error('El backend no devolvió orderId. Revisa la respuesta en consola.');
+}
 
-      // 🔥 Confirmar orden en backend (SOLO si Stripe fue exitoso)
-     await api.post('/orders/confirm', {
-     orderId: orderIdReal,
-    });
+if (!clientSecret) {
+  throw new Error('El backend no devolvió clientSecret de Stripe.');
+}
 
-      const confirmationData = {
-        orderId: orderIdReal,
-        backendTickets,
-        event: {
-          id: event.id,
-          title: event.title,
-          image: event.image,
-          imageUrl: event.imageUrl || event.image,
-          date: selectedFunction?.date || event.date,
-          time: selectedFunction?.time || event.time,
-          venue: event.venue,
-          city: event.city,
-          functions: event.functions || []
-        },
-        selectedFunction: selectedFunction || (event.functions?.[0] || null),
-        tickets: selectedTickets || [],
-        seats: selectedSeats || [],
-        buyer: formData,
-        total: total,
-        currency: summary.currency,
-        paymentMethod: 'card',
-        paymentIntentId: paymentResult.paymentIntent.id,
-        timestamp: new Date().toISOString()
-      };
+const paymentResult = await stripe.confirmCardPayment(clientSecret, {
+  payment_method: {
+    card: cardElement,
+    billing_details: {
+      name: `${formData.firstName} ${formData.lastName}`.trim(),
+      email: formData.email,
+      phone: formData.phone,
+    },
+  },
+});
 
-      sessionStorage.setItem('prontoticket_confirmation', JSON.stringify(confirmationData));
-      sessionStorage.removeItem(SEATSIO_SESSION_STORAGE_KEY);
-
-      clearPurchase();
-
-      navigate(`/evento/${id}/confirmacion/${orderIdReal}`);
-    } catch (error) {
-      console.error('[CheckoutPage] Error al procesar el pago:', error);
-      setCheckoutLocked(false);
-      setPaymentError(error.message || 'Error al procesar el pago. Por favor, intenta de nuevo.');
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
-  const handleGoBack = () => {
-    navigate(`/evento/${id}/resumen`);
-  };
-
-    const canPayNow =
-    acceptTerms &&
-    stripeReady &&
-    hasSelections &&
-    !isProcessingPayment &&
-    !checkoutLocked &&
-    !isTimerBlocking &&
-    !authLoading;
-
-  if (!event || !hasSelections) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A]" data-testid="checkout-page">
-        <Header />
-        <div className="pt-32 pb-20">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-[#121212] rounded-2xl border border-white/10 p-8 text-center">
-              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                <ShoppingCart size={32} className="text-white/40" />
-              </div>
-              <h2
-                className="text-2xl font-bold text-white mb-2"
-                style={{ fontFamily: "'Outfit', sans-serif" }}
-              >
-                No hay selecciones
-              </h2>
-              <p className="text-white/60 mb-6">No tienes entradas seleccionadas para comprar.</p>
-              <button
-                onClick={() => navigate(`/evento/${id}`)}
-                className="px-6 py-3 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110"
-              >
-                Ir al evento
-              </button>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </div>
+  if (paymentResult.error) {
+    throw new Error(
+      paymentResult.error.message ||
+        'Stripe no pudo procesar el pago. Intenta nuevamente.'
     );
   }
+
+  if (paymentResult.paymentIntent?.status !== 'succeeded') {
+    throw new Error('El pago no fue confirmado por Stripe.');
+  }
+
+  await api.post('/orders/confirm', {
+    orderId: orderIdReal,
+  });
+
+  const confirmationData = {
+  orderId: orderIdReal,
+  backendTickets,
+  event: {
+    id: event.id,
+    title: event.title,
+    image: event.image,
+    imageUrl: event.imageUrl || event.image,
+    date: selectedFunction?.date || event.date,
+    time: selectedFunction?.time || event.time,
+    venue: event.venue,
+    city: event.city,
+    functions: event.functions || []
+  },
+  selectedFunction: selectedFunction || (event.functions?.[0] || null),
+  tickets: selectedTickets || [],
+  seats: selectedSeats || [],
+  buyer: formData,
+  total: total,
+  currency: summary.currency,
+  paymentMethod: 'card',
+  paymentIntentId: paymentResult.paymentIntent.id,
+  timestamp: new Date().toISOString()
+};
+
+// 🔥 GUARDAR CONFIRMACIÓN
+sessionStorage.setItem('prontoticket_confirmation', JSON.stringify(confirmationData));
+
+// 🔥 LIMPIAR SOLO DESPUÉS DE GUARDAR
+clearPurchase();
+
+// 🔥 NAVEGAR INMEDIATAMENTE
+navigate(`/evento/${id}/confirmacion/${orderIdReal}`);
+
+} catch (error) {
+  console.log('🔥 ERROR COMPLETO:', error);
+  console.log('🔥 RESPONSE DATA:', error.response?.data);
+  console.log('🔥 RESPONSE STATUS:', error.response?.status);
+
+  alert(error.response?.data?.message || error.message || 'Error en el pago');
+}
+
+} catch (error) {
+  console.error('[CheckoutPage] Error al procesar el pago:', error);
+  setCheckoutLocked(false);
+  setPaymentError(error.message || 'Error al procesar el pago. Por favor, intenta de nuevo.');
+} finally {
+  setIsProcessingPayment(false);
+}
+};
+
+const handleGoBack = () => {
+  navigate(`/evento/${id}/resumen`);
+};
+
+const canPayNow =
+  acceptTerms &&
+  stripeReady &&
+  hasSelections &&
+  !isProcessingPayment &&
+  !checkoutLocked &&
+  !isTimerBlocking &&
+  !authLoading;
+
+// 🔥 FIX CLAVE AQUÍ
+const storedConfirmation = sessionStorage.getItem('prontoticket_confirmation');
+
+if (!event || (!hasSelections && !storedConfirmation)) {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A]" data-testid="checkout-page">
+      <Header />
+      <div className="pt-32 pb-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-[#121212] rounded-2xl border border-white/10 p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+              <ShoppingCart size={32} className="text-white/40" />
+            </div>
+            <h2
+              className="text-2xl font-bold text-white mb-2"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              No hay selecciones
+            </h2>
+            <p className="text-white/60 mb-6">No tienes entradas seleccionadas para comprar.</p>
+            <button
+              onClick={() => navigate(`/evento/${id}`)}
+              className="px-6 py-3 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110"
+            >
+              Ir al evento
+            </button>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]" data-testid="checkout-page">
