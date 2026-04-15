@@ -43,6 +43,8 @@ export default function AnalyticsPage() {
     // 🔥 3. Guardar data
     setData(res.data.data);
 
+    console.log('📊 ANALYTICS DATA:', res.data.data);
+
   } catch (error) {
     console.error("ERROR ANALYTICS:", error);
   }

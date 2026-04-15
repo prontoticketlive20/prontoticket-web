@@ -13,12 +13,191 @@ import {
 
 import api from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
+import * as XLSX from "xlsx";
 
 function money(n) {
   const v = Number(n);
   const safe = Number.isFinite(v) ? v : 0;
   return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
+
+// 🔥 NUEVO: transformar órdenes → tickets
+const flattenTickets = (orders) => {
+  const rows = [];
+
+orders.forEach(order => {
+  const customer = order.buyer || order.customer || order.user || {};
+
+  (order.tickets || []).forEach(ticket => {
+    rows.push({
+      orderId: order.id,
+
+      date: order.createdAt || order.date || '',
+
+      cliente: customer.name ?? '',
+      email: customer.email ?? '',
+      telefono: customer.phone ?? '',
+      evento: order.event?.title ?? '',
+
+      // ✅ TICKET TYPE
+      ticketType: ticket.ticketType?.name || "",
+
+      // ✅ SEAT
+      seat: ticket.seatId || "NO_SEAT",
+
+      // ✅ PRECIO (IMPORTANTE)
+      price:
+     order.subtotal && order.ticketsCount
+     ? order.subtotal / order.ticketsCount
+     : 0,
+
+      // ✅ STATUS
+      status: order.status,
+
+      // ✅ FORMA DE PAGO (FIX REAL 🔥)
+     paymentMethod: (() => {
+  if (order.paymentMethod) return order.paymentMethod;
+
+  if (order.paymentIntentId) return "STRIPE";
+
+  if (order.total === 0) return "COURTESY";
+
+  if (order.status === "PAID") return "CARD";
+
+  return "CASH";
+})(),
+
+      // ✅ SCANNER
+      scannerStatus: ticket.checkedIn ? "USED" : "PENDING"
+    });
+  });
+});
+
+  return rows;
+};
+
+// 🔥 NUEVO: exportar EXCEL
+const exportTicketsToExcel = (orders) => {
+  const rows = flattenTickets(orders);
+
+  const data = rows.map(r => ({
+    "Order ID": r.orderId,
+    "Evento": r.evento,
+    "Fecha": new Date(r.date).toLocaleString(),
+    "Cliente": r.cliente,
+    "Email": r.email,
+    "Teléfono": r.telefono,
+    "Ticket Type": r.ticketType,
+    "Seat": r.seat,
+    "Precio": Number(r.price),
+    "Status": r.status,
+    "Forma de Pago": r.paymentMethod,
+    "Scanner Status": r.scannerStatus,
+  }));
+
+  // 🔥 HEADER CUSTOM
+  const header = [
+    ["PRONTOTICKETLIVE - REPORTE DE TICKETS"],
+    [`Generado: ${new Date().toLocaleString()}`],
+    [],
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A4" });
+
+  // 🔥 INSERTAR HEADER ARRIBA
+  XLSX.utils.sheet_add_aoa(worksheet, header, { origin: "A1" });
+
+  // 🎯 ANCHOS
+  worksheet["!cols"] = [
+    { wch: 30 },
+    { wch: 30 },
+    { wch: 20 },
+    { wch: 25 },
+    { wch: 30 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 18 },
+  ];
+
+  // 💰 FORMATO PRECIO
+  const range = XLSX.utils.decode_range(worksheet["!ref"]);
+  for (let i = 4; i <= range.e.r; i++) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: i, c: 8 })];
+    if (cell) cell.z = "$0.00";
+  }
+
+  // 🔥 TOTALES
+  const totalTickets = rows.length;
+  const totalAmount = rows.reduce((sum, r) => sum + Number(r.price || 0), 0);
+
+  XLSX.utils.sheet_add_aoa(worksheet, [
+    [],
+    ["TOTAL TICKETS", totalTickets],
+    ["TOTAL VENTAS", totalAmount]
+  ], { origin: -1 });
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Tickets");
+
+  XLSX.writeFile(workbook, `reporte_prontoticket_${Date.now()}.xlsx`);
+};
+
+// 🔥 NUEVO: exportar CSV
+const exportTicketsToCSV = (orders) => {
+  const rows = flattenTickets(orders);
+  if (!rows.length) return;
+
+  const headers = [
+    "Order ID",
+    "Evento",
+    "Fecha",
+    "Cliente",
+    "Email",
+    "Telefono",
+    "Ticket Type",
+    "Seat",
+    "Precio",
+    "Status",
+    "Forma de Pago",
+    "Scanner Status",
+  ];
+
+  const csvContent = [
+    headers,
+    ...rows.map((r) => [
+      r.orderId,
+      r.evento,
+      r.date,
+      r.cliente,
+      r.email,
+      r.telefono,
+      r.ticketType,
+      r.seat,
+      r.price,
+      r.status,
+      r.paymentMethod,
+      r.scannerStatus,
+    ]),
+  ]
+    .map((row) => row.join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `tickets_${Date.now()}.csv`;
+  link.click();
+};
+
 
 export default function OrdersPage() {
   const navigate = useNavigate();
@@ -125,6 +304,7 @@ export default function OrdersPage() {
       lastPage: 1,
     };
 
+      console.log('🧪 ORDER SAMPLE:', rows?.[0]);
       setOrders(Array.isArray(rows) ? rows : []);
       setMeta(nextMeta);
     } catch (error) {
@@ -312,15 +492,24 @@ export default function OrdersPage() {
 
       <div className="rounded-3xl border border-white/10 bg-[#121212] p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <div className="text-white font-semibold text-lg">Resultados</div>
-            <div className="text-white/45 text-sm mt-1">{resultsLabel}</div>
-          </div>
+  <div>
+    <div className="text-white font-semibold text-lg">Resultados</div>
+    <div className="text-white/45 text-sm mt-1">{resultsLabel}</div>
+  </div>
 
-          <div className="text-white/40 text-sm">
-            Página {meta.page} de {meta.lastPage}
-          </div>
-        </div>
+  <div className="flex items-center gap-3">
+    <div className="text-white/40 text-sm">
+      Página {meta.page} de {meta.lastPage}
+    </div>
+
+    <button
+      onClick={() => exportTicketsToExcel(orders)}
+      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-white font-semibold hover:brightness-110"
+    >
+      Exportar Excel
+    </button>
+  </div>
+</div>
 
         {errorMsg ? (
           <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200 text-sm">
