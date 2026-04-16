@@ -54,18 +54,8 @@ orders.forEach(order => {
       // ✅ STATUS
       status: order.status,
 
-      // ✅ FORMA DE PAGO (FIX REAL 🔥)
-     paymentMethod: (() => {
-  if (order.paymentMethod) return order.paymentMethod;
-
-  if (order.paymentIntentId) return "STRIPE";
-
-  if (order.total === 0) return "COURTESY";
-
-  if (order.status === "PAID") return "CARD";
-
-  return "CASH";
-})(),
+      // ✅ FORMA DE PAGO ( REAL 🔥)
+     paymentMethod: order.paymentMethod,
 
       // ✅ SCANNER
       scannerStatus: ticket.checkedIn ? "USED" : "PENDING"
@@ -77,8 +67,25 @@ orders.forEach(order => {
 };
 
 // 🔥 NUEVO: exportar EXCEL
-const exportTicketsToExcel = (orders) => {
-  const rows = flattenTickets(orders);
+const exportTicketsToExcel = async (
+  orders,
+  selectedEventId,
+  selectedFunctionId
+) => {
+
+  const reportRes = await api.get("/admin/reports/financial", {
+  params: {
+    eventId: selectedEventId,
+    functionId: selectedFunctionId,
+  },
+});
+
+const reportData =
+  reportRes.data?.data?.data ||
+  reportRes.data?.data ||
+  reportRes.data;
+
+const rows = flattenTickets(reportData.orders || []);
 
   const data = rows.map(r => ({
     "Order ID": r.orderId,
@@ -97,10 +104,11 @@ const exportTicketsToExcel = (orders) => {
 
   // 🔥 HEADER CUSTOM
   const header = [
-    ["PRONTOTICKETLIVE - REPORTE DE TICKETS"],
-    [`Generado: ${new Date().toLocaleString()}`],
-    [],
-  ];
+  ["PRONTOTICKETLIVE"],
+  ["Reporte de Tickets"],
+  [`Fecha de generación: ${new Date().toLocaleString()}`],
+  [],
+];
 
   const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A4" });
 
@@ -503,7 +511,13 @@ export default function OrdersPage() {
     </div>
 
     <button
-      onClick={() => exportTicketsToExcel(orders)}
+      onClick={() =>
+  exportTicketsToExcel(
+    orders,
+    selectedEventId,
+    selectedFunctionId
+  )
+}
       className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-white font-semibold hover:brightness-110"
     >
       Exportar Excel

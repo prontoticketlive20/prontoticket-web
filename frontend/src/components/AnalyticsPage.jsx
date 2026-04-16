@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
 // 🔥 SIMULACIÓN DE TENDENCIA (hasta que hagamos backend real por fecha)
 const chartData = (data.byDate || []).map((d) => ({
   date: d.date,
-  revenue: d.revenue || 0,
+  revenue: Number((d.revenue || 0).toFixed(2)),
 }));
 
 const totalRevenue = chartData.reduce((acc, d) => acc + d.revenue, 0);
@@ -186,11 +186,14 @@ const weakEvent = (byEvent || []).find((e) =>
   />
 
   <Card
-    title="Revenue"
-    value={`$${summary.revenue}`}
-    icon="💰"
-    color="#f59e0b"
-  />
+  title="Revenue"
+  value={Number(summary.revenue || 0).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  })}
+  icon="💰"
+  color="#f59e0b"
+/>
 
   <Card
     title="Conversion Rate"
