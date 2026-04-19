@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/api";
 
@@ -7,6 +7,7 @@ export default function EventFunctionsPage() {
   const navigate = useNavigate();
 
   const [functions, setFunctions] = useState([]);
+  const [selectedFunction, setSelectedFunction] = useState(null);
   const [event, setEvent] = useState(null);
 
   const [date, setDate] = useState("");
@@ -14,6 +15,7 @@ export default function EventFunctionsPage() {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [seatmapKey, setSeatmapKey] = useState("");
+  const [chartKey, setChartKey] = useState("");
   const [taxRate, setTaxRate] = useState("");
 
   const [editingId, setEditingId] = useState(null);
@@ -22,7 +24,9 @@ export default function EventFunctionsPage() {
   const [editCity, setEditCity] = useState("");
   const [editCountry, setEditCountry] = useState("");
   const [editSeatmapKey, setEditSeatmapKey] = useState("");
+  const [editChartKey, setEditChartKey] = useState("");
   const [editTaxRate, setEditTaxRate] = useState("");
+  const chartRef = useRef(null);
 
   const toPercentValue = (decimalValue) => {
     return Number(decimalValue || 0) * 100;
@@ -79,6 +83,11 @@ export default function EventFunctionsPage() {
     }
   }, [eventId, loadFunctions, loadEvent]);
 
+///////
+ 
+
+
+///////////
   const createFunction = async () => {
     try {
       await api.post("/event-functions", {
@@ -88,6 +97,7 @@ export default function EventFunctionsPage() {
         city,
         country,
         seatmapKey,
+        chartKey,
         taxRate: toDecimalValue(taxRate),
       });
 
@@ -96,6 +106,7 @@ export default function EventFunctionsPage() {
       setCity("");
       setCountry("");
       setSeatmapKey("");
+      setChartKey(""); 
       setTaxRate("");
 
       loadFunctions();
@@ -121,6 +132,7 @@ export default function EventFunctionsPage() {
     setEditCity(f.city || "");
     setEditCountry(f.country || "");
     setEditSeatmapKey(f.seatmapKey || "");
+    setEditChartKey(f.chartKey || "");
     setEditTaxRate(String(toPercentValue(f.taxRate || 0)));
   };
 
@@ -131,6 +143,7 @@ export default function EventFunctionsPage() {
     setEditCity("");
     setEditCountry("");
     setEditSeatmapKey("");
+    setEditChartKey("");
     setEditTaxRate("");
   };
 
@@ -142,6 +155,7 @@ export default function EventFunctionsPage() {
         city: editCity,
         country: editCountry,
         seatmapKey: editSeatmapKey,
+        chartKey: editChartKey,
         taxRate: toDecimalValue(editTaxRate),
       });
 
@@ -170,7 +184,7 @@ export default function EventFunctionsPage() {
           Funciones del Evento ({functions.length})
         </h2>
 
-        {event && <p className="text-white/60 text-sm mt-1">{event.title}</p>}
+       {event && <p className="text-white/60 text-sm mt-1">{event.title}</p>}
       </div>
 
       <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
@@ -213,6 +227,14 @@ export default function EventFunctionsPage() {
           />
 
           <input
+            type="text"
+            placeholder="Chart Key (seats.io)"
+            value={chartKey}
+            onChange={(e) => setChartKey(e.target.value)}
+            className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
+          />
+
+          <input
             type="number"
             min="0"
             step="0.01"
@@ -241,8 +263,8 @@ export default function EventFunctionsPage() {
             <th className="text-left p-3">Ciudad</th>
             <th className="text-left p-3">País</th>
             <th className="text-left p-3">Impuesto</th>
-            <th className="text-left p-3">Pricing</th>
-            <th className="text-left p-3">Estado</th>
+            <th className="text-left p-3">ChartKey</th>
+            <th className="text-left p-3">SeatmapKey</th>
             <th className="text-left p-3">Acciones</th>
           </tr>
         </thead>
@@ -326,6 +348,20 @@ export default function EventFunctionsPage() {
                     </span>
                   )}
                 </td>
+                 
+                <td className="p-3">
+                  {isEditing ? (
+                 <input
+                   type="text"
+                   placeholder="Chart Key"
+                   value={editChartKey}
+                   onChange={(e) => setEditChartKey(e.target.value)}
+                   className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
+                 />
+                 ) : (
+                    f.chartkey
+                  )}
+                </td>
 
                 <td className="p-3">
                   {isEditing ? (
@@ -394,6 +430,21 @@ export default function EventFunctionsPage() {
                         >
                           Eliminar
                         </button>
+
+                        
+        {/* 🔥 NUEVO BOTÓN LLAMA PLANO SEATS.IO */}
+        <button
+  onClick={() => {
+    window.open(
+      `https://app.seats.io/workspace/525c2c82-fb6b-4e5d-899f-8bed4d5c1130/charts/${f.chartKey}/events/${f.seatmapKey}`,
+      "_blank"
+    );
+  }}
+  className="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-xs"
+>
+  🎛Administrar Plano
+</button>
+
                       </>
                     )}
                   </div>
@@ -403,6 +454,52 @@ export default function EventFunctionsPage() {
           })}
         </tbody>
       </table>
+
+    {selectedFunction && (
+  <div style={{ marginTop: "20px" }}>
+    
+    {/* HEADER */}
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "10px"
+    }}>
+      <h3 style={{ color: "#fff" }}>
+        Administrar Plano: {selectedFunction.venueName || "Función"}
+      </h3>
+
+      <button
+        onClick={() => setSelectedFunction(null)}
+        style={{
+          background: "#ef4444",
+          color: "#fff",
+          border: "none",
+          padding: "6px 12px",
+          borderRadius: "6px",
+          cursor: "pointer"
+        }}
+      >
+        Cerrar
+      </button>
+    </div>
+
+    {/* 🔥 IFRAME MANAGER */}
+    <iframe
+      title="Seats Manager"
+      src={`https://app.seats.io/manager/#/event/${selectedFunction.seatmapKey}`}
+      style={{
+        width: "100%",
+        height: window.innerWidth < 768 ? "500px" : "700px",
+        border: "none",
+        borderRadius: "12px",
+        background: "#111"
+      }}
+    />
+  </div>
+)}
+
+
     </div>
   );
 }
