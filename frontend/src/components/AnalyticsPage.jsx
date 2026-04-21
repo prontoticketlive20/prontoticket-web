@@ -160,8 +160,9 @@ const weakEvent = (byEvent || []).find((e) =>
   <span className="text-sm">Filtrar</span>
 </button>
 
-</div>      
+</div>
 
+    
       {/* 🔥 KPIs */}
       <div style={{ display: "flex", gap: 15, flexWrap: "wrap" }}>
   <Card
