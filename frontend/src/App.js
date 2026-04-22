@@ -46,6 +46,7 @@ import CheckoutPage from "./components/CheckoutPage";
 import ConfirmationPage from "./components/ConfirmationPage";
 import CheckInPage from "./components/CheckInPage";
 import CampaignsPage from "./components/CampaignsPage";
+import CampaignDashboard from './pages/CampaignDashboard';
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -146,7 +147,8 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/admin/campaigns" element={<CampaignsPage />} />
+              <Route path="/admin/campaigns/create" element={<CampaignsPage />} />
+              <Route path="/admin/campaigns" element={<CampaignDashboard />} />
               
               <Route
                 path="/dashboard"
