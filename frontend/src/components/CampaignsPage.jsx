@@ -43,27 +43,28 @@ const filteredEvents = Array.isArray(events)
   : [];
 
   const sendCampaign = async () => {
-    if (selectedEvents.length === 0) {
-      alert('Selecciona al menos un evento');
-      return;
-    }
+  if (selectedEvents.length === 0) {
+    alert('Selecciona al menos un evento');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      await api.post('/mail/send-campaign', {
+  try {
+    const res = await api.post('/mail/send-campaign', {
       eventIds: selectedEvents,
       filters: filterSource ? { source: filterSource } : undefined,
     });
 
-      alert(`Campaña enviada a ${res.data.recipients} usuarios 🚀`);
-    } catch (err) {
-      console.error(err);
-      alert('Error enviando campaña');
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert(`Campaña enviada a ${res.data.recipients} usuarios 🚀`);
+
+  } catch (err) {
+    console.error(err);
+    alert('Error enviando campaña');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={{ padding: '20px' }}>
