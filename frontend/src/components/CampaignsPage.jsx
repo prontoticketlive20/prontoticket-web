@@ -56,7 +56,7 @@ const filteredEvents = Array.isArray(events)
       filters: filterSource ? { source: filterSource } : undefined,
     });
 
-    alert(`Campaña enviada a ${res.data.recipients} usuarios 🚀`);
+    alert(`Campaña enviada a ${res.data.data?.recipients || 0} usuarios 🚀`);
 
   } catch (err) {
     console.error(err);
