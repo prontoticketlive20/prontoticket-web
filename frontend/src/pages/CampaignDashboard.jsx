@@ -36,7 +36,11 @@ export default function CampaignDashboard() {
       const analyticsRes = await api.get('/mail/analytics');
 
       const statsData = statsRes.data?.data || statsRes.data || {};
-      const analyticsData = analyticsRes.data?.data || analyticsRes.data || {};
+      const analyticsData =
+  analyticsRes.data?.data?.data ||
+  analyticsRes.data?.data ||
+  analyticsRes.data ||
+  {};
 
       setCampaigns(statsData.campaigns || []);
 
