@@ -66,6 +66,28 @@ const filteredEvents = Array.isArray(events)
   }
 };
 
+    const sendTest = async () => {
+  if (selectedEvents.length === 0) {
+    alert('Selecciona al menos un evento');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await api.post('/mail/send-test', {
+      eventIds: selectedEvents,
+    });
+
+    alert(`Test enviado a tu email ✅`);
+  } catch (err) {
+    console.error(err);
+    alert('Error enviando test');
+  } finally {
+    setLoading(false);
+  }
+};  
+
   return (
     <div style={{ padding: '20px' }}>
       <h2>📩 Campañas</h2>
@@ -161,6 +183,24 @@ const filteredEvents = Array.isArray(events)
       >
         {loading ? 'Enviando...' : 'Enviar Campaña 🚀'}
       </button>
+
+<button
+  onClick={sendTest}
+  disabled={loading}
+  style={{
+    marginTop: '10px',
+    marginLeft: '10px',
+    padding: '12px 20px',
+    background: '#16a34a',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer'
+  }}
+>
+  {loading ? 'Enviando Test...' : 'Enviar Test 🧪'}
+</button>
+      
     </div>
   );
 }
