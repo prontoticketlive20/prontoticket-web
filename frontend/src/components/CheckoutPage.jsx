@@ -581,7 +581,16 @@ navigate(`/evento/${id}/confirmacion/${orderIdReal}`);
   console.log('🔥 RESPONSE DATA:', error.response?.data);
   console.log('🔥 RESPONSE STATUS:', error.response?.status);
 
-  alert(error.response?.data?.message || error.message || 'Error en el pago');
+  const errorMessage =
+  typeof error.response?.data?.message === 'string'
+    ? error.response.data.message
+    : Array.isArray(error.response?.data?.message)
+      ? error.response.data.message.join(', ')
+      : error.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message || 'Error en el pago';
+
+alert(errorMessage);
 }
 
 } catch (error) {
