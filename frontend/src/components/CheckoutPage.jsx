@@ -183,6 +183,11 @@ const discountPercent = location.state?.discountPercent || 0;
 const discountAmount = location.state?.discountAmount || 0;
 const finalTotalFromSummary = location.state?.finalTotal;
 
+const campaignId =
+  location.state?.campaignId ||
+  localStorage.getItem('ptl_campaign_id') ||
+  null;
+
   const {
     selectedEvent,
     selectedFunction,
@@ -466,12 +471,13 @@ return (selectedSeats || []).map((s) => ({
         items,
         holdToken: isSeatedEvent ? seatsioSession?.token : undefined,
         userId: isRealAuthedCustomer ? currentUser.id : undefined,
+        campaignId: campaignId || undefined,
 
         subtotal: Number(summary.subtotal || 0),
         serviceFee: Number(summary.serviceFee || 0),
         salesTax: Number(summary.tax || 0),
         total: Number(total || 0),
-      };
+       };
 
        
       try {

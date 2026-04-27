@@ -137,16 +137,19 @@ setDiscountError('');
 };
 
   const handleContinueToPayment = () => {
-     if (isTimerBlocking) return;
-     navigate(`/evento/${id}/checkout`, {
-  state: {
-     discountPercent,
-     discountAmount,
-     finalTotal
-   }
- });
+  if (isTimerBlocking) return;
 
-  };
+  const campaignId = localStorage.getItem('ptl_campaign_id');
+
+  navigate(`/evento/${id}/checkout`, {
+    state: {
+      discountPercent,
+      discountAmount,
+      finalTotal,
+      campaignId,
+    }
+  });
+};
 
   const handleGoBack = () => {
     if (isSeatedEvent) {

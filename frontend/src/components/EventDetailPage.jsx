@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import TicketSelection from './TicketSelection';
@@ -106,6 +106,7 @@ const normalizeEventFunctions = (evt) => {
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
@@ -114,6 +115,24 @@ const EventDetailPage = () => {
   const [policies, setPolicies] = useState(DEFAULT_POLICIES);
 
   const { selectEvent, selectFunction: setContextFunction } = usePurchase();
+
+    // ===============================
+  // 🔥 CAPTURAR CAMPAIGN ID DESDE EMAIL
+  // ===============================
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const campaignId = params.get('campaignId');
+
+    if (!campaignId || !id) return;
+
+    localStorage.setItem('ptl_campaign_id', campaignId);
+    localStorage.setItem('ptl_campaign_event_id', id);
+
+    console.log('📩 Campaign tracking capturado:', {
+      campaignId,
+      eventId: id,
+    });
+  }, [location.search, id]);
 
   useEffect(() => {
          if (!event?.id) return;
