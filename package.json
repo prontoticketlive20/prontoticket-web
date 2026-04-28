@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "recharts": "^3.8.1"
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
   }
 }

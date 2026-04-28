@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
+import logoPronto from "../assets/logo-prontoticketlive.png";
+import React, { useEffect, useRef, useState } from "react";
 import api from "../api/api";
 import {
   LineChart,
@@ -9,566 +13,775 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-  
-export default function AnalyticsPage() {
-  const [data, setData] = useState(null);
 
+export default function AnalyticsPage() {
+  const reportRef = useRef(null);
+  const pdfReportRef = useRef(null);
+  const [data, setData] = useState(null);
   const [events, setEvents] = useState([]);
   
+
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [eventId, setEventId] = useState("");
-  
+  const [showAllEvents, setShowAllEvents] = useState(false);
+
   useEffect(() => {
     load();
-    // eslint-disable-next-Line react-hooks/exhaustive-deps 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const money = (value) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0));
+
+  const number = (value) =>
+    new Intl.NumberFormat("en-US").format(Number(value || 0));
+
+  const percent = (value) => `${Number(value || 0).toFixed(2)}%`;
+
+  const setQuickRange = (range) => {
+    const today = new Date();
+    const end = today.toISOString().split("T")[0];
+
+    const startDate = new Date(today);
+
+    if (range === "today") {
+      setFrom(end);
+      setTo(end);
+      return;
+    }
+
+    if (range === "7d") {
+      startDate.setDate(today.getDate() - 7);
+    }
+
+    if (range === "30d") {
+      startDate.setDate(today.getDate() - 30);
+    }
+
+    if (range === "month") {
+      startDate.setDate(1);
+    }
+
+    setFrom(startDate.toISOString().split("T")[0]);
+    setTo(end);
+  };
+
   const load = async () => {
-  try {
-    
-    // 🔥 1. Traer analytics con filtros
-    const res = await api.get("orders/analytics/dashboard", {
-      params: {
-        from,
-        to,
-        eventId,
-      },
-    });
+    try {
+      const res = await api.get("orders/analytics/dashboard", {
+        params: {
+          from,
+          to,
+          eventId,
+        },
+      });
 
-    // 🔥 2. Traer eventos (SEPARADO)
-    const eventsRes = await api.get("events");
-    setEvents(eventsRes.data.data);
+      const eventsRes = await api.get("events");
 
-    // 🔥 3. Guardar data
-    setData(res.data.data);
+      setEvents(eventsRes.data.data || []);
+      setData(res.data.data);
 
-    console.log('📊 ANALYTICS DATA:', res.data.data);
+      console.log("📊 ANALYTICS DATA:", res.data.data);
+    } catch (error) {
+      console.error("ERROR ANALYTICS:", error);
+    }
+  };
 
-  } catch (error) {
-    console.error("ERROR ANALYTICS:", error);
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-black text-white p-10">
+        Loading...
+      </div>
+    );
   }
-};
-
-  if (!data) return <div style={{ color: "#fff" }}>Loading...</div>;
 
   const { summary, byEvent, byDate } = data;
 
-// 🔥 SIMULACIÓN DE TENDENCIA (hasta que hagamos backend real por fecha)
-const chartData = (data.byDate || []).map((d) => ({
-  date: d.date,
-  revenue: Number((d.revenue || 0).toFixed(2)),
-}));
+  const chartData = (byDate || []).map((d) => ({
+    date: d.date,
+    revenue: Number((d.revenue || 0).toFixed(2)),
+  }));
 
-const totalRevenue = chartData.reduce((acc, d) => acc + d.revenue, 0);
+  const prev = chartData[chartData.length - 2]?.revenue || 0;
+  const last = chartData[chartData.length - 1]?.revenue || 0;
 
-const prev = chartData[chartData.length - 2]?.revenue || 0;
-const last = chartData[chartData.length - 1]?.revenue || 0;
-
-const growth = prev > 0 ? (((last - prev) / prev) * 100).toFixed(1) : 0;
+  const growth = prev > 0 ? (((last - prev) / prev) * 100).toFixed(1) : 0;
 
   const conversionRate =
-    summary.views > 0
-      ? ((summary.purchases / summary.views) * 100).toFixed(2)
-      : 0;
+    summary.views > 0 ? (summary.purchases / summary.views) * 100 : 0;
 
-   const conversionClick =
-      summary.clicks > 0
-      ? ((summary.purchases / summary.clicks) * 100).toFixed(2)
-      : 0;
+  const conversionClick =
+    summary.clicks > 0 ? (summary.purchases / summary.clicks) * 100 : 0;
 
-   const avgTicket =
-      summary.purchases > 0
-      ? (summary.revenue / summary.purchases).toFixed(2)
-      : 0; 
+  const avgTicket =
+    summary.purchases > 0 ? summary.revenue / summary.purchases : 0;
 
-    const maxRevenue = Math.max(
-       ...(byEvent || []).map((e) => e.revenue || 0),
-       1
-      );
+  const revenuePerView =
+    summary.views > 0 ? summary.revenue / summary.views : 0;
 
-    const maxViews = summary.views || 1;
+  const revenuePerClick =
+    summary.clicks > 0 ? summary.revenue / summary.clicks : 0;
 
-    const viewsPct = 100;
-    const clicksPct = ((summary.clicks / maxViews) * 100).toFixed(1);
-    const purchasesPct = ((summary.purchases / maxViews) * 100).toFixed(1);
+  const maxRevenue = Math.max(
+    ...(byEvent || []).map((e) => Number(e.revenue || 0)),
+    1
+  );
 
-    // 🔥 EVENTO TOP (más revenue)
-const topEvent = (byEvent || [])[0];
+  const maxViews = summary.views || 1;
 
-// 🔥 EVENTO CON MEJOR CONVERSIÓN
-const bestConversionEvent = (byEvent || []).reduce((best, current) => {
-  const currentRate =
-    current.views > 0
-      ? current.purchases / current.views
-      : 0;
+  const viewsPct = 100;
+  const clicksPct = (summary.clicks / maxViews) * 100;
+  const purchasesPct = (summary.purchases / maxViews) * 100;
 
-  const bestRate =
-    best?.views > 0
-      ? best.purchases / best.views
-      : 0;
+  const topEvent = (byEvent || [])[0];
 
-  return currentRate > bestRate ? current : best;
-}, null);
+  const bestConversionEvent = (byEvent || []).reduce((best, current) => {
+    const currentRate =
+      current.views > 0 ? current.purchases / current.views : 0;
 
-// 🔥 EVENTO CON BAJA CONVERSIÓN (pero con tráfico)
-const weakEvent = (byEvent || []).find((e) =>
-  e.views > 50 && e.purchases === 0
-);    
+    const bestRate = best?.views > 0 ? best.purchases / best.views : 0;
 
-   return (
-    <div style={{ padding: 24, color: "#fff" }}>
-      
-      <h2 style={{ marginBottom: 20 }}>📊 Analytics Dashboard</h2>
+    return currentRate > bestRate ? current : best;
+  }, null);
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+  const weakEvent = (byEvent || []).find(
+    (e) => e.views > 50 && e.purchases === 0
+  );
 
-  <input
-  type="date"
-  value={from}
-  onChange={(e) => setFrom(e.target.value)}
-  className="px-3 py-2 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed]"
-/>
+  const visibleEvents = showAllEvents ? byEvent || [] : (byEvent || []).slice(0, 10);
 
-<input
-  type="date"
-  value={to}
-  onChange={(e) => setTo(e.target.value)}
-  className="px-3 py-2 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed]"
-/>
+  const exportToExcel = () => {
+  const reportDate = new Date().toLocaleString();
 
-<select
-  value={eventId}
-  onChange={(e) => setEventId(e.target.value)}
-  className="px-3 py-2 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed]"
+  const summarySheet = [
+    ["ProntoTicketLive Analytics Report"],
+    ["Fecha del reporte", reportDate],
+    [""],
+    ["Resumen"],
+    ["Revenue", money(summary.revenue)],
+    ["Purchases", number(summary.purchases)],
+    ["Views", number(summary.views)],
+    ["Clicks", number(summary.clicks)],
+    ["Conversion Rate", percent(conversionRate)],
+    ["Conversion Clicks", percent(conversionClick)],
+    ["Avg Ticket", money(avgTicket)],
+    ["Revenue por View", money(revenuePerView)],
+    ["Revenue por Click", money(revenuePerClick)],
+  ];
+
+  const eventsSheet = (byEvent || []).map((item, index) => {
+    const eventConversion =
+      item.views > 0
+        ? Number(((item.purchases / item.views) * 100).toFixed(2))
+        : 0;
+
+    const eventAvgTicket =
+      item.purchases > 0
+        ? Number((item.revenue / item.purchases).toFixed(2))
+        : 0;
+
+    return {
+      Ranking: index + 1,
+      Evento: item.eventName,
+      Views: item.views || 0,
+      Clicks: item.clicks || 0,
+      Purchases: item.purchases || 0,
+      Revenue: Number(item.revenue || 0),
+      "Conversion Rate": `${eventConversion}%`,
+      "Avg Ticket": eventAvgTicket,
+    };
+  });
+
+  const workbook = XLSX.utils.book_new();
+
+  const summaryWorksheet = XLSX.utils.aoa_to_sheet(summarySheet);
+  const eventsWorksheet = XLSX.utils.json_to_sheet(eventsSheet);
+
+  XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Resumen");
+  XLSX.utils.book_append_sheet(workbook, eventsWorksheet, "Eventos");
+
+  XLSX.writeFile(workbook, "ProntoTicketLive_Analytics_Report.xlsx");
+};
+
+  const exportToPDF = async () => {
+  try {
+    const input = pdfReportRef.current;
+    if (!input) return;
+
+    const canvas = await html2canvas(input, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#000000",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.setFillColor(0, 0, 0);
+    pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.setFillColor(0, 0, 0);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save("ProntoTicketLive_Analytics_Report.pdf");
+  } catch (error) {
+    console.error("Error exportando PDF:", error);
+    alert("No se pudo exportar el PDF");
+  }
+};
+
+  return (
+    <div
+  ref={reportRef}
+  className="min-h-screen bg-black text-white px-4 sm:px-6 lg:px-8 py-6"
 >
-  <option value="">🎟 Todos los eventos</option>
 
-  {events.map((e) => (
-    <option key={e.id} value={e.id}>
-      {e.title}
-    </option>
-  ))}
-</select>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h2 className="text-2xl sm:text-3xl font-bold">
+      📊 Analytics Dashboard
+    </h2>
+    <p className="text-white/50 text-sm mt-1">
+      Rendimiento general de eventos, ventas, revenue y conversión.
+    </p>
+  </div>
 
   <button
-  onClick={load}
-  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white font-semibold shadow-lg shadow-[#7c3aed]/30 hover:brightness-110 active:scale-[0.98] transition"
+    onClick={exportToExcel}
+    className="px-4 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-white font-semibold shadow-lg shadow-green-500/20 hover:brightness-110 active:scale-[0.98] transition"
+    type="button"
+  >
+    📊 Exportar Excel
+  </button>
+
+   <button
+  onClick={exportToPDF}
+  className="px-4 py-3 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-[0.98] transition"
   type="button"
 >
-  <span>📊</span>
-  <span className="text-sm">Filtrar</span>
+  📄 Exportar PDF
 </button>
-
 </div>
 
-    
-      {/* 🔥 KPIs */}
-      <div style={{ display: "flex", gap: 15, flexWrap: "wrap" }}>
-  <Card
-    title="Views"
-    value={summary.views}
-    icon="👁"
-    color="#00d4ff"
-  />
+      {/* FILTROS */}
+      <div className="bg-[#121212] border border-white/10 rounded-2xl p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="px-3 py-3 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed]"
+          />
 
-  <Card
-    title="Clicks"
-    value={summary.clicks}
-    icon="🖱"
-    color="#a855f7"
-  />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="px-3 py-3 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed]"
+          />
 
-  <Card
-    title="Purchases"
-    value={summary.purchases}
-    icon="🎟"
-    color="#22c55e"
-  />
+          <select
+            value={eventId}
+            onChange={(e) => setEventId(e.target.value)}
+            className="px-3 py-3 rounded-xl bg-[#1a1a1a] text-white border border-white/10 focus:outline-none focus:border-[#7c3aed] sm:col-span-2"
+          >
+            <option value="">🎟 Todos los eventos</option>
 
-  <Card
-  title="Revenue"
-  value={Number(summary.revenue || 0).toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  })}
-  icon="💰"
-  color="#f59e0b"
-/>
+            {events.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.title}
+              </option>
+            ))}
+          </select>
 
-  <Card
-    title="Conversion Rate"
-    value={`${conversionRate}%`}
-    icon="📊"
-    color="#38bdf8"
-  />
+          <button
+            onClick={load}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white font-semibold shadow-lg shadow-[#7c3aed]/30 hover:brightness-110 active:scale-[0.98] transition"
+            type="button"
+          >
+            <span>📊</span>
+            <span className="text-sm">Filtrar</span>
+          </button>
+        </div>
 
-  <Card
-  title="Conversion (Clicks)"
-  value={`${conversionClick}%`}
-  icon="⚡"
-  color="#f43f5e"
-/>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <QuickButton label="Hoy" onClick={() => setQuickRange("today")} />
+          <QuickButton label="7 días" onClick={() => setQuickRange("7d")} />
+          <QuickButton label="30 días" onClick={() => setQuickRange("30d")} />
+          <QuickButton label="Este mes" onClick={() => setQuickRange("month")} />
+        </div>
+      </div>
 
-<Card
-  title="Avg Ticket"
-  value={`$${avgTicket}`}
-  icon="🎫"
-  color="#f97316"
-/>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
+        <Card title="Revenue" value={money(summary.revenue)} icon="💰" color="#f59e0b" />
+        <Card title="Purchases" value={number(summary.purchases)} icon="🎟" color="#22c55e" />
+        <Card title="Conversion" value={percent(conversionRate)} icon="📊" color="#38bdf8" />
+        <Card title="Avg Ticket" value={money(avgTicket)} icon="🎫" color="#f97316" />
+        <Card title="Views" value={number(summary.views)} icon="👁" color="#00d4ff" />
+        <Card title="Clicks" value={number(summary.clicks)} icon="🖱" color="#a855f7" />
+        <Card title="Click Conv." value={percent(conversionClick)} icon="⚡" color="#f43f5e" />
+      </div>
 
-</div>
+      {/* MÉTRICAS EXTRA */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <MiniMetric
+          title="Revenue por vista"
+          value={money(revenuePerView)}
+          description="Cuánto produce cada visita en promedio."
+        />
+        <MiniMetric
+          title="Revenue por click"
+          value={money(revenuePerClick)}
+          description="Cuánto produce cada click en promedio."
+        />
+      </div>
 
-{/* 🔥 GRÁFICA */}
-<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-  <h3 style={{ marginTop: 40 }}>📈 Revenue Trend</h3>
+      {/* GRÁFICA */}
+      <div className="flex items-center gap-3 mb-4">
+        <h3 className="text-lg sm:text-xl font-bold">📈 Revenue Trend</h3>
 
-  <span
-    style={{
-      background: growth >= 0 ? "#00ffae20" : "#ff4d4d20",
-      color: growth >= 0 ? "#00ffae" : "#ff4d4d",
-      padding: "4px 10px",
-      borderRadius: 10,
-      fontSize: 12,
-    }}
-  >
-    {growth >= 0 ? "▲" : "▼"} {growth}%
-  </span>
-</div>
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+            Number(growth) >= 0
+              ? "bg-green-500/10 text-green-400"
+              : "bg-red-500/10 text-red-400"
+          }`}
+        >
+          {Number(growth) >= 0 ? "▲" : "▼"} {growth}%
+        </span>
+      </div>
 
+      <div className="bg-[#1a1a1a] p-4 sm:p-5 rounded-2xl border border-white/10 mb-10">
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chartData}>
+            <defs>
+              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#00ffcc" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#00ffcc" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
+
+            <XAxis dataKey="date" stroke="#aaa" tick={{ fontSize: 11 }} />
+            <YAxis stroke="#aaa" tick={{ fontSize: 11 }} />
+
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="bg-[#111] border border-white/10 p-3 rounded-xl">
+                      <div className="text-xs text-white/50">
+                        {payload[0].payload.date}
+                      </div>
+                      <div className="text-sm font-bold text-white mt-1">
+                        💰 {money(payload[0].value)}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="#00ffcc"
+              strokeWidth={3}
+              dot={{ r: 3 }}
+              activeDot={{ r: 6 }}
+              fill="url(#colorRevenue)"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* FUNNEL */}
+      <h3 className="text-lg sm:text-xl font-bold mb-4">🚀 Conversion Funnel</h3>
+
+      <div className="bg-[#1a1a1a] p-4 sm:p-5 rounded-2xl border border-white/10 mb-10">
+        <FunnelRow
+          label="👁 Views"
+          value={`${viewsPct}%`}
+          width={viewsPct}
+          color="#00d4ff"
+        />
+
+        <FunnelRow
+          label="🖱 Clicks"
+          value={percent(clicksPct)}
+          width={clicksPct}
+          color="#a855f7"
+        />
+
+        <FunnelRow
+          label="🎟 Purchases"
+          value={percent(purchasesPct)}
+          width={purchasesPct}
+          color="#22c55e"
+          last
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/10">
+          <div className="text-sm text-white/70">
+            Views → Clicks:
+            <strong className="text-purple-400 ml-2">{percent(clicksPct)}</strong>
+          </div>
+
+          <div className="text-sm text-white/70">
+            Clicks → Purchases:
+            <strong className="text-green-400 ml-2">{percent(conversionClick)}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* TOP EVENTOS */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg sm:text-xl font-bold">🏆 Top Eventos</h3>
+
+        {(byEvent || []).length > 10 && (
+          <button
+            onClick={() => setShowAllEvents(!showAllEvents)}
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            {showAllEvents ? "Ver menos ▲" : "Ver más ▼"}
+          </button>
+        )}
+      </div>
+
+      <div className="bg-[#1a1a1a] p-4 sm:p-5 rounded-2xl border border-white/10 mb-10">
+        {visibleEvents.map((item, index) => {
+          const percentRevenue = (Number(item.revenue || 0) / maxRevenue) * 100;
+
+          return (
+            <div key={item.eventId} className="mb-5 last:mb-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
+                <div className="font-semibold text-sm sm:text-base leading-tight">
+                  <span className="text-white/50">#{index + 1}</span>{" "}
+                  {item.eventName}
+                </div>
+
+                <div className="text-sm sm:text-base text-orange-300 font-bold">
+                  💰 {money(item.revenue)}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs text-white/50 mb-2">
+                <span>👁 {number(item.views)}</span>
+                <span>🖱 {number(item.clicks)}</span>
+                <span>🎟 {number(item.purchases)}</span>
+              </div>
+
+              <div className="w-full h-2 bg-[#2a2a2a] rounded-full overflow-hidden">
+                <div
+                  style={{ width: `${percentRevenue}%` }}
+                  className="h-full rounded-full bg-gradient-to-r from-[#00ffcc] to-[#007aff] transition-all duration-500"
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        {(!byEvent || byEvent.length === 0) && (
+          <div className="text-white/40 text-center py-6">
+            No hay eventos con datos todavía.
+          </div>
+        )}
+      </div>
+
+      {/* INSIGHTS */}
+      <h3 className="text-lg sm:text-xl font-bold mb-4">🧠 Insights</h3>
+
+      <div className="bg-[#1a1a1a] p-4 sm:p-5 rounded-2xl border border-white/10 flex flex-col gap-3">
+        {topEvent && (
+          <Insight color="text-green-400">
+            🔥 <strong>{topEvent.eventName}</strong> es el evento con mayor revenue:
+            {" "}{money(topEvent.revenue)}
+          </Insight>
+        )}
+
+        {bestConversionEvent && (
+          <Insight color="text-blue-400">
+            📈 <strong>{bestConversionEvent.eventName}</strong> tiene la mejor conversión.
+          </Insight>
+        )}
+
+        {weakEvent && (
+          <Insight color="text-yellow-400">
+            ⚠ <strong>{weakEvent.eventName}</strong> tiene tráfico pero no está convirtiendo.
+          </Insight>
+        )}
+
+        {!topEvent && !bestConversionEvent && !weakEvent && (
+          <Insight color="text-white/50">
+            Todavía no hay suficientes datos para generar insights.
+          </Insight>
+        )}
+      </div>
+   
+      {/* PDF REPORT OCULTO */}
 <div
+  ref={pdfReportRef}
   style={{
-    marginTop: 20,
-    background: "#1a1a1a",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid #2a2a2a",
+    position: "absolute",
+    left: "-9999px",
+    top: 0,
+    width: "794px",
+    minHeight: "1123px",
+    background: "#050505",
+    color: "#ffffff",
+    padding: "32px",
+    fontFamily: "Arial, sans-serif",
   }}
 >
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={chartData}> 
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+    <img
+      src={logoPronto}
+      alt="ProntoTicketLive"
+      style={{ width: 170, height: "auto" }}
+    />
 
-  <defs>
-    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stopColor="#00ffcc" stopOpacity={0.8} />
-      <stop offset="100%" stopColor="#00ffcc" stopOpacity={0} />
-    </linearGradient>
-  </defs>
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 22, fontWeight: 800 }}>
+        Analytics Report
+      </div>
+      <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+        {new Date().toLocaleDateString()}
+      </div>
+    </div>
+  </div>
 
-     <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
+  <div
+    style={{
+      background: "linear-gradient(135deg, #0b1220, #111827)",
+      border: "1px solid #1f2937",
+      borderRadius: 18,
+      padding: 22,
+      marginBottom: 22,
+    }}
+  >
+    <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>
+      Resumen ejecutivo
+    </div>
 
-      <XAxis
-        dataKey="date"
-        stroke="#aaa"
-        tick={{ fontSize: 12 }}
-      />
+    <div style={{ fontSize: 30, fontWeight: 900, color: "#f59e0b" }}>
+      {money(summary.revenue)}
+    </div>
 
-      <YAxis
-        stroke="#aaa"
-        tick={{ fontSize: 12 }}
-      />
+    <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>
+      Revenue total generado por los eventos en el período seleccionado.
+    </div>
+  </div>
 
-      <Tooltip
-  content={({ active, payload }) => {
-    if (active && payload && payload.length) {
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 22 }}>
+    <PdfKpi title="Purchases" value={number(summary.purchases)} color="#22c55e" />
+    <PdfKpi title="Views" value={number(summary.views)} color="#00d4ff" />
+    <PdfKpi title="Clicks" value={number(summary.clicks)} color="#a855f7" />
+    <PdfKpi title="Conversion" value={percent(conversionRate)} color="#38bdf8" />
+  </div>
+
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+    <PdfKpi title="Avg Ticket" value={money(avgTicket)} color="#f97316" />
+    <PdfKpi title="Revenue / View" value={money(revenuePerView)} color="#f59e0b" />
+    <PdfKpi title="Revenue / Click" value={money(revenuePerClick)} color="#f43f5e" />
+  </div>
+
+  <div
+    style={{
+      background: "#111111",
+      border: "1px solid #27272a",
+      borderRadius: 18,
+      padding: 18,
+      marginBottom: 24,
+    }}
+  >
+    <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>
+      Top Eventos por Revenue
+    </div>
+
+    {(byEvent || []).slice(0, 8).map((item, index) => {
+      const percentRevenue = (Number(item.revenue || 0) / maxRevenue) * 100;
+
       return (
-        <div
-          style={{
-            background: "#111",
-            border: "1px solid #333",
-            padding: 10,
-            borderRadius: 10,
-          }}
-        >
-          <div style={{ fontSize: 12, color: "#aaa" }}>
-            {payload[0].payload.date}
+        <div key={item.eventId} style={{ marginBottom: 13 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
+            <div style={{ maxWidth: 470, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <strong>#{index + 1}</strong> — {item.eventName}
+            </div>
+            <strong style={{ color: "#f59e0b" }}>{money(item.revenue)}</strong>
           </div>
-          <div style={{ fontSize: 14, fontWeight: "bold" }}>
-            💰 ${payload[0].value}
+
+          <div style={{ height: 7, background: "#27272a", borderRadius: 20 }}>
+            <div
+              style={{
+                width: `${percentRevenue}%`,
+                height: "100%",
+                borderRadius: 20,
+                background: "linear-gradient(90deg, #00ffcc, #007aff)",
+              }}
+            />
           </div>
         </div>
       );
-    }
-    return null;
-  }}
-/>
-
-      <Line
-        type="monotone"
-        dataKey="revenue"
-        stroke="#00ffcc"
-        strokeWidth={3}
-        dot={{ r: 3 }}
-        activeDot={{ r: 6 }}
-        fill="url(#colorRevenue)"
-      />
-    </LineChart>
-  </ResponsiveContainer>
-</div>
-
-{/* 🔥 FUNNEL DE CONVERSIÓN */}
-<h3 style={{ marginTop: 50 }}>🚀 Conversion Funnel</h3>
-
-<div style={{
-  marginTop: 20,
-  background: "#1a1a1a",
-  padding: 20,
-  borderRadius: 16,
-  border: "1px solid #2a2a2a",
-}}>
-
-  {/* Views */}
-  <div style={{ marginBottom: 15 }}>
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span>👁 Views</span>
-      <span>{viewsPct}%</span>
-    </div>
-    <div style={{
-      height: 8,
-      background: "#2a2a2a",
-      borderRadius: 10,
-      marginTop: 5,
-    }}>
-      <div style={{
-        width: `${viewsPct}%`,
-        background: "#00d4ff",
-        height: "100%",
-        borderRadius: 10,
-      }} />
-    </div>
+    })}
   </div>
 
-  {/* Clicks */}
-  <div style={{ marginBottom: 15 }}>
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span>🖱 Clicks</span>
-      <span>{clicksPct}%</span>
+  <div
+    style={{
+      background: "#111111",
+      border: "1px solid #27272a",
+      borderRadius: 18,
+      padding: 18,
+    }}
+  >
+    <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>
+      Insights
     </div>
-    <div style={{
-      height: 8,
-      background: "#2a2a2a",
-      borderRadius: 10,
-      marginTop: 5,
-    }}>
-      <div style={{
-        width: `${clicksPct}%`,
-        background: "#a855f7",
-        height: "100%",
-        borderRadius: 10,
-      }} />
-    </div>
-  </div>
 
-  {/* Purchases */}
-  <div>
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span>🎟 Purchases</span>
-      <span>{purchasesPct}%</span>
-    </div>
-    <div style={{
-      height: 8,
-      background: "#2a2a2a",
-      borderRadius: 10,
-      marginTop: 5,
-    }}>
-      <div style={{
-        width: `${purchasesPct}%`,
-        background: "#22c55e",
-        height: "100%",
-        borderRadius: 10,
-      }} />
-    </div>
-  </div>
-
-</div>
-
-      {/* 🔥 TOP EVENTOS */}
-      <h3 style={{ marginTop: 50 }}>🏆 Top Eventos</h3>
-
-<div
-  style={{
-    marginTop: 20,
-    background: "#1a1a1a",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid #2a2a2a",
-  }}
->
-  {(byEvent || []).map((item, index) => {
-    const percent = (item.revenue / maxRevenue) * 100;
-
-    return (
-      <div key={item.eventId} style={{ marginBottom: 18 }}>
-        
-        {/* Header */}
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 5
-        }}>
-          <span>
-            <strong>#{index + 1}</strong> — {item.eventName}
-          </span>
-          <span>💰 ${item.revenue}</span>
-        </div>
-
-        {/* Barra */}
-        <div
-          style={{
-            height: 8,
-            background: "#2a2a2a",
-            borderRadius: 10,
-          }}
-        >
-          <div
-            style={{
-              width: `${percent}%`,
-              height: "100%",
-              borderRadius: 10,
-              background:
-                "linear-gradient(90deg, #00ffcc, #007aff)",
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
+    {topEvent && (
+      <div style={{ fontSize: 13, color: "#22c55e", marginBottom: 8 }}>
+        🔥 <strong>{topEvent.eventName}</strong> es el evento con mayor revenue: {money(topEvent.revenue)}
       </div>
-    );
-  })}
+    )}
+
+    {bestConversionEvent && (
+      <div style={{ fontSize: 13, color: "#38bdf8", marginBottom: 8 }}>
+        📈 <strong>{bestConversionEvent.eventName}</strong> tiene la mejor conversión.
+      </div>
+    )}
+
+    {weakEvent && (
+      <div style={{ fontSize: 13, color: "#f59e0b" }}>
+        ⚠ <strong>{weakEvent.eventName}</strong> tiene tráfico pero no está convirtiendo.
+      </div>
+    )}
+  </div>
+
+  <div style={{ marginTop: 22, fontSize: 10, color: "#6b7280", textAlign: "center" }}>
+    © 2026 ProntoTicketLive — Reporte generado automáticamente desde el panel de Analytics.
+  </div>
 </div>
 
-{/* 🔥 INSIGHTS AUTOMÁTICOS */}
-<h3 style={{ marginTop: 50 }}>🧠 Insights</h3>
-
-<div
-  style={{
-    marginTop: 20,
-    background: "#1a1a1a",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid #2a2a2a",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  }}
->
-  {topEvent && (
-    <div style={{ color: "#22c55e" }}>
-      🔥 <strong>{topEvent.eventName}</strong> es el evento con mayor revenue
-    </div>
-  )}
-
-  {bestConversionEvent && (
-    <div style={{ color: "#38bdf8" }}>
-      📈 <strong>{bestConversionEvent.eventName}</strong> tiene la mejor conversión
-    </div>
-  )}
-
-  {weakEvent && (
-    <div style={{ color: "#f59e0b" }}>
-      ⚠ <strong>{weakEvent.eventName}</strong> tiene tráfico pero no está convirtiendo
-    </div>
-  )}
-</div>
-
-    </div>
+   </div>
   );
 }
 
-/* 🔥 COMPONENTES */
+/* COMPONENTES */
+
+function QuickButton({ label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs hover:bg-white/10 hover:text-white transition"
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
 
 function Card({ title, value, icon, color }) {
   return (
-    <div
-      style={{
-        flex: 1,
-        minWidth: 180,
-        background: "#1a1a1a",
-        borderRadius: 16,
-        padding: 20,
-        border: "1px solid #2a2a2a",
-        position: "relative",
-        overflow: "hidden",
-        transition: "0.2s",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
-      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    >
-      {/* Glow */}
+    <div className="relative overflow-hidden bg-[#1a1a1a] border border-white/10 rounded-2xl p-4 sm:p-5 min-h-[120px] hover:scale-[1.02] transition">
       <div
         style={{
-          position: "absolute",
-          top: -20,
-          right: -20,
-          width: 80,
-          height: 80,
-          background: color + "30",
-          borderRadius: "50%",
-          filter: "blur(30px)",
+          background: `${color}30`,
         }}
+        className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-3xl"
       />
 
-      {/* Icono */}
-      <div style={{ fontSize: 18, marginBottom: 10 }}>{icon}</div>
-
-      {/* Título */}
-      <div style={{ fontSize: 12, opacity: 0.6 }}>{title}</div>
-
-      {/* Valor */}
-      <div style={{ fontSize: 26, fontWeight: "bold", marginTop: 5 }}>
+      <div className="text-lg mb-2">{icon}</div>
+      <div className="text-xs text-white/50">{title}</div>
+      <div className="text-xl sm:text-2xl font-bold mt-1 break-words">
         {value}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, highlight }) {
+function MiniMetric({ title, value, description }) {
   return (
-    <div
-      style={{
-        background: highlight ? "#00ffaa20" : "#111",
-        padding: "6px 10px",
-        borderRadius: 8,
-        fontSize: 13,
-      }}
-    >
-      {label}: <strong>{value}</strong>
+    <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-4">
+      <div className="text-white/50 text-xs">{title}</div>
+      <div className="text-2xl font-bold mt-1 text-white">{value}</div>
+      <div className="text-white/40 text-xs mt-1">{description}</div>
     </div>
   );
 }
 
-/* 🎨 ESTILOS */
+function FunnelRow({ label, value, width, color, last }) {
+  return (
+    <div className={last ? "" : "mb-4"}>
+      <div className="flex justify-between text-sm mb-2">
+        <span>{label}</span>
+        <span>{value}</span>
+      </div>
 
-const grid = {
-  display: "flex",
-  gap: 16,
-  flexWrap: "wrap",
-};
+      <div className="h-2 bg-[#2a2a2a] rounded-full overflow-hidden">
+        <div
+          style={{
+            width: `${Math.min(Number(width || 0), 100)}%`,
+            background: color,
+          }}
+          className="h-full rounded-full"
+        />
+      </div>
+    </div>
+  );
+}
 
-const eventCard = {
-  background: "#1a1a1a",
-  padding: 16,
-  borderRadius: 12,
-  marginBottom: 14,
-  border: "1px solid #2a2a2a",
-};
+function Insight({ children, color }) {
+  return (
+    <div className={`text-sm sm:text-base ${color}`}>
+      {children}
+    </div>
+  );
+}
 
-const row = {
-  display: "flex",
-  gap: 10,
-  marginTop: 10,
-  flexWrap: "wrap",
-};
+function PdfKpi({ title, value, color }) {
+  return (
+    <div
+      style={{
+        background: "#111111",
+        border: "1px solid #27272a",
+        borderRadius: 14,
+        padding: 14,
+      }}
+    >
+      <div style={{ fontSize: 11, color: "#9ca3af" }}>
+        {title}
+      </div>
 
-const barContainer = {
-  width: "100%",
-  height: 6,
-  background: "#111",
-  borderRadius: 10,
-  overflow: "hidden",
-};
-
-const barFill = {
-  height: "100%",
-  background: "linear-gradient(90deg, #00ffaa, #007aff)",
-  transition: "width 0.4s ease",
-};
+      <div style={{ fontSize: 19, fontWeight: 800, color, marginTop: 5 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
