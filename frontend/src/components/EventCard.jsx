@@ -5,6 +5,35 @@ import { Calendar, MapPin, Ticket } from 'lucide-react';
 const EventCard = ({ event, featured = false }) => {
   const navigate = useNavigate();
 
+  // ✅ Banderas por país
+  const getCountryCode = (country) => {
+  const normalized = String(country || '').trim().toLowerCase();
+
+  const codes = {
+    'united states': 'us',
+    usa: 'us',
+    us: 'us',
+    'estados unidos': 'us',
+
+    do: 'do',
+    rd: 'do',
+    'dominican republic': 'do',
+    'republica dominicana': 'do',
+    'república dominicana': 'do',
+    dominicana: 'do',
+
+    ve: 've',
+    venezuela: 've',
+
+    es: 'es',
+    spain: 'es',
+    españa: 'es',
+    espana: 'es',
+  };
+
+  return codes[normalized] || '';
+};
+
   // ✅ Devuelve el ID correcto:
   // - Si viene un UUID real (backend), lo usa completo.
   // - Si viene un mock tipo "featured-1" / "upcoming-3", toma el "1" / "3".
@@ -13,10 +42,10 @@ const EventCard = ({ event, featured = false }) => {
 
     // Caso mock: "featured-1", "upcoming-3"
     if (rawId.startsWith('featured-') || rawId.startsWith('upcoming-')) {
-      return rawId.split('-').pop(); // "1", "3"
+      return rawId.split('-').pop();
     }
 
-    // Caso real: UUID completo (NO se debe truncar)
+    // Caso real: UUID completo
     return rawId;
   };
 
@@ -35,7 +64,7 @@ const EventCard = ({ event, featured = false }) => {
     goToDetail();
   };
 
-  // ✅ Precio: preferimos startingPrice (backend), si no existe usamos price
+  // ✅ Precio
   const displayPrice =
     event?.startingPrice != null
       ? event.startingPrice
@@ -43,13 +72,21 @@ const EventCard = ({ event, featured = false }) => {
       ? event.price
       : 0;
 
-  // ✅ Venue: preferimos venue (tu UI), si no existe usamos location/venueName
+  // ✅ Venue
   const displayVenue =
     event?.venue ||
     event?.venueName ||
     event?.location ||
     '';
 
+  // ✅ País
+  const displayCountry =
+    event?.country ||
+    event?.countryName ||
+    '';
+
+  const countryCode = getCountryCode(displayCountry);
+  
   return (
     <div
       onClick={handleCardClick}
@@ -102,6 +139,15 @@ const EventCard = ({ event, featured = false }) => {
         {/* Location */}
         <div className="flex items-center space-x-2 text-white/60">
           <MapPin size={14} className="flex-shrink-0" strokeWidth={2} />
+
+          {countryCode && (
+            <img
+               src={`https://flagcdn.com/w40/${countryCode}.png`}
+               alt={displayCountry}
+               className="w-5 h-4 object-cover rounded-sm flex-shrink-0"
+             />
+           )}
+
           <span className="text-[13px] line-clamp-1 tracking-wide">
             {displayVenue}
           </span>
@@ -113,6 +159,7 @@ const EventCard = ({ event, featured = false }) => {
             <div className="text-[11px] text-white/50 font-medium tracking-wide uppercase">
               Desde
             </div>
+
             <div
               className="text-2xl font-bold text-[#FF9500] tracking-tight"
               style={{ fontFamily: "'Outfit', sans-serif" }}
