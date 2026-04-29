@@ -53,6 +53,7 @@ import Register from "./pages/Register";
 import AccountPage from "./pages/AccountPage";
 
 import faviconIcon from "./assets/icono_2026.png";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -146,6 +147,7 @@ function App() {
               <Route path="/contacto" element={<ContactoPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/admin/campaigns/create" element={<CampaignsPage />} />
               <Route path="/admin/campaigns" element={<CampaignDashboard />} />

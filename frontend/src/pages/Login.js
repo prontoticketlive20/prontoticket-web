@@ -16,6 +16,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState("");
+  const [forgotError, setForgotError] = useState("");
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -56,6 +62,35 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = async (e) => {
+  e.preventDefault();
+
+  setForgotMsg("");
+  setForgotError("");
+
+  if (!forgotEmail.trim()) {
+    setForgotError("Ingresa tu email.");
+    return;
+  }
+
+  try {
+    setForgotLoading(true);
+
+    await api.post("/auth/forgot-password", {
+      email: forgotEmail,
+    });
+
+    setForgotMsg(
+      "Si el email existe, enviaremos instrucciones para restablecer tu contraseña."
+    );
+  } catch (error) {
+    console.error("Error forgot password:", error.response?.data || error);
+    setForgotError("No se pudo procesar la solicitud.");
+  } finally {
+    setForgotLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-4 py-8 flex items-center justify-center">
@@ -132,6 +167,21 @@ export default function Login() {
               )}
             </button>
 
+            <div className="text-right">
+             <button
+               type="button"
+               onClick={() => {
+               setShowForgot(true);
+               setForgotEmail(email || "");
+               setForgotMsg("");
+               setForgotError("");
+               }}
+             className="text-sm text-[#4da3ff] hover:text-white transition"
+            >
+            ¿Olvidaste tu contraseña?
+           </button>
+         </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
@@ -153,6 +203,69 @@ export default function Login() {
           </form>
         </div>
       </div>
+
+      {showForgot && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4">
+          <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#111111] p-6 shadow-2xl">
+          <div className="absolute top-5 right-5 w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+  <img
+    src={icono2026}
+    alt="ProntoTicketLive"
+    className="w-8 h-8 object-contain"
+  />
+</div>
+            <h3 className="text-xl font-bold text-white">
+              Recuperar contraseña
+            </h3>
+
+            <p className="text-sm text-white/55 mt-2 leading-relaxed">
+              Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+            </p>
+
+            {forgotMsg && (
+              <div className="mt-4 rounded-2xl bg-green-500/10 border border-green-500/30 px-4 py-3 text-sm text-green-200">
+                {forgotMsg}
+              </div>
+            )}
+
+            {forgotError && (
+              <div className="mt-4 rounded-2xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-200">
+                {forgotError}
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
+              <input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-[#007AFF]/40"
+                required
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(false)}
+                  className="rounded-2xl border border-white/15 text-white/80 py-3 hover:bg-white/5"
+                >
+                  Cerrar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold py-3 hover:brightness-110 disabled:opacity-60"
+                >
+                  {forgotLoading ? "Enviando..." : "Enviar link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
