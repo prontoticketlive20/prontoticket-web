@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import api from "../api/api";
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -106,28 +107,23 @@ const applyDiscount = async () => {
 
     console.log('ANTES DEL FETCH');
 
-    const res = await fetch('http://localhost:3000/api/discounts/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: discountCode,
-        functionId: selectedFunction?.id
-      })
-    });
+    const res = await api.post('/discounts/validate', {
+  code: discountCode,
+  functionId: selectedFunction?.id,
+});
 
-    const response = await res.json(); 
+const response = res.data?.data || res.data;
 
 console.log('DATA COMPLETA:', response);
 
 // ❌ validar correctamente
-if (!response.data?.valid) {
+if (!response.valid) {
   setDiscountPercent(0);
-  setDiscountError('Código inválido');
+  setDiscountError(response.message || 'Código inválido');
   return;
 }
 
-// ✅ aplicar descuento correcto
-setDiscountPercent(response.data.discountPercent || 0);
+setDiscountPercent(response.discountPercent || 0);
 setDiscountError('');
 
 } catch (err) {
