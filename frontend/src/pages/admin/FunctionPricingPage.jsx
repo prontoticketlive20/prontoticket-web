@@ -10,6 +10,11 @@ export default function FunctionPricingPage() {
   const [functionData, setFunctionData] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const [discounts, setDiscounts] = useState([]);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
+  const [savingDiscount, setSavingDiscount] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
       if (!functionId) return;
@@ -34,6 +39,15 @@ export default function FunctionPricingPage() {
             available: item.available ?? ""
           }))
         );
+
+       const discountsRes = await api.get(`/discounts?functionId=${functionId}`);
+
+       setDiscounts(
+          Array.isArray(discountsRes.data)
+          ? discountsRes.data
+          : discountsRes.data?.data || []
+       );
+
       } catch (err) {
         console.error("Error loading pricing page", err);
       }
@@ -103,7 +117,47 @@ export default function FunctionPricingPage() {
     } finally {
       setSaving(false);
     }
+
   };
+
+
+const createDiscountCode = async () => {
+  if (!discountCode.trim()) {
+    alert("Debes ingresar un código.");
+    return;
+  }
+
+  if (!discountPercent || Number(discountPercent) <= 0) {
+    alert("Debes ingresar un porcentaje mayor a 0.");
+    return;
+  }
+
+  try {
+    setSavingDiscount(true);
+
+    await api.post("/discounts", {
+      functionId,
+      code: discountCode.trim().toUpperCase(),
+      discount: Number(discountPercent),
+    });
+
+    setDiscountCode("");
+    setDiscountPercent("");
+
+    const discountsRes = await api.get(`/discounts?functionId=${functionId}`);
+
+    setDiscounts(
+      Array.isArray(discountsRes.data)
+        ? discountsRes.data
+        : discountsRes.data?.data || []
+    );
+  } catch (err) {
+    console.error("Error creating discount", err);
+    alert(err.response?.data?.message || "Error creando código de descuento");
+  } finally {
+    setSavingDiscount(false);
+  }
+};
 
   return (
     <div className="p-6 text-white">
@@ -198,6 +252,94 @@ export default function FunctionPricingPage() {
           </button>
         </div>
       )}
-    </div>
-  );
+
+         <div className="mt-8 bg-white/5 border border-white/10 rounded-2xl p-4">
+  <h3 className="text-base font-semibold mb-4">
+    Códigos de Descuento
+  </h3>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+    <input
+      placeholder="Código (Ej: VIP20)"
+      value={discountCode}
+      onChange={(e) => setDiscountCode(e.target.value)}
+      className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
+    />
+
+    <input
+      type="number"
+      placeholder="% Descuento"
+      value={discountPercent}
+      onChange={(e) => setDiscountPercent(e.target.value)}
+      className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
+    />
+
+    <button
+      onClick={createDiscountCode}
+      disabled={savingDiscount}
+      className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-semibold disabled:opacity-60"
+    >
+      {savingDiscount ? "Guardando..." : "Crear Código"}
+    </button>
+  </div>
+
+  <div className="space-y-2">
+    {discounts.length === 0 && (
+      <div className="text-white/40 text-sm">
+        No hay códigos creados para esta función.
+      </div>
+    )}
+
+    {discounts.map((item) => (
+      <div
+        key={item.id}
+        className="flex items-center justify-between bg-black/30 border border-white/10 rounded-xl px-4 py-3"
+      >
+        <div>
+          <div className="font-semibold text-white">
+            {item.code}
+          </div>
+
+          <div className="text-sm text-white/60">
+            {item.discount}% descuento
+          </div>
+        </div>
+
+        <button
+  onClick={async () => {
+    try {
+      await api.patch(`/discounts/${item.id}`, {
+        isActive: !item.isActive,
+      });
+
+      const discountsRes = await api.get(
+        `/discounts?functionId=${functionId}`
+      );
+
+      setDiscounts(
+        Array.isArray(discountsRes.data)
+          ? discountsRes.data
+          : discountsRes.data?.data || []
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  }}
+  className={`text-xs font-semibold px-3 py-1 rounded-full ${
+    item.isActive
+      ? "bg-green-600 hover:bg-green-500"
+      : "bg-red-600 hover:bg-red-500"
+  }`}
+>
+  {item.isActive ? "Activo" : "Inactivo"}
+</button>
+
+      </div>
+    ))}
+  </div>
+
+</div>
+</div>
+
+ );
 }
