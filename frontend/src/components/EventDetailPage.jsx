@@ -416,7 +416,7 @@ if (!event) {
                 <h2 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   Descripción del evento
                 </h2>
-                <p className="text-white/70 leading-relaxed text-base">
+                <p className="text-white/70 leading-relaxed text-base whitespace-pre-line">
                   {event.description}
                 </p>
               </div>

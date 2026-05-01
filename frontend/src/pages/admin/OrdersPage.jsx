@@ -29,6 +29,8 @@ orders.forEach(order => {
   const customer = order.buyer || order.customer || order.user || {};
 
   (order.tickets || []).forEach(ticket => {
+    console.log("🧾 TICKET EXPORT SAMPLE:", ticket);
+    console.log("🧾 ORDER EXPORT SAMPLE:", order);
     rows.push({
       orderId: order.id,
 
@@ -45,13 +47,10 @@ orders.forEach(order => {
       // ✅ SEAT
       seat: ticket.seatId || "NO_SEAT",
 
-      // ✅ PRECIO (IMPORTANTE)
-      price:
-     order.subtotal && order.ticketsCount
-     ? order.subtotal / order.ticketsCount
-     : 0,
+      // ✅ PRECIO SOLO ENTRADA, SIN FEE NI TAX
+price: Number(ticket.unitPrice || 0),    
 
-      // ✅ STATUS
+  // ✅ STATUS
       status: order.status,
 
       // ✅ FORMA DE PAGO ( REAL 🔥)
