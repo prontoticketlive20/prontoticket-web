@@ -7,6 +7,7 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [filterSource, setFilterSource] = useState('');
+  const [filterCity, setFilterCity] = useState('');
 
   useEffect(() => {
     fetchEvents();
@@ -52,9 +53,15 @@ const filteredEvents = Array.isArray(events)
 
   try {
     const res = await api.post('/mail/send-campaign', {
-      eventIds: selectedEvents,
-      filters: filterSource ? { source: filterSource } : undefined,
-    });
+  eventIds: selectedEvents,
+  filters:
+    filterSource || filterCity
+      ? {
+          ...(filterSource ? { source: filterSource } : {}),
+          ...(filterCity ? { city: filterCity } : {}),
+        }
+      : undefined,
+});
 
     alert(`Campaña enviada a ${res.data.data?.recipients || 0} usuarios 🚀`);
 
@@ -122,10 +129,37 @@ const filteredEvents = Array.isArray(events)
   }}
 >
   <option value="">🌎 Todos</option>
-  <option value="USER">👤 Usuarios</option>
-  <option value="ORDER">🛒 Compradores</option>
+<option value="USER">👤 Usuarios</option>
+<option value="ORDER">🛒 Compradores</option>
+<option value="IMPORT">📥 Importados</option>
 </select>
 
+    <select
+  value={filterCity}
+  onChange={(e) => setFilterCity(e.target.value)}
+  style={{
+    padding: '10px',
+    marginBottom: '20px',
+    marginLeft: '10px',
+    borderRadius: '8px',
+    border: '1px solid #2a2f3a',
+    background: '#111827',
+    color: '#ffffff'
+  }}
+>
+  <option value="">🏙 Todas las ciudades</option>
+  <option value="Orlando">Orlando</option>
+  <option value="Miami">Miami</option>
+  <option value="Weston">Weston</option>
+</select>
+
+    <div style={{ color: '#9ca3af', fontSize: '13px', marginBottom: '20px' }}>
+  Segmento seleccionado:{' '}
+  <strong style={{ color: '#ffffff' }}>
+    {filterSource || 'Todos'}
+    {filterCity ? ` • ${filterCity}` : ' • Todas las ciudades'}
+  </strong>
+</div>
 
       {/* 📦 LISTA DE EVENTOS */}
       <div style={{
