@@ -28,21 +28,28 @@ export default function AccountPage() {
     setErrorMsg("");
 
     try {
-      const res = await api.get("/users/me/orders");
-      const payload =
-        res.data?.data?.data ??
-        res.data?.data ??
-        res.data ??
-        null;
+      const [meRes, ordersRes] = await Promise.all([
+  api.get("/auth/me"),
+  api.get("/orders/my-orders"),
+]);
 
-      const user = payload?.user || null;
-      const ordersList = Array.isArray(payload?.orders) ? payload.orders : [];
+const user =
+  meRes.data?.data ||
+  meRes.data ||
+  null;
 
-      setProfile(user);
-      setOrders(ordersList);
+const ordersList =
+  ordersRes.data?.data?.data ||
+  ordersRes.data?.data ||
+  [];
+  console.log("🧾 ACCOUNT ORDERS RESPONSE:", ordersRes.data);
+  console.log("🧾 ACCOUNT ORDERS LIST:", ordersList);
 
-      if (user?.name) localStorage.setItem("ptl_user_name", user.name);
-      if (user?.role) localStorage.setItem("ptl_user_role", user.role);
+setProfile(user);
+setOrders(Array.isArray(ordersList) ? ordersList : []);
+
+if (user?.name) localStorage.setItem("ptl_user_name", user.name);
+if (user?.role) localStorage.setItem("ptl_user_role", user.role);
     } catch (error) {
       console.error("Error loading account:", error?.response?.data || error);
       setErrorMsg("No pude cargar la información de tu cuenta.");
@@ -69,9 +76,10 @@ export default function AccountPage() {
   const summary = useMemo(() => {
     const totalOrders = orders.length;
     const totalTickets = orders.reduce(
-      (acc, order) => acc + Number(order.activeTicketsCount || 0),
-      0,
-    );
+  (acc, order) =>
+    acc + Number(order.activeTicketsCount || order.ticketsCount || 0),
+  0,
+);
     const totalSpent = orders.reduce(
       (acc, order) =>
         acc +

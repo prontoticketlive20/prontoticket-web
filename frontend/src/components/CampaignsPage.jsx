@@ -8,10 +8,17 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(false);
   const [filterSource, setFilterSource] = useState('');
   const [filterCity, setFilterCity] = useState('');
+  const [audienceCount, setAudienceCount] = useState(null);
+  const [countLoading, setCountLoading] = useState(false);
 
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+  fetchAudienceCount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [filterSource, filterCity]);
 
   const fetchEvents = async () => {
     try {
@@ -42,6 +49,35 @@ const filteredEvents = Array.isArray(events)
         e.title?.toLowerCase().includes(search.toLowerCase())
       )
   : [];
+
+
+
+const fetchAudienceCount = async () => {
+  try {
+    setCountLoading(true);
+
+    const filters =
+      filterSource || filterCity
+        ? {
+            ...(filterSource ? { source: filterSource } : {}),
+            ...(filterCity ? { city: filterCity } : {}),
+          }
+        : undefined;
+
+    const res = await api.post('/mail/audience-count', {
+      filters,
+    });
+
+    setAudienceCount(res.data?.count || res.data?.data?.count || 0);
+  } catch (err) {
+    console.error('Error consultando audiencia:', err);
+    setAudienceCount(null);
+  } finally {
+    setCountLoading(false);
+  }
+};
+
+
 
   const sendCampaign = async () => {
   if (selectedEvents.length === 0) {
@@ -159,6 +195,17 @@ const filteredEvents = Array.isArray(events)
     {filterSource || 'Todos'}
     {filterCity ? ` • ${filterCity}` : ' • Todas las ciudades'}
   </strong>
+
+  <div style={{ marginTop: '6px' }}>
+    Audiencia estimada:{' '}
+    <strong style={{ color: '#22c55e' }}>
+      {countLoading
+        ? 'Calculando...'
+        : audienceCount !== null
+        ? `${audienceCount.toLocaleString()} contactos`
+        : 'No disponible'}
+    </strong>
+  </div>
 </div>
 
       {/* 📦 LISTA DE EVENTOS */}

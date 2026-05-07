@@ -161,7 +161,15 @@ const EventDetailPage = () => {
         loadEventPixels(normalized);
         trackViewContent(normalized);
         setPolicies(DEFAULT_POLICIES);
-
+  
+        localStorage.setItem(
+          "ptl_support_event_context",
+           JSON.stringify({
+           eventId: normalized?.id || "",
+           title: normalized?.title || "",
+           url: window.location.href,
+          })
+        );
             
         if (normalized?.functions?.length === 1) {
           const singleFunc = normalizeFunction(normalized.functions[0]);

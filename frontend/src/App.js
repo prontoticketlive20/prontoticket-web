@@ -35,6 +35,7 @@ import ContactoPage from "./pages/ContactoPage";
 
 import Header from "./components/Header";
 import Hero from "./components/Hero";
+import SupportChatWidget from "./components/SupportChatWidget";
 import FeaturedEvents from "./components/FeaturedEvents";
 import UpcomingEvents from "./components/UpcomingEvents";
 import Footer from "./components/Footer";
@@ -54,6 +55,7 @@ import AccountPage from "./pages/AccountPage";
 
 import faviconIcon from "./assets/icono_2026.png";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import MyOrdersPage from "./components/MyOrdersPage";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -89,6 +91,7 @@ const LayoutWithHeader = () => {
       <div className="pt-20">
         <Outlet />
       </div>
+      <SupportChatWidget />
     </div>
   );
 };
@@ -324,7 +327,17 @@ function App() {
                 path="/evento/:id/confirmacion/:orderId"
                 element={<ConfirmationPage />}
               />
-
+              
+               <Route
+                  path="/my-orders"
+                   element={
+               <ProtectedRoute>
+               <AdminRoute allowedRoles={["CUSTOMER", "ADMIN"]}>
+             <MyOrdersPage />
+           </AdminRoute>
+           </ProtectedRoute>
+           }
+           />
               <Route path="/my-tickets/:orderId" element={<MyTicketsPage />} />
 
               <Route path="/ticket/:ticketId" element={<TicketPage />} />

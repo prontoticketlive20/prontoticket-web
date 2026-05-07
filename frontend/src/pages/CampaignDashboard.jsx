@@ -21,6 +21,8 @@ export default function CampaignDashboard() {
   const [campaignLoading, setCampaignLoading] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const userRole = localStorage.getItem("ptl_user_role");
+  const isAdmin = userRole === "ADMIN";
 
   const [analytics, setAnalytics] = useState({
     totalSent: 0,
@@ -204,6 +206,36 @@ const number = (value) =>
 
   const topEvent = analytics.topEvents?.[0];
 
+  const formatCampaignSegment = (filters) => {
+  if (!filters || Object.keys(filters).length === 0) {
+    return {
+      label: 'Todos • Todas las ciudades',
+      color: 'text-gray-400',
+    };
+  }
+
+  let sourceLabel = 'Todos';
+  let color = 'text-gray-400';
+
+  if (filters.source === 'USER') {
+    sourceLabel = 'Usuarios';
+    color = 'text-yellow-400';
+  } else if (filters.source === 'ORDER') {
+    sourceLabel = 'Compradores';
+    color = 'text-blue-400';
+  } else if (filters.source === 'IMPORT') {
+    sourceLabel = 'Importados';
+    color = 'text-green-400';
+  }
+
+  const cityLabel = filters.city || 'Todas las ciudades';
+
+  return {
+    label: `${sourceLabel} • ${cityLabel}`,
+    color,
+  };
+};
+
   const exportToPDF = async () => {
   try {
     const input = pdfReportRef.current;
@@ -280,15 +312,17 @@ const number = (value) =>
             </button>
           )}
 
-          <button
-            onClick={() =>
-              (window.location.href =
-                '/admin/campaigns/create')
-            }
-            className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl font-semibold transition"
-          >
-            + Crear Campaña
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() =>
+                (window.location.href =
+                 '/admin/campaigns/create')
+                  }
+              className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl font-semibold transition"
+              >
+              + Crear Campaña
+            </button>
+          )}
         </div>
       </div>
 
@@ -515,52 +549,65 @@ const number = (value) =>
           <thead>
             <tr className="text-gray-400 border-b border-zinc-700">
               <th className="py-2">Nombre</th>
+              <th>Segmento</th>
               <th>Eventos</th>
               <th>Emails</th>
               <th>Fecha</th>
             </tr>
-          </thead>
+         </thead>
 
           <tbody>
-            {campaigns.map((c, index) => {
-              const isSelected =
-                selectedCampaign?.id === c.id;
+  {campaigns.map((c, index) => {
+    const isSelected =
+      selectedCampaign?.id === c.id;
 
-              return (
-                <tr
-                  key={c.id || index}
-                  onClick={() =>
-                    handleSelectCampaign(c)
-                  }
-                  className={`border-b border-zinc-800 cursor-pointer transition ${
-                    isSelected
-                      ? 'bg-blue-950/50 hover:bg-blue-950/70'
-                      : 'hover:bg-zinc-800'
-                  }`}
-                >
-                  <td className="py-3">
-                    {c.name}
-                  </td>
+    return (
+      <tr
+        key={c.id || index}
+        onClick={() =>
+          handleSelectCampaign(c)
+        }
+        className={`border-b border-zinc-800 cursor-pointer transition ${
+          isSelected
+            ? 'bg-blue-950/50 hover:bg-blue-950/70'
+            : 'hover:bg-zinc-800'
+        }`}
+      >
+        <td className="py-3">
+          {c.name}
+        </td>
 
-                  <td>
-                    {Array.isArray(c.eventIds)
-                      ? c.eventIds.length
-                      : 0}
-                  </td>
+        {/* 🔥 NUEVA COLUMNA SEGMENTO */}
+        <td>
+          {(() => {
+  const segment = formatCampaignSegment(c.filters);
+  return (
+    <span className={`${segment.color} text-xs font-semibold`}>
+      {segment.label}
+    </span>
+  );
+})()}
+        </td>
 
-                  <td>
-                    {(c.totalSent || 0).toLocaleString()}
-                  </td>
+        <td>
+          {Array.isArray(c.eventIds)
+            ? c.eventIds.length
+            : 0}
+        </td>
 
-                  <td>
-                    {new Date(
-                      c.createdAt,
-                    ).toLocaleString()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+        <td>
+          {(c.totalSent || 0).toLocaleString()}
+        </td>
+
+        <td>
+          {new Date(
+            c.createdAt,
+          ).toLocaleString()}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
         </table>
       </div>
 

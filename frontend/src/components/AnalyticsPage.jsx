@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
 
   const load = async () => {
     try {
-      const res = await api.get("orders/analytics/dashboard", {
+      const res = await api.get("/orders/analytics/dashboard", {
         params: {
           from,
           to,
@@ -82,9 +82,14 @@ export default function AnalyticsPage() {
         },
       });
 
-      const eventsRes = await api.get("events");
+      const eventsRes = await api.get("/events");
 
-      setEvents(eventsRes.data.data || []);
+      const eventsList =
+      eventsRes.data?.data ||
+      eventsRes.data ||
+      [];
+
+      setEvents(Array.isArray(eventsList) ? eventsList : []);
       setData(res.data.data);
 
       console.log("📊 ANALYTICS DATA:", res.data.data);
