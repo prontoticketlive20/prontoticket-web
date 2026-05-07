@@ -3,6 +3,7 @@ import api from '../api/api';
 
 export default function CampaignsPage() {
   const [events, setEvents] = useState([]);
+  const [cities, setCities] = useState([]);
   const [selectedEvents, setSelectedEvents] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,208 +14,235 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     fetchEvents();
+    fetchCities();
   }, []);
 
   useEffect(() => {
-  fetchAudienceCount();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [filterSource, filterCity]);
+    fetchAudienceCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterSource, filterCity]);
 
   const fetchEvents = async () => {
     try {
-      const res = await api.get('/events'); // ajusta si tu endpoint es otro
-      setEvents(res.data.data || []);
+      const res = await api.get('/events');
+      const list = res.data?.data || res.data || [];
+      setEvents(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error(err);
     }
   };
 
+  const fetchCities = async () => {
+  try {
+    const res = await api.get('/mail/audience-cities');
+
+    const rawList =
+      res.data?.data?.data ||
+      res.data?.data ||
+      res.data ||
+      [];
+
+    const normalizedCities = Array.from(
+      new Set(
+        (Array.isArray(rawList) ? rawList : [])
+          .map((city) => String(city || '').trim())
+          .filter(Boolean)
+          .map((city) =>
+            city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()
+          )
+      )
+    ).sort();
+
+    setCities(normalizedCities);
+  } catch (err) {
+    console.error('Error cargando ciudades:', err);
+    setCities([]);
+  }
+};
+
+  const fetchAudienceCount = async () => {
+    try {
+      setCountLoading(true);
+
+      const filters =
+        filterSource || filterCity
+          ? {
+              ...(filterSource ? { source: filterSource } : {}),
+              ...(filterCity ? { city: filterCity } : {}),
+            }
+          : undefined;
+
+      const res = await api.post('/mail/audience-count', {
+        filters,
+      });
+
+      setAudienceCount(res.data?.count || res.data?.data?.count || 0);
+    } catch (err) {
+      console.error('Error consultando audiencia:', err);
+      setAudienceCount(null);
+    } finally {
+      setCountLoading(false);
+    }
+  };
+
   const toggleEvent = (id) => {
-    setSelectedEvents(prev =>
+    setSelectedEvents((prev) =>
       prev.includes(id)
-        ? prev.filter(e => e !== id)
+        ? prev.filter((e) => e !== id)
         : [...prev, id]
     );
   };
 
   const now = new Date();
 
-const filteredEvents = Array.isArray(events)
-  ? events
-      .filter(e => {
-        const eventDate = e.functions?.[0]?.date;
-        return eventDate && new Date(eventDate) > now;
-      })
-      .filter(e =>
-        e.title?.toLowerCase().includes(search.toLowerCase())
-      )
-  : [];
-
-
-
-const fetchAudienceCount = async () => {
-  try {
-    setCountLoading(true);
-
-    const filters =
-      filterSource || filterCity
-        ? {
-            ...(filterSource ? { source: filterSource } : {}),
-            ...(filterCity ? { city: filterCity } : {}),
-          }
-        : undefined;
-
-    const res = await api.post('/mail/audience-count', {
-      filters,
-    });
-
-    setAudienceCount(res.data?.count || res.data?.data?.count || 0);
-  } catch (err) {
-    console.error('Error consultando audiencia:', err);
-    setAudienceCount(null);
-  } finally {
-    setCountLoading(false);
-  }
-};
-
-
+  const filteredEvents = Array.isArray(events)
+    ? events
+        .filter((e) => {
+          const eventDate = e.functions?.[0]?.date;
+          return eventDate && new Date(eventDate) > now;
+        })
+        .filter((e) =>
+          e.title?.toLowerCase().includes(search.toLowerCase())
+        )
+    : [];
 
   const sendCampaign = async () => {
-  if (selectedEvents.length === 0) {
-    alert('Selecciona al menos un evento');
-    return;
-  }
+    if (selectedEvents.length === 0) {
+      alert('Selecciona al menos un evento');
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const res = await api.post('/mail/send-campaign', {
-  eventIds: selectedEvents,
-  filters:
-    filterSource || filterCity
-      ? {
-          ...(filterSource ? { source: filterSource } : {}),
-          ...(filterCity ? { city: filterCity } : {}),
-        }
-      : undefined,
-});
+    try {
+      const res = await api.post('/mail/send-campaign', {
+        eventIds: selectedEvents,
+        filters:
+          filterSource || filterCity
+            ? {
+                ...(filterSource ? { source: filterSource } : {}),
+                ...(filterCity ? { city: filterCity } : {}),
+              }
+            : undefined,
+      });
 
-    alert(`Campaña enviada a ${res.data.data?.recipients || 0} usuarios 🚀`);
+      alert(`Campaña enviada a ${res.data.data?.recipients || res.data?.recipients || 0} usuarios 🚀`);
+    } catch (err) {
+      console.error(err);
+      alert('Error enviando campaña');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  } catch (err) {
-    console.error(err);
-    alert('Error enviando campaña');
-  } finally {
-    setLoading(false);
-  }
-};
+  const sendTest = async () => {
+    if (selectedEvents.length === 0) {
+      alert('Selecciona al menos un evento');
+      return;
+    }
 
-    const sendTest = async () => {
-  if (selectedEvents.length === 0) {
-    alert('Selecciona al menos un evento');
-    return;
-  }
+    setLoading(true);
 
-  setLoading(true);
+    try {
+      await api.post('/mail/send-test', {
+        eventIds: selectedEvents,
+      });
 
-  try {
-    const res = await api.post('/mail/send-test', {
-      eventIds: selectedEvents,
-    });
-
-    alert(`Test enviado a tu email ✅`);
-  } catch (err) {
-    console.error(err);
-    alert('Error enviando test');
-  } finally {
-    setLoading(false);
-  }
-};  
+      alert('Test enviado a tu email ✅');
+    } catch (err) {
+      console.error(err);
+      alert('Error enviando test');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ padding: '20px' }}>
       <h2>📩 Campañas</h2>
 
-      {/* 🔍 BUSCADOR */}
       <input
-  type="text"
-  placeholder="Buscar evento..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-  style={{
-    padding: '10px',
-    width: '100%',
-    marginBottom: '15px',
-    borderRadius: '8px',
-    border: '1px solid #2a2f3a',
-    background: '#111827',
-    color: '#ffffff'
-  }}
-/>
+        type="text"
+        placeholder="Buscar evento..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          padding: '10px',
+          width: '100%',
+          marginBottom: '15px',
+          borderRadius: '8px',
+          border: '1px solid #2a2f3a',
+          background: '#111827',
+          color: '#ffffff',
+        }}
+      />
 
-       <select
-  value={filterSource}
-  onChange={(e) => setFilterSource(e.target.value)}
-  style={{
-    padding: '10px',
-    marginBottom: '20px',
-    borderRadius: '8px',
-    border: '1px solid #2a2f3a',
-    background: '#111827',
-    color: '#ffffff'
-  }}
->
-  <option value="">🌎 Todos</option>
-<option value="USER">👤 Usuarios</option>
-<option value="ORDER">🛒 Compradores</option>
-<option value="IMPORT">📥 Importados</option>
-</select>
+      <select
+        value={filterSource}
+        onChange={(e) => setFilterSource(e.target.value)}
+        style={{
+          padding: '10px',
+          marginBottom: '20px',
+          borderRadius: '8px',
+          border: '1px solid #2a2f3a',
+          background: '#111827',
+          color: '#ffffff',
+        }}
+      >
+        <option value="">🌎 Todos</option>
+        <option value="USER">👤 Usuarios</option>
+        <option value="ORDER">🛒 Compradores</option>
+        <option value="IMPORT">📥 Importados</option>
+      </select>
 
-    <select
-  value={filterCity}
-  onChange={(e) => setFilterCity(e.target.value)}
-  style={{
-    padding: '10px',
-    marginBottom: '20px',
-    marginLeft: '10px',
-    borderRadius: '8px',
-    border: '1px solid #2a2f3a',
-    background: '#111827',
-    color: '#ffffff'
-  }}
->
-  <option value="">🏙 Todas las ciudades</option>
-  <option value="Orlando">Orlando</option>
-  <option value="Miami">Miami</option>
-  <option value="Weston">Weston</option>
-</select>
+      <select
+        value={filterCity}
+        onChange={(e) => setFilterCity(e.target.value)}
+        style={{
+          padding: '10px',
+          marginBottom: '20px',
+          marginLeft: '10px',
+          borderRadius: '8px',
+          border: '1px solid #2a2f3a',
+          background: '#111827',
+          color: '#ffffff',
+        }}
+      >
+        <option value="">🏙 Todas las ciudades</option>
+        {cities.map((city) => (
+          <option key={city} value={city}>
+            {city}
+          </option>
+        ))}
+      </select>
 
-    <div style={{ color: '#9ca3af', fontSize: '13px', marginBottom: '20px' }}>
-  Segmento seleccionado:{' '}
-  <strong style={{ color: '#ffffff' }}>
-    {filterSource || 'Todos'}
-    {filterCity ? ` • ${filterCity}` : ' • Todas las ciudades'}
-  </strong>
+      <div style={{ color: '#9ca3af', fontSize: '13px', marginBottom: '20px' }}>
+        Segmento seleccionado:{' '}
+        <strong style={{ color: '#ffffff' }}>
+          {filterSource || 'Todos'}
+          {filterCity ? ` • ${filterCity}` : ' • Todas las ciudades'}
+        </strong>
 
-  <div style={{ marginTop: '6px' }}>
-    Audiencia estimada:{' '}
-    <strong style={{ color: '#22c55e' }}>
-      {countLoading
-        ? 'Calculando...'
-        : audienceCount !== null
-        ? `${audienceCount.toLocaleString()} contactos`
-        : 'No disponible'}
-    </strong>
-  </div>
-</div>
+        <div style={{ marginTop: '6px' }}>
+          Audiencia estimada:{' '}
+          <strong style={{ color: '#22c55e' }}>
+            {countLoading
+              ? 'Calculando...'
+              : audienceCount !== null
+              ? `${audienceCount.toLocaleString()} contactos`
+              : 'No disponible'}
+          </strong>
+        </div>
+      </div>
 
-      {/* 📦 LISTA DE EVENTOS */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-        gap: '15px'
-      }}>
-        {filteredEvents.map(event => (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+          gap: '15px',
+        }}
+      >
+        {filteredEvents.map((event) => (
           <div
             key={event.id}
             style={{
@@ -223,7 +251,7 @@ const fetchAudienceCount = async () => {
                 : '1px solid #ddd',
               borderRadius: '10px',
               padding: '10px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
             onClick={() => toggleEvent(event.id)}
           >
@@ -233,7 +261,7 @@ const fetchAudienceCount = async () => {
               style={{
                 width: '100%',
                 borderRadius: '8px',
-                marginBottom: '10px'
+                marginBottom: '10px',
               }}
             />
 
@@ -248,7 +276,6 @@ const fetchAudienceCount = async () => {
         ))}
       </div>
 
-      {/* 🚀 BOTÓN */}
       <button
         onClick={sendCampaign}
         disabled={loading}
@@ -259,29 +286,28 @@ const fetchAudienceCount = async () => {
           color: '#fff',
           border: 'none',
           borderRadius: '8px',
-          cursor: 'pointer'
+          cursor: 'pointer',
         }}
       >
         {loading ? 'Enviando...' : 'Enviar Campaña 🚀'}
       </button>
 
-<button
-  onClick={sendTest}
-  disabled={loading}
-  style={{
-    marginTop: '10px',
-    marginLeft: '10px',
-    padding: '12px 20px',
-    background: '#16a34a',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer'
-  }}
->
-  {loading ? 'Enviando Test...' : 'Enviar Test 🧪'}
-</button>
-      
+      <button
+        onClick={sendTest}
+        disabled={loading}
+        style={{
+          marginTop: '10px',
+          marginLeft: '10px',
+          padding: '12px 20px',
+          background: '#16a34a',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        {loading ? 'Enviando Test...' : 'Enviar Test 🧪'}
+      </button>
     </div>
   );
 }
