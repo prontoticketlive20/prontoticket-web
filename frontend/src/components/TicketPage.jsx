@@ -109,6 +109,63 @@ const TicketPage = () => {
     );
   }, [ticketData]);
 
+  const visualStatus = useMemo(() => {
+  const status = String(ticketData?.status || "").toUpperCase();
+
+  if (ticketData?.checkedIn) {
+    return {
+      isValid: false,
+      label: "USED",
+      title: "Ticket ya utilizado",
+      message:
+        "Este ticket ya fue escaneado y no puede volver a utilizarse para ingresar.",
+      badgeClass:
+        "bg-blue-500/15 border-blue-400/30 text-blue-300",
+      overlayClass: "bg-blue-600/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  if (status === "CANCELLED" || status === "CANCELED") {
+    return {
+      isValid: false,
+      label: "CANCELLED",
+      title: "Ticket cancelado",
+      message:
+        "Este ticket fue cancelado y ya no es válido para ingresar al evento.",
+      badgeClass:
+        "bg-red-500/15 border-red-400/30 text-red-300",
+      overlayClass: "bg-red-600/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  if (status === "REFUNDED") {
+    return {
+      isValid: false,
+      label: "REFUNDED",
+      title: "Ticket reembolsado",
+      message:
+        "Este ticket fue reembolsado y ya no es válido para ingresar al evento.",
+      badgeClass:
+        "bg-orange-500/15 border-orange-400/30 text-orange-300",
+      overlayClass: "bg-orange-500/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  return {
+    isValid: true,
+    label: "ACTIVE",
+    title: "",
+    message: "",
+    badgeClass:
+      "bg-green-500/10 border-green-400/20 text-green-300",
+    overlayClass: "",
+    qrClass: "",
+  };
+}, [ticketData]);
+
   const qrValue = useMemo(() => {
     if (!ticketData) return "";
     return (
@@ -199,10 +256,18 @@ const TicketPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="p-6 sm:p-7">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold mb-4">
-                  <Ticket size={13} />
-                  Ticket individual
-                </div>
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#007AFF]/10 border border-[#007AFF]/15 text-[#8ec5ff] text-xs font-semibold">
+    <Ticket size={13} />
+    Ticket individual
+  </div>
+
+  <div
+    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${visualStatus.badgeClass}`}
+  >
+    {visualStatus.label}
+  </div>
+</div>
 
                 <h2 className="text-white text-3xl font-bold leading-tight mb-4">
                   {eventInfo.title}
@@ -273,9 +338,35 @@ const TicketPage = () => {
                   Código QR
                 </div>
 
-                <div className="bg-white p-3 rounded-[22px] shadow-xl shadow-black/20">
-                  <QRCodeSVG value={qrValue} size={190} level="M" includeMargin={false} />
-                </div>
+                 {!visualStatus.isValid && (
+                 <div
+                   className={`mb-4 rounded-2xl border px-4 py-4 text-left ${visualStatus.badgeClass}`}
+                   >
+                 <div className="font-bold text-sm mb-1">
+                    {visualStatus.title}
+                 </div>
+
+                 <div className="text-xs opacity-90 leading-relaxed">
+                    {visualStatus.message}
+                 </div>
+             </div>
+          )}
+
+                <div className="relative bg-white p-3 rounded-[22px] shadow-xl shadow-black/20 overflow-hidden">
+                  <div className={visualStatus.qrClass}>
+                    <QRCodeSVG value={qrValue} size={190} level="M" includeMargin={false} />
+                  </div>
+
+                {!visualStatus.isValid && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div
+                     className={`${visualStatus.overlayClass} text-white font-black text-lg px-5 py-2 rounded-xl  rotate-[-12deg] shadow-xl tracking-widest border border-white/30`}
+                   >
+                   {visualStatus.label}
+                  </div>
+               </div>
+              )}
+            </div>
 
                 <p className="text-white/45 text-xs mt-4 text-center max-w-[220px] leading-relaxed">
                   Presenta este código en la entrada. Este ticket puede usarse una sola vez.

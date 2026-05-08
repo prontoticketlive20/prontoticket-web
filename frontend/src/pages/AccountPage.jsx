@@ -220,6 +220,15 @@ if (user?.role) localStorage.setItem("ptl_user_role", user.role);
                     Seguir comprando
                   </button>
 
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/my-orders")}
+                    className="w-full text-left rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] hover:brightness-110 border border-[#007AFF]/30 px-4 py-3 text-white font-semibold"
+                    >
+                   🎟 Ver Mis Compras
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -237,7 +246,7 @@ if (user?.role) localStorage.setItem("ptl_user_role", user.role);
             <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="flex items-center gap-2 text-white font-semibold mb-4">
                 <Receipt size={16} />
-                Mis órdenes
+                Resumen reciente de órdenes
               </div>
 
               {orders.length === 0 ? (
@@ -246,100 +255,111 @@ if (user?.role) localStorage.setItem("ptl_user_role", user.role);
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {orders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="rounded-2xl border border-white/10 bg-black/30 p-4"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div>
-                          <div className="text-white font-semibold">
-                            {order.event?.title || "Evento"}
-                          </div>
+                  
+                    {orders.slice(0, 3).map((order) => (
+  <div
+    key={order.id}
+    className="rounded-2xl border border-white/10 bg-black/30 p-4"
+  >
+    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div>
+        <div className="text-white font-semibold">
+          {order.event?.title || "Evento"}
+        </div>
 
-                          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/50">
-                            <span className="inline-flex items-center gap-1">
-                              <CalendarDays size={14} />
-                              {order.function?.date
-                                ? new Date(order.function.date).toLocaleString()
-                                : "Sin fecha"}
-                            </span>
+        <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/50">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays size={14} />
+            {order.function?.date
+              ? new Date(order.function.date).toLocaleString()
+              : "Sin fecha"}
+          </span>
 
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin size={14} />
-                              {order.function?.venueName || "Sin venue"}
-                            </span>
-                          </div>
+          <span className="inline-flex items-center gap-1">
+            <MapPin size={14} />
+            {order.function?.venueName || "Sin venue"}
+          </span>
+        </div>
 
-                          <div className="mt-2 text-xs text-white/35 font-mono break-all">
-                            Orden: {order.id}
-                          </div>
-                        </div>
+        <div className="mt-2 text-xs text-white/35 font-mono break-all">
+          Orden: {order.id}
+        </div>
+      </div>
 
-                        <div className="flex flex-col items-start md:items-end gap-2">
-                          {getStatusBadge(order.status)}
-                          <div className="text-white font-semibold">
-                            {money(
-                              Number(order.total || 0) -
-                                Number(order.cancelledTotal || 0) -
-                                Number(order.refundedTotal || 0),
-                            )}
-                          </div>
-                        </div>
-                      </div>
+      <div className="flex flex-col items-start md:items-end gap-2">
+        {getStatusBadge(order.status)}
+        <div className="text-white font-semibold">
+          {money(
+            Number(order.total || 0) -
+              Number(order.cancelledTotal || 0) -
+              Number(order.refundedTotal || 0),
+          )}
+        </div>
+      </div>
+    </div>
 
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
-                          <div className="text-white/45 text-xs">Tickets totales</div>
-                          <div className="text-white text-lg font-semibold mt-1">
-                            {order.ticketsCount}
-                          </div>
-                        </div>
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
+        <div className="text-white/45 text-xs">Tickets totales</div>
+        <div className="text-white text-lg font-semibold mt-1">
+          {order.ticketsCount}
+        </div>
+      </div>
 
-                        <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
-                          <div className="text-white/45 text-xs">Tickets activos</div>
-                          <div className="text-white text-lg font-semibold mt-1">
-                            {order.activeTicketsCount}
-                          </div>
-                        </div>
+      <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
+        <div className="text-white/45 text-xs">Tickets activos</div>
+        <div className="text-white text-lg font-semibold mt-1">
+          {order.activeTicketsCount}
+        </div>
+      </div>
 
-                        <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
-                          <div className="text-white/45 text-xs">Check-in</div>
-                          <div className="text-white text-lg font-semibold mt-1">
-                            {order.checkedInCount}
-                          </div>
-                        </div>
+      <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
+        <div className="text-white/45 text-xs">Check-in</div>
+        <div className="text-white text-lg font-semibold mt-1">
+          {order.checkedInCount}
+        </div>
+      </div>
 
-                        <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
-                          <div className="text-white/45 text-xs">Fecha de compra</div>
-                          <div className="text-white text-sm font-semibold mt-1">
-                            {order.createdAt
-                              ? new Date(order.createdAt).toLocaleString()
-                              : "-"}
-                          </div>
-                        </div>
-                      </div>
+      <div className="rounded-xl bg-[#121212] border border-white/10 p-3">
+        <div className="text-white/45 text-xs">Fecha de compra</div>
+        <div className="text-white text-sm font-semibold mt-1">
+          {order.createdAt
+            ? new Date(order.createdAt).toLocaleString()
+            : "-"}
+        </div>
+      </div>
+    </div>
 
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <Link
-                          to={`/my-tickets/${order.id}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold hover:brightness-110"
-                        >
-                          <Ticket size={16} />
-                          Ver tickets
-                        </Link>
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <Link
+        to={`/my-tickets/${order.id}`}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold hover:brightness-110"
+      >
+        <Ticket size={16} />
+        Ver tickets
+      </Link>
 
-                        <Link
-                          to={`/evento/${order.event?.id}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
-                        >
-                          Ver evento
-                          <ChevronRight size={16} />
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      <Link
+        to={`/evento/${order.event?.id}`}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
+      >
+        Ver evento
+        <ChevronRight size={16} />
+      </Link>
+    </div>
+  </div>
+))}
+
+<div className="pt-2">
+  <button
+    type="button"
+    onClick={() => navigate("/my-orders")}
+    className="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 font-semibold"
+  >
+    Ver todas mis compras →
+  </button>
+</div>
+</div>
               )}
             </div>
           </>

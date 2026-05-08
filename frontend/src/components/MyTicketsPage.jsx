@@ -146,7 +146,69 @@ const MyTicketsPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const getTicketTypeLabel = (ticket) => {
+  const getTicketVisualStatus = (ticket) => {
+  const status = String(ticket?.status || "").toUpperCase();
+
+  if (ticket?.checkedIn) {
+    return {
+      isValid: false,
+      label: "USED",
+      title: "Ticket ya utilizado",
+      message: "Este ticket ya fue escaneado y no puede volver a usarse para ingresar.",
+      badgeClass: "bg-blue-500/15 border-blue-400/30 text-blue-300",
+      overlayClass: "bg-blue-600/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  if (status === "CANCELLED" || status === "CANCELED") {
+    return {
+      isValid: false,
+      label: "CANCELLED",
+      title: "Ticket cancelado",
+      message: "Este ticket fue cancelado y ya no es válido para ingresar al evento.",
+      badgeClass: "bg-red-500/15 border-red-400/30 text-red-300",
+      overlayClass: "bg-red-600/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  if (status === "REFUNDED") {
+    return {
+      isValid: false,
+      label: "REFUNDED",
+      title: "Ticket reembolsado",
+      message: "Este ticket fue reembolsado y ya no es válido para ingresar al evento.",
+      badgeClass: "bg-orange-500/15 border-orange-400/30 text-orange-300",
+      overlayClass: "bg-orange-500/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  if (status && status !== "ACTIVE") {
+    return {
+      isValid: false,
+      label: status,
+      title: "Ticket no válido",
+      message: "Este ticket no se encuentra activo y no es válido para ingresar al evento.",
+      badgeClass: "bg-zinc-500/15 border-zinc-400/30 text-zinc-300",
+      overlayClass: "bg-zinc-700/85",
+      qrClass: "opacity-25 grayscale blur-[1px]",
+    };
+  }
+
+  return {
+    isValid: true,
+    label: "ACTIVE",
+    title: "Ticket activo",
+    message: "",
+    badgeClass: "bg-green-500/10 border-green-400/20 text-green-300",
+    overlayClass: "",
+    qrClass: "",
+  };
+};
+
+    const getTicketTypeLabel = (ticket) => {
     return (
       ticket?.ticketType?.name ||
       ticket?.ticketTypeName ||
@@ -307,6 +369,7 @@ const MyTicketsPage = () => {
     const eventImageDataUrl = await loadImageAsDataUrl(eventInfo.imageUrl);
     const qrPayload = buildQrPayload(ticket);
     const qrPngDataUrl = await qrSvgToPngDataUrl(qrPayload, 240);
+    const visualStatus = getTicketVisualStatus(ticket);
 
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, pageHeight, "F");
@@ -408,19 +471,72 @@ const MyTicketsPage = () => {
     doc.setFontSize(12);
     doc.text("Código QR de acceso", margin + 5, currentY + 8);
 
+    if (!visualStatus.isValid) {
+  if (visualStatus.label === "CANCELLED") {
+    doc.setTextColor(220, 38, 38);
+  } else if (visualStatus.label === "REFUNDED") {
+    doc.setTextColor(249, 115, 22);
+  } else if (visualStatus.label === "USED") {
+    doc.setTextColor(37, 99, 235);
+  } else {
+    doc.setTextColor(80, 80, 80);
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(visualStatus.title.toUpperCase(), margin + 64, currentY + 12);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(visualStatus.message, margin + 64, currentY + 18, {
+    maxWidth: contentWidth - 70,
+  });
+}
+
     if (qrPngDataUrl) {
-      const qrSize = 52;
-      doc.addImage(
-        qrPngDataUrl,
-        "PNG",
-        margin + 5,
-        currentY + 14,
-        qrSize,
-        qrSize,
-        undefined,
-        "FAST"
-      );
+  const qrSize = 52;
+  const qrX = margin + 5;
+  const qrY = currentY + 14;
+
+  doc.addImage(
+    qrPngDataUrl,
+    "PNG",
+    qrX,
+    qrY,
+    qrSize,
+    qrSize,
+    undefined,
+    "FAST"
+  );
+
+  if (!visualStatus.isValid) {
+    // Capa blanca translúcida para apagar visualmente el QR
+    doc.setFillColor(255, 255, 255);
+    doc.setGState(new doc.GState({ opacity: 0.68 }));
+    doc.rect(qrX, qrY, qrSize, qrSize, "F");
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    // Color por estado
+    if (visualStatus.label === "CANCELLED") {
+      doc.setFillColor(220, 38, 38); // rojo
+    } else if (visualStatus.label === "REFUNDED") {
+      doc.setFillColor(249, 115, 22); // naranja
+    } else if (visualStatus.label === "USED") {
+      doc.setFillColor(37, 99, 235); // azul
+    } else {
+      doc.setFillColor(63, 63, 70); // gris
     }
+
+    doc.roundedRect(qrX + 3, qrY + 21, qrSize - 6, 12, 2, 2, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(visualStatus.label, qrX + qrSize / 2, qrY + 29, {
+      align: "center",
+    });
+  }
+}
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -546,6 +662,15 @@ const MyTicketsPage = () => {
             <p className="text-white/60 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
               Todo listo para tu evento. Presenta tu QR desde el móvil o descarga tus entradas en PDF.
             </p>
+
+           <button
+              type="button"
+              onClick={() => navigate("/my-orders")}
+              className="mt-5 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 font-semibold transition"
+              >
+              ← Regresar a Mis Compras
+           </button>
+
           </div>
 
           <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-[#0d2340] via-[#0f172a] to-[#3a2410] p-5 sm:p-6 mb-6 shadow-2xl shadow-black/30">
@@ -685,6 +810,7 @@ const MyTicketsPage = () => {
               const qrData = buildQrPayload(ticket);
               const ticketTypeLabel = getTicketTypeLabel(ticket);
               const isShared = Boolean(sharedTickets[ticket.id]);
+              const visualStatus = getTicketVisualStatus(ticket);
 
               return (
                 <div
@@ -701,6 +827,12 @@ const MyTicketsPage = () => {
                             <Ticket size={13} />
                             Entrada {idx + 1}
                           </div>
+
+                           <div
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${visualStatus.badgeClass}`}
+                             >
+                             {visualStatus.label}
+                           </div>
 
                           {isShared ? (
                             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold">
@@ -771,9 +903,35 @@ const MyTicketsPage = () => {
                           Código QR
                         </div>
 
-                        <div className="bg-white p-3 rounded-[22px] shadow-xl shadow-black/20">
-                          <QRCodeSVG value={qrData} size={150} level="M" includeMargin={false} />
-                        </div>
+                        {!visualStatus.isValid && (
+  <div
+    className={`mb-4 rounded-2xl border px-4 py-4 ${visualStatus.badgeClass}`}
+  >
+    <div className="font-bold text-sm mb-1">
+      {visualStatus.title}
+    </div>
+
+    <div className="text-xs opacity-90 leading-relaxed">
+      {visualStatus.message}
+    </div>
+  </div>
+)}
+
+<div className="relative bg-white p-3 rounded-[22px] shadow-xl shadow-black/20 overflow-hidden">
+  <div className={visualStatus.qrClass}>
+    <QRCodeSVG value={qrData} size={150} level="M" includeMargin={false} />
+  </div>
+
+  {!visualStatus.isValid && (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div
+        className={`${visualStatus.overlayClass} text-white font-black text-lg px-4 py-2 rounded-xl rotate-[-12deg] shadow-xl tracking-widest border border-white/30`}
+      >
+        {visualStatus.label}
+      </div>
+    </div>
+  )}
+</div>
 
                         <p className="text-white/45 text-xs mt-3 text-center max-w-[240px] leading-relaxed">
                           Presenta este código en la entrada. Cada ticket puede usarse una sola vez.
