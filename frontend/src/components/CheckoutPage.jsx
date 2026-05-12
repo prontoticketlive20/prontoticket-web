@@ -17,14 +17,16 @@ import {
   Lock,
   Loader2,
   Apple,
-  Wallet
+  Wallet,
+  BadgeCheck
 } from 'lucide-react';
 import { usePurchase } from '../context/PurchaseContext';
 import { createGuestOrder } from '../services/orders.service';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
-  CardElement,
+  PaymentElement,
+  ExpressCheckoutElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
@@ -38,26 +40,6 @@ const getStripePublishableKey = () => {
 };
 
 const stripePromise = loadStripe(getStripePublishableKey());
-
-const cardElementOptions = {
-  style: {
-    base: {
-      color: '#ffffff',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontSize: '16px',
-      fontSmoothing: 'antialiased',
-      '::placeholder': {
-        color: 'rgba(255,255,255,0.3)',
-      },
-      iconColor: '#007AFF',
-    },
-    invalid: {
-      color: '#f87171',
-      iconColor: '#f87171',
-    },
-  },
-  hidePostalCode: true,
-};
 
 const getStoredSeatsioSession = () => {
   try {
@@ -91,7 +73,7 @@ const splitFullName = (fullName = '') => {
   };
 };
 
-const StripeCardSection = ({ disabled, onReady, onError }) => {
+const StripePaymentSection = ({ disabled, onReady, onError }) => {
   const [isReady, setIsReady] = useState(false);
 
   const handleReady = () => {
@@ -109,59 +91,60 @@ const StripeCardSection = ({ disabled, onReady, onError }) => {
 
   return (
     <div className={`space-y-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div className="flex space-x-2 mb-4">
-        <button
-          className="flex-1 py-2.5 px-4 bg-[#007AFF]/10 border-2 border-[#007AFF] rounded-lg flex items-center justify-center space-x-2 text-white text-sm font-medium"
-          disabled
-          type="button"
-        >
-          <CreditCard size={16} />
-          <span>Tarjeta</span>
-        </button>
-
-        <button
-          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm"
-          disabled
-          type="button"
-          title="Apple Pay disponible luego según configuración Stripe y dispositivo"
-        >
-          <Apple size={16} />
-          <span>Apple Pay</span>
-        </button>
-
-        <button
-          className="flex-1 py-2.5 px-4 bg-[#1E1E1E] border border-white/10 rounded-lg flex items-center justify-center space-x-2 text-white/60 text-sm"
-          disabled
-          type="button"
-          title="Otros métodos según país"
-        >
-          <Wallet size={16} />
-          <span>Más</span>
-        </button>
-      </div>
-
+       
       {!isReady && (
         <div className="flex items-center justify-center py-6">
           <Loader2 className="w-6 h-6 text-[#007AFF] animate-spin" />
-          <span className="ml-2 text-white/60 text-sm">Cargando Stripe...</span>
+          <span className="ml-2 text-white/60 text-sm">Cargando métodos de pago...</span>
         </div>
       )}
 
-      <div>
-        <label className="block text-white/60 text-xs mb-1.5">
-          Datos de tarjeta
-        </label>
-
-        <div className="px-4 py-4 bg-[#1E1E1E] border border-white/10 rounded-lg focus-within:ring-2 focus-within:ring-[#007AFF] transition-all">
-          <CardElement
-            options={cardElementOptions}
-            onReady={handleReady}
-            onChange={handleChange}
-          />
-        </div>
+      <div className="px-4 py-4 bg-[#1E1E1E] border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-[#007AFF] transition-all">
+        <PaymentElement
+          onReady={handleReady}
+          onChange={handleChange}
+          options={{
+            layout: {
+              type: 'tabs',
+              defaultCollapsed: false,
+            },
+          }}
+        />
       </div>
 
-      <div className="flex items-center justify-center space-x-1 pt-2">
+      <div className="rounded-2xl bg-white/5 border border-white/10 px-5 py-4">
+  <div className="flex items-center justify-center gap-2 mb-3">
+    <BadgeCheck size={16} className="text-[#22c55e]" />
+    <span className="text-white/80 text-sm font-semibold">
+      Métodos de pago aceptados
+    </span>
+  </div>
+
+  <div className="flex flex-wrap items-center justify-center gap-2">
+    {[
+      'Visa',
+      'Mastercard',
+      'Apple Pay',
+      'Google Pay',
+      'Cash App Pay',
+      'Link',
+    ].map((method) => (
+      <div
+        key={method}
+        className="px-3 py-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-white/70 text-xs font-medium"
+      >
+        {method}
+      </div>
+    ))}
+  </div>
+
+  <p className="text-center text-white/40 text-[11px] mt-3 leading-relaxed">
+    Los métodos disponibles pueden variar según tu dispositivo,
+    navegador y configuración de pago.
+  </p>
+</div>
+
+      <div className="flex items-center justify-center space-x-1 pt-1">
         <Lock size={12} className="text-white/40" />
         <span className="text-white/40 text-xs">Pago seguro con</span>
         <span className="text-white/40 text-xs font-bold">Stripe</span>
@@ -414,12 +397,7 @@ return (selectedSeats || []).map((s) => ({
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setPaymentError('No se pudo inicializar el formulario de tarjeta.');
-      return;
-    }
-
+    
     if (!event?.id) {
       alert('No se encontró el evento seleccionado. Vuelve al evento e intenta de nuevo.');
       return;
@@ -516,15 +494,29 @@ if (!clientSecret) {
   throw new Error('El backend no devolvió clientSecret de Stripe.');
 }
 
-const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-  payment_method: {
-    card: cardElement,
-    billing_details: {
-      name: `${formData.firstName} ${formData.lastName}`.trim(),
-      email: formData.email,
-      phone: formData.phone,
+const submitResult = await elements.submit();
+
+if (submitResult?.error) {
+  throw new Error(
+    submitResult.error.message ||
+      'No se pudo validar el método de pago seleccionado.'
+  );
+}
+
+const paymentResult = await stripe.confirmPayment({
+  elements,
+  clientSecret,
+  confirmParams: {
+    return_url: `${window.location.origin}/evento/${id}/confirmacion/${orderIdReal}`,
+    payment_method_data: {
+      billing_details: {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        phone: formData.phone,
+      },
     },
   },
+  redirect: 'if_required',
 });
 
   if (paymentResult.error) {
@@ -880,10 +872,10 @@ if (!event || (!hasSelections && !storedConfirmation)) {
                   </div>
                 </div>
 
-                <StripeCardSection
-                  onReady={handleStripeReady}
-                  onError={handleStripeError}
-                  disabled={checkoutLocked || !acceptTerms || isTimerBlocking}
+                <StripePaymentSection
+                   onReady={handleStripeReady}
+                   onError={handleStripeError}
+                   disabled={checkoutLocked || !acceptTerms || isTimerBlocking}
                 />
 
                 {paymentError && (
@@ -983,15 +975,52 @@ if (!event || (!hasSelections && !storedConfirmation)) {
 const CheckoutPage = () => {
   const publishableKey = getStripePublishableKey();
 
-    if (!publishableKey) {
+  const location = useLocation();
+  const { getPurchaseSummary } = usePurchase();
+
+  const summary = getPurchaseSummary();
+  const finalTotalFromSummary = location.state?.finalTotal;
+
+  const total = Number(finalTotalFromSummary || summary?.total || 0);
+  const amountInCents = Math.round(total * 100);
+
+  const elementsOptions =
+    amountInCents > 0
+      ? {
+          mode: 'payment',
+          amount: amountInCents,
+          currency: 'usd',
+          appearance: {
+            theme: 'night',
+            variables: {
+              colorPrimary: '#007AFF',
+              colorBackground: '#1E1E1E',
+              colorText: '#ffffff',
+              colorDanger: '#f87171',
+              borderRadius: '12px',
+              fontFamily: 'Inter, system-ui, sans-serif',
+            },
+          },
+        }
+      : undefined;
+
+  if (!publishableKey) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 text-center">
         <div className="bg-[#121212] border border-red-500/20 rounded-2xl p-6 max-w-lg">
-          <h2 className="text-white text-2xl font-bold mb-3">Falta configuración de Stripe</h2>
+          <h2 className="text-white text-2xl font-bold mb-3">
+            Falta configuración de Stripe
+          </h2>
           <p className="text-white/60">
-            Debes agregar <span className="text-[#FF9500] font-mono">VITE_STRIPE_PUBLIC_KEY</span> o{' '}
-            <span className="text-[#FF9500] font-mono">REACT_APP_STRIPE_PUBLISHABLE_KEY</span> en el
-            archivo .env del frontend y reiniciar la aplicación.
+            Debes agregar{' '}
+            <span className="text-[#FF9500] font-mono">
+              VITE_STRIPE_PUBLIC_KEY
+            </span>{' '}
+            o{' '}
+            <span className="text-[#FF9500] font-mono">
+              REACT_APP_STRIPE_PUBLISHABLE_KEY
+            </span>{' '}
+            en el archivo .env del frontend y reiniciar la aplicación.
           </p>
         </div>
       </div>
@@ -999,7 +1028,11 @@ const CheckoutPage = () => {
   }
 
   return (
-    <Elements stripe={stripePromise}>
+    <Elements
+      stripe={stripePromise}
+      options={elementsOptions}
+      key={`payment-${amountInCents}`}
+    >
       <CheckoutForm />
     </Elements>
   );
