@@ -29,6 +29,9 @@ const EventCard = ({ event, featured = false }) => {
     spain: 'es',
     españa: 'es',
     espana: 'es',
+
+    pr: 'pr',
+    'puerto rico': 'pr',
   };
 
   return codes[normalized] || '';
