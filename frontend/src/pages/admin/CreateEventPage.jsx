@@ -12,6 +12,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import api, { getAuthToken, setAuthToken } from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
+import DistributionPanel from "../../components/DistributionPanel";
+import { Globe } from "lucide-react";
 
 const CATEGORY_OPTIONS = [
   { value: "CONCERT", label: "Concert" },
@@ -687,6 +689,28 @@ export default function CreateEventPage() {
   </div>
 </div>
 
+{/* ============================= */}
+{/* 🌎 DISTRIBUCIÓN GLOBAL */}
+{/* ============================= */}
+<div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+  <div className="flex items-center gap-2 mb-4">
+    <Globe size={18} className="text-blue-400" />
+    <div className="text-white font-semibold">Distribución Global del Evento 🌎</div>
+  </div>
+
+  <p className="text-sm text-white/50 mb-4">
+    Distribuye este evento en plataformas externas como Spotify (vía Bandsintown), Google y redes sociales.
+  </p>
+
+  {/* 🔥 SOLO SE MUESTRA SI YA EXISTE EVENTO */}
+  {successMsg ? (
+    <DistributionPanel eventId={null} />
+  ) : (
+    <div className="text-xs text-yellow-400">
+      Debes crear el evento primero para habilitar la distribución.
+    </div>
+  )}
+</div>
           <div className="flex items-center justify-end gap-3">
             <Link
               to="/admin"

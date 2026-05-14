@@ -213,6 +213,48 @@ const EventDetailPage = () => {
 
   const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
 
+  // ===============================
+// 🔥 GOOGLE EVENTS SEO (JSON-LD)
+// ===============================
+const eventSchema = event ? {
+  "@context": "https://schema.org",
+  "@type": "Event",
+  name: event.title,
+  startDate: event.date && event.time
+    ? new Date(`${event.date} ${event.time}`).toISOString()
+    : undefined,
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+
+  location: {
+    "@type": "Place",
+    name: event.venue,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: event.city,
+      addressCountry: event.country,
+    },
+  },
+
+  image: event.image ? [event.image] : [],
+
+  description: event.description,
+
+  offers: {
+    "@type": "Offer",
+    url: typeof window !== "undefined" ? window.location.href : "",
+    price: event.startingPrice || "0",
+    priceCurrency: "USD",
+    availability: "https://schema.org/InStock",
+  },
+
+  organizer: {
+    "@type": "Organization",
+    name: "ProntoTicketLive",
+    url: "https://www.prontoticketlive.com",
+  },
+} : null;
+
   useEffect(() => {
     if (!event) return;
     if (!hasValidSaleType) {
@@ -297,6 +339,17 @@ if (isSeatedEvent) {
 if (!event) {
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
+
+    {/* 🔥 GOOGLE EVENTS SEO */}
+{eventSchema && (
+  <script
+    type="application/ld+json"
+    dangerouslySetInnerHTML={{
+      __html: JSON.stringify(eventSchema),
+    }}
+  />
+)}
+
       <Header />
       <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
         Cargando evento...
