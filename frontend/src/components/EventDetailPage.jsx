@@ -20,6 +20,7 @@ import {
 import { usePurchase } from '../context/PurchaseContext';
 import { loadEventPixels, trackViewContent } from "../utils/eventPixels";
 import api from '../api/api';  //analytics
+import { Helmet } from "react-helmet";
 
 const VALID_SALE_TYPES = ['seated', 'general'];
 
@@ -93,7 +94,17 @@ const normalizeEventFunctions = (evt) => {
 
   const functions = Array.isArray(evt.functions)
     ? evt.functions
-        .filter((func) => func.isActive !== false) // 🔥 FIX REAL
+        .filter((func) => {
+  if (func.isActive === false) return false;
+
+  const date = func?._raw?.date || func?.date;
+  if (!date) return false;
+
+  const fnDate = new Date(date);
+  const now = new Date();
+
+  return fnDate > now; // 🔥 SOLO FUNCIONES FUTURAS
+})
         .map((func) => normalizeFunction(func))
     : [];
 
@@ -103,8 +114,20 @@ const normalizeEventFunctions = (evt) => {
   };
 };
 
-const EventDetailPage = () => {
+  const EventDetailPage = () => {
   const { id } = useParams();
+
+  // 🔥 EXTRAER ID REAL
+  const extractEventId = (param) => {
+  if (!param) return null;
+
+  const match = param.match(/[0-9a-fA-F-]{36}$/);
+
+  return match ? match[0] : param;
+};
+    
+  const eventId = extractEventId(id); 
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -149,8 +172,14 @@ const EventDetailPage = () => {
 
     const load = async () => {
       try {
-        const rawEvent = await fetchEventById(id);
+        console.log('🧪 EVENT ID QUE SE ENVÍA:', eventId);
+        const rawEvent = await fetchEventById(eventId);
         const normalized = normalizeEventFunctions(rawEvent);
+
+        console.log("🧪 rawEvent:", rawEvent);
+        console.log("🧪 normalized:", normalized);
+        console.log("🧪 functions raw:", rawEvent?.functions);
+        console.log("🧪 functions normalized:", normalized?.functions);
 
         console.log('EVENT NORMALIZED:', normalized);
 
@@ -180,22 +209,24 @@ const EventDetailPage = () => {
           setContextFunction(null);
         }
       } catch (e) {
-        console.error('[EventDetailPage] Error cargando evento desde backend:', e);
+  console.error('❌ ERROR COMPLETO:', e);
+  console.log('❌ RESPONSE:', e?.response);
+  console.log('❌ DATA:', e?.response?.data);
         if (!mounted) return;
 
-        const fallback = FALLBACK_EVENT(id);
+        const fallback = FALLBACK_EVENT(eventId);
         setEvent(fallback);
         selectEvent(fallback);
         setPolicies(DEFAULT_POLICIES);
       }
     };
 
-    if (id) load();
+    if (eventId) load();
 
     return () => {
       mounted = false;
     };
-  }, [id, selectEvent, setContextFunction]);
+  }, [eventId, selectEvent, setContextFunction]);
 
   const normalizedSelectedFunction = useMemo(() => {
     if (!selectedFunction) return null;
@@ -213,47 +244,59 @@ const EventDetailPage = () => {
 
   const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
 
-  // ===============================
+ // ===============================
 // 🔥 GOOGLE EVENTS SEO (JSON-LD)
 // ===============================
-const eventSchema = event ? {
-  "@context": "https://schema.org",
-  "@type": "Event",
-  name: event.title,
-  startDate: event.date && event.time
-    ? new Date(`${event.date} ${event.time}`).toISOString()
-    : undefined,
-  eventStatus: "https://schema.org/EventScheduled",
-  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
 
-  location: {
-    "@type": "Place",
-    name: event.venue,
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: event.city,
-      addressCountry: event.country,
-    },
-  },
+// 🔥 definir antes
+const selectedFn = selectedFunction || event?.functions?.[0];
 
-  image: event.image ? [event.image] : [],
+const eventSchema = event
+  ? {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: event.title,
 
-  description: event.description,
+      startDate: selectedFn?._raw?.date
+        ? new Date(selectedFn._raw.date).toISOString()
+        : undefined,
 
-  offers: {
-    "@type": "Offer",
-    url: typeof window !== "undefined" ? window.location.href : "",
-    price: event.startingPrice || "0",
-    priceCurrency: "USD",
-    availability: "https://schema.org/InStock",
-  },
+      eventStatus: "https://schema.org/EventScheduled",
+      eventAttendanceMode:
+        "https://schema.org/OfflineEventAttendanceMode",
 
-  organizer: {
-    "@type": "Organization",
-    name: "ProntoTicketLive",
-    url: "https://www.prontoticketlive.com",
-  },
-} : null;
+      location: {
+        "@type": "Place",
+        name: event?.venue,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: event?.city,
+          addressCountry: event?.country,
+        },
+      },
+
+      image: event?.image ? [event.image] : [],
+
+      description: event?.description,
+
+      offers: {
+        "@type": "Offer",
+        url:
+          typeof window !== "undefined"
+            ? window.location.href
+            : "",
+        price: event?.startingPrice || "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+
+      organizer: {
+        "@type": "Organization",
+        name: "ProntoTicketLive",
+        url: "https://www.prontoticketlive.com",
+      },
+    }
+  : null;
 
   useEffect(() => {
     if (!event) return;
@@ -339,18 +382,16 @@ if (isSeatedEvent) {
 if (!event) {
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
+   
+    <Helmet>
+  {eventSchema && (
+    <script type="application/ld+json">
+      {JSON.stringify(eventSchema)}
+    </script>
+  )}
+</Helmet>
 
-    {/* 🔥 GOOGLE EVENTS SEO */}
-{eventSchema && (
-  <script
-    type="application/ld+json"
-    dangerouslySetInnerHTML={{
-      __html: JSON.stringify(eventSchema),
-    }}
-  />
-)}
-
-      <Header />
+    <Header />
       <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
         Cargando evento...
       </div>
@@ -361,6 +402,15 @@ if (!event) {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
+
+  <Helmet>
+  {eventSchema && (
+    <script type="application/ld+json">
+      {JSON.stringify(eventSchema)}
+    </script>
+  )}
+</Helmet>
+
       <Header />
 
       <div className="relative h-[50vh] min-h-[400px] mt-20">

@@ -340,7 +340,7 @@ if (user?.role) localStorage.setItem("ptl_user_role", user.role);
       </Link>
 
       <Link
-        to={`/evento/${order.event?.id}`}
+        to={`/evento/${order.event.slug}-${order.event.id}`}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
       >
         Ver evento

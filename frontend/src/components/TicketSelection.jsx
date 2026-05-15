@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { usePurchase } from "../context/PurchaseContext";
 import api from "../api/api";
 import { trackAddToCart } from "../utils/eventPixels";
@@ -8,7 +8,7 @@ import { trackAddToCart } from "../utils/eventPixels";
 export default function TicketSelection({ event, onClose }) {
   const navigate = useNavigate();
   const { updateTickets, formatPrice } = usePurchase();
-
+  const { id } = useParams();
   const [pricingTypes, setPricingTypes] = useState([]);
 
   const selectedFunctionId = useMemo(() => {
@@ -155,7 +155,7 @@ export default function TicketSelection({ event, onClose }) {
 
     updateTickets(selectedTicketsArray);
     onClose?.();
-    navigate(`/evento/${event.id}/resumen`);
+    navigate(`/evento/${id}/resumen`);
   };
 
   return (

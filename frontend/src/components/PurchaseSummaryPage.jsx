@@ -45,8 +45,8 @@ const PurchaseSummaryPage = () => {
         selectEvent(event);
       }
     } else if (storedEventId && storedEventId !== id && !selectedEvent) {
-      navigate(`/evento/${storedEventId}/resumen`, { replace: true });
-    }
+        navigate(`/evento/${id}/resumen`, { replace: true });
+      }
   }, [id, selectedEvent, selectEvent, getStoredEventId, navigate]);
 
   const summary = getPurchaseSummary();
@@ -80,9 +80,9 @@ const PurchaseSummaryPage = () => {
       const timeout = setTimeout(() => {
         if (isSeatedEvent) {
           navigate(`/evento/${id}/asientos`, { replace: true });
-        } else {
-          navigate(`/evento/${id}`, { replace: true });
-        }
+         } else {
+           navigate(`/evento/${id}`, { replace: true });
+         }
       }, 1200);
 
       return () => clearTimeout(timeout);
@@ -138,22 +138,22 @@ setDiscountError('');
   const campaignId = localStorage.getItem('ptl_campaign_id');
 
   navigate(`/evento/${id}/checkout`, {
-    state: {
-      discountPercent,
-      discountAmount,
-      finalTotal,
-      campaignId,
-    }
-  });
+  state: {
+    discountPercent,
+    discountAmount,
+    finalTotal,
+    campaignId,
+  }
+});
 };
 
   const handleGoBack = () => {
-    if (isSeatedEvent) {
-      navigate(`/evento/${id}/asientos`);
-    } else {
-      navigate(`/evento/${id}`);
-    }
-  };
+  if (isSeatedEvent) {
+    navigate(`/evento/${id}/asientos`);
+  } else {
+    navigate(`/evento/${id}`);
+  }
+};
 
   if (!hasSelections) {
     return (

@@ -216,6 +216,14 @@ export default function CreateEventPage() {
 
       const payload = new FormData();
 
+      // 🔥 CREAR SLUG AUTOMÁTICO
+      const slug = form.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
+
+      payload.append("slug", slug);
+
       payload.append("title", form.title.trim());
       payload.append("description", form.description.trim());
       payload.append("category", form.category);

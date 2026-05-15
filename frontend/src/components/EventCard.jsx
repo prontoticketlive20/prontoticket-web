@@ -53,10 +53,16 @@ const EventCard = ({ event, featured = false }) => {
   };
 
   const goToDetail = () => {
-    const eventId = resolveEventId();
-    if (!eventId) return;
-    navigate(`/evento/${eventId}`);
-  };
+  const eventId = resolveEventId();
+  if (!eventId) return;
+
+  const slug = event?.slug || "";
+  const finalUrl = slug
+    ? `/evento/${slug}-${eventId}`
+    : `/evento/${eventId}`;
+
+  navigate(finalUrl);
+};
 
   const handleCardClick = () => {
     goToDetail();

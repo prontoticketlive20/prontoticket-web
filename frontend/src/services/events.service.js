@@ -135,8 +135,12 @@ export async function fetchEvents() {
 }
 
 export async function fetchEventById(id) {
-  const res = await api.get(`/events/${id}`);
-  const raw = unwrapData(res.data);
+  console.log("🔥 FETCH DIRECTO A BACKEND:", id);
+
+  const res = await fetch(`http://localhost:3000/api/events/${id}`);
+  const raw = await res.json();
+
+  console.log("🔥 RESPUESTA BACKEND:", raw);
 
   return normalizeEventFromApi(raw);
 }

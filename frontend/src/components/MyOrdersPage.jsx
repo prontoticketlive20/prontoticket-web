@@ -273,7 +273,7 @@ const MyOrdersPage = () => {
 
               {event?.id ? (
                 <button
-                  onClick={() => navigate(`/evento/${event.id}`)}
+                  onClick={() => navigate(`/evento/${event.slug}-${eventId}`)}
                   className="px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition flex items-center justify-center gap-2"
                 >
                   Ver Evento

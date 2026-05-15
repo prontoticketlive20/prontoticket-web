@@ -294,7 +294,7 @@ const campaignId =
         if (isSeatedEvent) {
           navigate(`/evento/${id}/asientos`, { replace: true });
         } else {
-          navigate(`/evento/${id}`, { replace: true });
+           navigate(`/evento/${id}`, { replace: true });
         }
       }, 1200);
 
@@ -507,7 +507,7 @@ const paymentResult = await stripe.confirmPayment({
   elements,
   clientSecret,
   confirmParams: {
-    return_url: `${window.location.origin}/evento/${id}/confirmacion/${orderIdReal}`,
+    return_url: `${window.location.origin}/evento/${event.slug}-${event.id}/confirmacion/${orderIdReal}`,
     payment_method_data: {
       billing_details: {
         name: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -628,7 +628,7 @@ if (!event || (!hasSelections && !storedConfirmation)) {
             </h2>
             <p className="text-white/60 mb-6">No tienes entradas seleccionadas para comprar.</p>
             <button
-              onClick={() => navigate(`/evento/${id}`)}
+              onClick={() => navigate(`/evento/${event.slug}-${event.id}`)}
               className="px-6 py-3 bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-bold rounded-full transition-all duration-300 hover:brightness-110"
             >
               Ir al evento

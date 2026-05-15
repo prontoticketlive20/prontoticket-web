@@ -194,7 +194,7 @@ const SeatsSelectionPage = () => {
       console.error(
         `[ProntoTicketLive] SeatsSelectionPage: acceso inválido para saleType "${event?.saleType}".`
       );
-      navigate(`/evento/${id}`);
+      navigate(`/evento/${event.slug}-${event.id}`);
     }
   }, [isInitialized, event, hasValidSaleType, isSeatedEvent, id, navigate]);
 
@@ -203,7 +203,7 @@ const SeatsSelectionPage = () => {
 
     const timeout = setTimeout(() => {
       if (!selectedFunction) {
-        navigate(`/evento/${id}`);
+        navigate(`/evento/${event.slug}-${event.id}`);
       }
     }, 150);
 
@@ -392,8 +392,8 @@ const SeatsSelectionPage = () => {
   }, [selectedSeats, syncChartSelectionFromState]);
 
   const handleBackToEvent = () => {
-    navigate(`/evento/${id}`);
-  };
+  navigate(`/evento/${id}`);
+};
 
   const handleContinueToSummary = () => {
   if (!canContinueToSummary) return;
