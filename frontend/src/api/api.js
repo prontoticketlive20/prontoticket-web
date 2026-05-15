@@ -30,6 +30,9 @@ export const clearAuth = () => {
 const baseURL =
   process.env.REACT_APP_API_URL?.trim() || "http://localhost:3000/api";
 
+  console.log("🔥 BASE URL:", process.env.REACT_APP_API_URL);
+  console.log("🔥 BASE URL FINAL:", baseURL);
+
 const api = axios.create({
   baseURL,
   withCredentials: true,
