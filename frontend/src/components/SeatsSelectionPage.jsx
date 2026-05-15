@@ -107,6 +107,7 @@ const SeatsSelectionPage = () => {
   const navigate = useNavigate();
   const chartRef = useRef(null);
   const syncingSelectionRef = useRef(false);
+  const sessionInitializedRef = useRef(false);
 
   const {
   selectedEvent,
@@ -270,28 +271,35 @@ const SeatsSelectionPage = () => {
   }, [selectedFunction?.id]);
 
   useEffect(() => {
-    const stored = getStoredSeatsioSession();
+  if (!selectedFunction?.id) return;
+
+  // 🔥 EVITA LOOP INFINITO
+  if (sessionInitializedRef.current) return;
+
+  sessionInitializedRef.current = true;
+
+  const stored = getStoredSeatsioSession();
+
+  if (
+    stored &&
+    stored.functionId === selectedFunction?.id &&
+    stored.eventKey === String(seatmapKey || '').trim()
+  ) {
+    setHoldTokenData(stored);
 
     if (
-      stored &&
-      stored.functionId === selectedFunction?.id &&
-      stored.eventKey === String(seatmapKey || '').trim()
+      typeof stored.expiresInSeconds === 'number' &&
+      stored.expiresInSeconds > 0
     ) {
-      setHoldTokenData(stored);
-      if (
-        typeof stored.expiresInSeconds === 'number' &&
-        stored.expiresInSeconds > 0
-      ) {
-        setTimeRemaining(stored.expiresInSeconds);
-      }
-      return;
+      setTimeRemaining(stored.expiresInSeconds);
     }
 
-    if (selectedFunction?.id) {
-      clearSeatsioSession();
-      setHoldTokenData(null);
-    }
-  }, [selectedFunction?.id, seatmapKey]);
+    return;
+  }
+
+  clearSeatsioSession();
+  setHoldTokenData(null);
+}, [selectedFunction?.id, seatmapKey]);
 
   const pricingMap = useMemo(() => {
     const map = new Map();
