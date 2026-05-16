@@ -136,17 +136,8 @@ export async function fetchEvents() {
 
 export async function fetchEventById(param) {
   try {
-    // 🔥 EXTRAER UUID DEL SLUG SI VIENE COMO slug-id
-    let id = param;
-
-    if (param.includes("-")) {
-      const parts = param.split("-");
-      if (parts.length >= 5) {
-        id = parts.slice(-5).join("-");
-      }
-    }
-
-    const res = await api.get(`/events/public/${id}`);
+    // 🔥 dejar que el backend resuelva slug o id
+    const res = await api.get(`/events/${param}`);
     const raw = unwrapData(res.data);
 
     return normalizeEventFromApi(raw);

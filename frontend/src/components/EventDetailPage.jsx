@@ -121,9 +121,15 @@ const normalizeEventFunctions = (evt) => {
   const extractEventId = (param) => {
   if (!param) return null;
 
-  const match = param.match(/[0-9a-fA-F-]{36}$/);
+  // 🔥 SI ES slug-id → tomar lo que está después del último "-"
+  const parts = param.split("-");
+  
+  // UUID siempre tiene 5 bloques → tomar últimos 5
+  if (parts.length >= 5) {
+    return parts.slice(-5).join("-");
+  }
 
-  return match ? match[0] : param;
+  return param;
 };
     
   const eventId = extractEventId(id); 
