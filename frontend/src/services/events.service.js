@@ -134,9 +134,25 @@ export async function fetchEvents() {
   return list.map(normalizeEventFromApi).filter(Boolean);
 }
 
-export async function fetchEventById(id) {
-  const res = await api.get(`/events/public/${id}`);
-  const raw = unwrapData(res.data);
+export async function fetchEventById(param) {
+  try {
+    // 🔥 EXTRAER UUID DEL SLUG SI VIENE COMO slug-id
+    let id = param;
 
-  return normalizeEventFromApi(raw);
+    if (param.includes("-")) {
+      const parts = param.split("-");
+      if (parts.length >= 5) {
+        id = parts.slice(-5).join("-");
+      }
+    }
+
+    const res = await api.get(`/events/public/${id}`);
+    const raw = unwrapData(res.data);
+
+    return normalizeEventFromApi(raw);
+
+  } catch (error) {
+    console.error("❌ Error fetchEventById:", error);
+    return null;
+  }
 }
