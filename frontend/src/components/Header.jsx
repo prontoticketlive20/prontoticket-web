@@ -3,6 +3,7 @@ import { Menu, X, Globe, LayoutDashboard, LogOut, User2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import logoProntoTicketLive from "../assets/logo-prontoticketlive.png";
+// force rebuild
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
