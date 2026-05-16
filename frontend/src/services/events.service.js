@@ -135,9 +135,8 @@ export async function fetchEvents() {
 }
 
 export async function fetchEventById(id) {
-  
-  const res = await fetch(`http://localhost:3000/api/events/${id}`);
-  const raw = await res.json();
+  const res = await api.get(`/events/public/${id}`);
+  const raw = unwrapData(res.data);
 
   return normalizeEventFromApi(raw);
 }
