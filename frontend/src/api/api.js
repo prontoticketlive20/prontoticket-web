@@ -42,9 +42,7 @@ api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
    
-   console.log("TOKEN EN REQUEST:", token);   
-
-    if (token) {
+   if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }

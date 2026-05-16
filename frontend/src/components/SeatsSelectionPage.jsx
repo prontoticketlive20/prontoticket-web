@@ -107,8 +107,8 @@ const SeatsSelectionPage = () => {
   const navigate = useNavigate();
   const chartRef = useRef(null);
   const syncingSelectionRef = useRef(false);
-  const sessionInitializedRef = useRef(false);
-
+  const functionInitializedRef = useRef(false);
+  
   const {
   selectedEvent,
   selectEvent,
@@ -137,56 +137,63 @@ const SeatsSelectionPage = () => {
 
   const seatmapKey = selectedFunction?._raw?.seatmapKey || '';
 
-  useEffect(() => {
-    let mounted = true;
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => {
+  let mounted = true;
 
-    const loadEvent = async () => {
-      try {
-        setLoadingEvent(true);
+  const loadEvent = async () => {
+    try {
+      setLoadingEvent(true);
 
-        if (selectedEvent?.id === id) {
-          setEvent(selectedEvent);
-          setIsInitialized(true);
-          return;
-        }
-
-        const storedEventId = getStoredEventId();
-        const normalized = await fetchEventById(id || storedEventId);
-
-        if (!mounted) return;
-
-        setEvent(normalized);
-        selectEvent(normalized);
+      // 🔥 evitar re-fetch innecesario
+      if (selectedEvent?.id === id) {
+        setEvent(selectedEvent);
         setIsInitialized(true);
-
-        if (normalized?.functions?.length === 1) {
-          const singleFunc = normalized.functions[0];
-          selectFunction(singleFunc);
-        }
-      } catch (e) {
-        console.error('[SeatsSelectionPage] Error cargando evento:', e);
-        if (!mounted) return;
-        setChartError('No pude cargar la información del evento.');
-      } finally {
-        if (mounted) setLoadingEvent(false);
+        return;
       }
-    };
 
+      const storedEventId = getStoredEventId();
+      const normalized = await fetchEventById(id || storedEventId);
+
+      if (!mounted) return;
+
+      setEvent(normalized);
+      selectEvent(normalized);
+      setIsInitialized(true);
+
+      // 🔥 SOLO seleccionar función una vez
+      if (normalized?.functions?.length === 1 && !selectedFunction) {
+        const singleFunc = normalized.functions[0];
+        selectFunction(singleFunc);
+      }
+
+    } catch (e) {
+      console.error('[SeatsSelectionPage] Error cargando evento:', e);
+      if (!mounted) return;
+      setChartError('No pude cargar la información del evento.');
+    } finally {
+      if (mounted) setLoadingEvent(false);
+    }
+  };
+
+  if (id) {
     loadEvent();
+  }
 
-    return () => {
-      mounted = false;
-    };
-  }, [id, selectedEvent, selectEvent, selectFunction, getStoredEventId]);
+  return () => {
+    mounted = false;
+  };
 
-  const hasValidSaleType = useMemo(
-    () => VALID_SALE_TYPES.includes(event?.saleType),
-    [event?.saleType]
-  );
+}, [id]); // 🔥 SOLO ID (CLAVE DEL FIX)
 
-  const isSeatedEvent = event?.saleType === 'seated';
-  const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
-  const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
+const hasValidSaleType = useMemo(
+  () => VALID_SALE_TYPES.includes(event?.saleType),
+  [event?.saleType]
+);
+
+const isSeatedEvent = event?.saleType === 'seated';
+const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
+const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
 
   useEffect(() => {
     if (!isInitialized || !event) return;
@@ -200,7 +207,7 @@ const SeatsSelectionPage = () => {
   }, [isInitialized, event, hasValidSaleType, isSeatedEvent, id, navigate]);
 
   useEffect(() => {
-    if (!isInitialized || !hasMultipleFunctions) return;
+   if (!isInitialized || !hasMultipleFunctions) return;
 
     const timeout = setTimeout(() => {
       if (!selectedFunction) {
@@ -212,13 +219,20 @@ const SeatsSelectionPage = () => {
   }, [isInitialized, hasMultipleFunctions, selectedFunction, id, navigate]);
 
   useEffect(() => {
-    if (hasSingleFunction && event?.functions?.[0] && !selectedFunction) {
-      selectFunction(event.functions[0]);
-    }
-  }, [hasSingleFunction, event?.functions, selectedFunction, selectFunction]);
+  if (
+    hasSingleFunction &&
+    event?.functions?.[0] &&
+    !selectedFunction &&
+    !functionInitializedRef.current
+  ) {
+    functionInitializedRef.current = true;
+
+    selectFunction(event.functions[0]);
+  }
+}, [hasSingleFunction, event?.functions?.length]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
+   const timer = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 0) {
           clearInterval(timer);
@@ -232,7 +246,7 @@ const SeatsSelectionPage = () => {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+   let mounted = true;
 
     const loadPricing = async () => {
       if (!selectedFunction?.id) {
@@ -273,16 +287,12 @@ const SeatsSelectionPage = () => {
   useEffect(() => {
   if (!selectedFunction?.id) return;
 
-  // 🔥 EVITA LOOP INFINITO
-  if (sessionInitializedRef.current) return;
-
-  sessionInitializedRef.current = true;
-
   const stored = getStoredSeatsioSession();
 
+  // 🔥 si la sesión coincide → usarla
   if (
     stored &&
-    stored.functionId === selectedFunction?.id &&
+    stored.functionId === selectedFunction.id &&
     stored.eventKey === String(seatmapKey || '').trim()
   ) {
     setHoldTokenData(stored);
@@ -297,9 +307,13 @@ const SeatsSelectionPage = () => {
     return;
   }
 
-  clearSeatsioSession();
-  setHoldTokenData(null);
-}, [selectedFunction?.id, seatmapKey]);
+  // 🔥 SOLO limpiar si NO hay sesión válida
+  if (!stored) {
+    clearSeatsioSession();
+    setHoldTokenData(null);
+  }
+
+}, [selectedFunction?.id]);
 
   const pricingMap = useMemo(() => {
     const map = new Map();
@@ -396,7 +410,7 @@ const SeatsSelectionPage = () => {
   }, [chartReady, selectedSeats]);
 
   useEffect(() => {
-    syncChartSelectionFromState();
+  syncChartSelectionFromState();
   }, [selectedSeats, syncChartSelectionFromState]);
 
   const handleBackToEvent = () => {
