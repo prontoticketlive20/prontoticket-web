@@ -390,12 +390,15 @@ if (!event) {
     <div className="min-h-screen bg-[#0A0A0A]">
    
     <Helmet>
-  {eventSchema && (
-    <script type="application/ld+json">
-      {JSON.stringify(eventSchema)}
-    </script>
-  )}
-</Helmet>
+      {eventSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(eventSchema),
+          }}
+        />
+      )}
+    </Helmet>
 
     <Header />
       <div className="mt-28 max-w-5xl mx-auto px-4 text-white/80">
@@ -406,18 +409,21 @@ if (!event) {
   );
 }
 
-  return (
-    <div className="min-h-screen bg-[#0A0A0A]">
+return (
+  <div className="min-h-screen bg-[#0A0A0A]">
 
-  <Helmet>
-  {eventSchema && (
-    <script type="application/ld+json">
-      {JSON.stringify(eventSchema)}
-    </script>
-  )}
-</Helmet>
+    <Helmet>
+      {eventSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(eventSchema),
+          }}
+        />
+      )}
+    </Helmet>
 
-      <Header />
+    <Header />
 
       <div className="relative h-[50vh] min-h-[400px] mt-20">
         <div
