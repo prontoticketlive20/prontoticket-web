@@ -4,11 +4,33 @@
   <!-- Home -->
   <url>
     <loc>https://www.prontoticketlive.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
 
-  <!-- Ejemplo evento -->
+  <!-- Eventos -->
   <url>
     <loc>https://www.prontoticketlive.com/evento/3-voces-3-historias--atlanta-b4337d4a-98b4-431e-80fe-01c56b8d6306</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prontoticketlive.com/evento/3-voces-3-historias---miami-b5f5d92c-e5ad-43a2-ba9c-cda01df8ed4b</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prontoticketlive.com/evento/3-voces-3-historias---orlando-1970dc13-5241-4a71-b061-ed15408e2336</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prontoticketlive.com/evento/como-en-los-2000---sarasota-5c876f0d-b050-466f-afd7-8994c5072bed</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
 
 </urlset>
