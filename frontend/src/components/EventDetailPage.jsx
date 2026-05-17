@@ -261,9 +261,21 @@ const eventSchema = event
   ? {
       "@context": "https://schema.org",
       "@type": "Event",
+
       name: event.title,
+      description: event?.description,
+
+      image: event?.imageUrl
+        ? [event.imageUrl]
+        : event?.image
+        ? [event.image]
+        : [],
 
       startDate: selectedFn?._raw?.date
+        ? new Date(selectedFn._raw.date).toISOString()
+        : undefined,
+
+      endDate: selectedFn?._raw?.date
         ? new Date(selectedFn._raw.date).toISOString()
         : undefined,
 
@@ -281,9 +293,11 @@ const eventSchema = event
         },
       },
 
-      image: event?.image ? [event.image] : [],
-
-      description: event?.description,
+      // 🔥 NUEVO (IMPORTANTE)
+      performer: {
+        "@type": "PerformingGroup",
+        name: event.title,
+      },
 
       offers: {
         "@type": "Offer",
@@ -291,7 +305,7 @@ const eventSchema = event
           typeof window !== "undefined"
             ? window.location.href
             : "",
-        price: event?.startingPrice || "0",
+        price: Number(event?.startingPrice || 0), // 🔥 número real
         priceCurrency: "USD",
         availability: "https://schema.org/InStock",
       },
