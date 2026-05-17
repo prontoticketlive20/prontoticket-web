@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://prontoticket-api-production.up.railway.app/api/events/sitemap",
+      "permanent": true
+    }
+  ]
+}
