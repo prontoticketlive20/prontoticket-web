@@ -8,6 +8,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import api from "../api/api";
+import { useCallback } from "react";
 
 const PLATFORMS = [
   { key: "bandsintown", label: "Bandsintown" },
@@ -24,7 +25,8 @@ export default function DistributionPanel({ eventId }) {
   const [result, setResult] = useState(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const loadStatus = async () => {
+  
+const loadStatus = useCallback(async () => {
   try {
     const res = await api.get(`/distribution/${eventId}`);
     console.log("🔥 DATA BACKEND:", res.data);
@@ -40,16 +42,9 @@ export default function DistributionPanel({ eventId }) {
 
   } catch (err) {
     console.error("❌ Error cargando distribución", err);
-    setStatusData([]); // 🔥 evita crash
+    setStatusData([]);
   }
-};
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (eventId) {
-      loadStatus();
-    }
-  }, [eventId]);
+}, [eventId]);
 
   const togglePlatform = (key) => {
     setSelected((prev) => ({
@@ -70,7 +65,16 @@ export default function DistributionPanel({ eventId }) {
         return;
       }
 
-      await api.post("/distribution", {
+    // 🔥 FACEBOOK HANDLER
+    if (platforms.includes("facebook")) {
+       const eventUrl = `${window.location.origin}/evento/${eventId}`;
+
+       const facebookUrl = `https://www.facebook.com/events/create/?ref_source=NEWSFEED`;
+
+       window.open(facebookUrl, "_blank");
+     }  
+
+    await api.post("/distribution", {
          eventId,
          platforms,
       });
@@ -111,14 +115,32 @@ export default function DistributionPanel({ eventId }) {
             >
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="checkbox"
-                  checked={!!selected[p.key]}
-                  onChange={() => togglePlatform(p.key)}
-                />
+                   type="checkbox"
+                   checked={p.key === "google" ? true : !!selected[p.key]}
+                   onChange={() => p.key !== "google" && togglePlatform(p.key)}
+                   disabled={p.key === "google"}
+                 />
                 <span className="text-white text-sm">{p.label}</span>
+
+                {p.key === "facebook" && (
+                  <span className="text-yellow-400 text-xs">
+                  Requiere creación manual en Facebook
+                  </span>
+                )}
+
               </label>
 
               <div className="mt-2 text-xs flex items-center gap-2">
+
+               {p.key === "google" && (
+              <>
+                 <CheckCircle size={14} className="text-green-400" />
+                 <span className="text-green-400">
+                 Distribuido automáticamente
+                </span>
+               </>
+              )}
+
                 {status?.status === "success" && (
                   <>
                     <CheckCircle size={14} className="text-green-400" />

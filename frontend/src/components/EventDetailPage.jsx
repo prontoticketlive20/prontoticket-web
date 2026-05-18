@@ -415,12 +415,43 @@ return (
   <div className="min-h-screen bg-[#0A0A0A]">
 
     <Helmet>
-      {eventSchema && (
-        <script type="application/ld+json">
-          {JSON.stringify(eventSchema)}
-        </script>
-      )}
-    </Helmet>
+  {/* 🔥 SCHEMA */}
+  {eventSchema && (
+    <script type="application/ld+json">
+      {JSON.stringify(eventSchema)}
+    </script>
+  )}
+
+  {/* 🔥 OPEN GRAPH */}
+  <title>{event.title} | ProntoTicketLive</title>
+
+  <meta property="og:type" content="event" />
+  <meta property="og:title" content={event.title} />
+  <meta
+    property="og:description"
+    content={event.description || "Compra tus entradas en ProntoTicketLive"}
+  />
+  <meta
+    property="og:image"
+    content={event.imageUrl || event.image}
+  />
+  <meta
+    property="og:url"
+    content={typeof window !== "undefined" ? window.location.href : ""}
+  />
+
+  {/* 🔥 WHATSAPP / GENERAL */}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={event.title} />
+  <meta
+    name="twitter:description"
+    content={event.description || "Compra tus entradas en ProntoTicketLive"}
+  />
+  <meta
+    name="twitter:image"
+    content={event.imageUrl || event.image}
+  />
+</Helmet>
 
     <Header />
 
