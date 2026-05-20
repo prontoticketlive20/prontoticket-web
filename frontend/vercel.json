@@ -2,6 +2,13 @@
   "routes": [
     {
       "src": "/evento/(.*)",
+      "has": [
+        {
+          "type": "query",
+          "key": "_seo",
+          "value": "1"
+        }
+      ],
       "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
     }
   ]

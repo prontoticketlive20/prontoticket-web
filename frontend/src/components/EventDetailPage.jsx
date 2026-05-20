@@ -436,9 +436,13 @@ return (
     content={event.imageUrl || event.image}
   />
   <meta
-    property="og:url"
-    content={typeof window !== "undefined" ? window.location.href : ""}
-  />
+  property="og:url"
+  content={
+    typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?_seo=1`
+      : ""
+  }
+/>
 
   {/* 🔥 WHATSAPP / GENERAL */}
   <meta name="twitter:card" content="summary_large_image" />
