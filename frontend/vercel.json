@@ -1,15 +1,15 @@
 {
-  "routes": [
+  "redirects": [
     {
-      "src": "/evento/(.*)",
-      "has": [
-        {
-          "type": "query",
-          "key": "_seo",
-          "value": "1"
-        }
-      ],
-      "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
+      "source": "/sitemap.xml",
+      "destination": "https://prontoticket-api-production.up.railway.app/api/events/sitemap",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/evento/:slug",
+      "destination": "https://prontoticket-api-production.up.railway.app/api/events/seo/:slug"
     }
   ]
 }
