@@ -137,6 +137,9 @@ const normalizeEventFunctions = (evt) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 🔥 DETECTAR SI VIENE DEL SEO
+  const isFromSEO = new URLSearchParams(location.search).get("from") === "seo";
+
   const [showTicketSelection, setShowTicketSelection] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
 
