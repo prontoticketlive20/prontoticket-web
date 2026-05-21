@@ -4,9 +4,8 @@
       "src": "/evento/(.*)",
       "has": [
         {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i)(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot)"
+          "type": "query",
+          "key": "_seo"
         }
       ],
       "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
