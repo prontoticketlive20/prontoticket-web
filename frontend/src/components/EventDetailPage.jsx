@@ -442,7 +442,7 @@ return (
   property="og:url"
   content={
     typeof window !== "undefined"
-      ? `${window.location.origin}${window.location.pathname}?_seo=1`
+      ? `https://prontoticket-api-production.up.railway.app/api/events/seo${window.location.pathname.replace('/evento', '')}`
       : ""
   }
 />
