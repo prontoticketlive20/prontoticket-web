@@ -314,20 +314,23 @@ const eventSchema = event
         url: "https://www.prontoticketlive.com",
       },
 
-      offers: {
+      offers:
+  event?.startingPrice && event.startingPrice > 0
+    ? {
         "@type": "Offer",
         url:
           typeof window !== "undefined"
             ? window.location.href
             : "",
-        price: Number(event?.startingPrice || 0),
+        price: Number(event.startingPrice),
         priceCurrency: "USD",
         availability: "https://schema.org/InStock",
         validFrom: new Date().toISOString(),
-      },
+      }
+    : undefined,
     }
   : null;
-
+  
   useEffect(() => {
     if (!event) return;
     if (!hasValidSaleType) {
