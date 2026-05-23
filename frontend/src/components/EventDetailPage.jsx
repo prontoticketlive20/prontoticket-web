@@ -257,6 +257,21 @@ const normalizeEventFunctions = (evt) => {
 // 🔥 GOOGLE EVENTS SEO (JSON-LD)
 // ===============================
 
+  // 🔥 FIX PRO: construir fecha válida para Google
+const buildEventDate = (date, time) => {
+  if (!date) return undefined;
+
+  try {
+    const parsedDate = new Date(`${date} ${time || "00:00"}`);
+
+    return isNaN(parsedDate.getTime())
+      ? undefined
+      : parsedDate.toISOString();
+  } catch {
+    return undefined;
+  }
+};
+
 // 🔥 definir antes
 const selectedFn = selectedFunction || event?.functions?.[0];
 
@@ -277,13 +292,8 @@ const eventSchema = event
         ? [event.image]
         : [],
 
-      startDate: selectedFn?._raw?.date
-        ? new Date(selectedFn._raw.date).toISOString()
-        : undefined,
-
-      endDate: selectedFn?._raw?.date
-        ? new Date(selectedFn._raw.date).toISOString()
-        : undefined,
+      startDate: buildEventDate(selectedFn?.date, event?.time),
+      endDate: buildEventDate(selectedFn?.date, event?.time),
 
       eventStatus: "https://schema.org/EventScheduled",
 
