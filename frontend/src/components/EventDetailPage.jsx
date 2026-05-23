@@ -266,7 +266,10 @@ const eventSchema = event
       "@type": "Event",
 
       name: event.title,
-      description: event?.description,
+
+      description:
+        event?.description ||
+        "Compra tus entradas en ProntoTicketLive",
 
       image: event?.imageUrl
         ? [event.imageUrl]
@@ -283,23 +286,32 @@ const eventSchema = event
         : undefined,
 
       eventStatus: "https://schema.org/EventScheduled",
+
       eventAttendanceMode:
         "https://schema.org/OfflineEventAttendanceMode",
 
       location: {
         "@type": "Place",
-        name: event?.venue,
+        name: event?.venue || "Evento",
         address: {
           "@type": "PostalAddress",
-          addressLocality: event?.city,
-          addressCountry: event?.country,
+          streetAddress: event?.location || "",
+          addressLocality: event?.city || "",
+          addressRegion: "FL",
+          postalCode: "34746",
+          addressCountry: "US",
         },
       },
 
-      // 🔥 NUEVO (IMPORTANTE)
       performer: {
         "@type": "PerformingGroup",
         name: event.title,
+      },
+
+      organizer: {
+        "@type": "Organization",
+        name: "ProntoTicketLive",
+        url: "https://www.prontoticketlive.com",
       },
 
       offers: {
@@ -308,15 +320,10 @@ const eventSchema = event
           typeof window !== "undefined"
             ? window.location.href
             : "",
-        price: Number(event?.startingPrice || 0), // 🔥 número real
+        price: Number(event?.startingPrice || 0),
         priceCurrency: "USD",
         availability: "https://schema.org/InStock",
-      },
-
-      organizer: {
-        "@type": "Organization",
-        name: "ProntoTicketLive",
-        url: "https://www.prontoticketlive.com",
+        validFrom: new Date().toISOString(),
       },
     }
   : null;
