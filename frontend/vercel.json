@@ -13,7 +13,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i)(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Googlebot|bingbot)"
+          "value": "(?i)(bot|crawler|spider|facebook|whatsapp|twitter|linkedin|google)"
         }
       ],
       "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
