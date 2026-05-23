@@ -355,6 +355,27 @@ const eventSchema = event
     setContextFunction(safeFunction);
   };
 
+  // 🔥 GENERAR LINK SEO PARA COMPARTIR
+const getSeoShareUrl = () => {
+  if (typeof window === "undefined") return "";
+
+  const slug = window.location.pathname.split("/evento/")[1];
+
+  return `https://prontoticket-api-production.up.railway.app/api/events/seo/${slug}`;
+};
+
+// 🔥 ACCIÓN DE COMPARTIR
+const handleShare = async () => {
+  const url = getSeoShareUrl();
+
+  try {
+    await navigator.clipboard.writeText(url);
+    alert("Link de evento copiado para compartir 🚀");
+  } catch (err) {
+    console.error("Error copiando link:", err);
+  }
+}; 
+
   const handleSelectTickets = async () => {
 
   
@@ -546,6 +567,14 @@ return (
                       ? 'Seleccionar asientos'
                       : 'Seleccionar entradas'}
                   </button>
+
+                  <button
+  onClick={handleShare}
+  className="w-full sm:w-auto px-6 py-3 bg-[#1E1E1E] text-white text-sm font-semibold rounded-full border border-white/20 hover:bg-white/10 transition-all duration-300"
+                  >
+                    Compartir evento
+                  </button>
+
                 </div>
 
                 {!hasValidSaleType && (
