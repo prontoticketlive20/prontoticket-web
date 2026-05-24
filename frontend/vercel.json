@@ -1,6 +1,18 @@
 {
   "redirects": [
     {
+      "source": "/evento/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i)(googlebot|google-inspectiontool|bingbot|facebookexternalhit|twitterbot|linkedinbot)"
+        }
+      ],
+      "destination": "https://prontoticket-api-production.up.railway.app/api/events/seo/:slug",
+      "permanent": false
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "https://prontoticket-api-production.up.railway.app/api/events/sitemap",
       "permanent": true
