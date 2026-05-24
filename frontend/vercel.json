@@ -5,18 +5,5 @@
       "destination": "https://prontoticket-api-production.up.railway.app/api/events/sitemap",
       "permanent": true
     }
-  ],
-  "routes": [
-    {
-      "src": "^/evento/(.*)",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i)(bot|crawler|spider|facebook|whatsapp|twitter|linkedin|google)"
-        }
-      ],
-      "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
-    }
   ]
 }
