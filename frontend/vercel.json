@@ -1,22 +1,19 @@
 {
-  "redirects": [
+  "routes": [
     {
-      "source": "/evento/:slug*",
+      "src": "/evento/(.*)",
       "has": [
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i)(googlebot|google-inspectiontool|bingbot|facebookexternalhit|twitterbot|linkedinbot)"
+          "value": "(?i)(googlebot|google-inspectiontool|bingbot)"
         }
       ],
-      "destination": "https://prontoticket-api-production.up.railway.app/api/events/seo/:slug",
-      "permanent": false
-    }
-  ],
-  "rewrites": [
+      "dest": "https://prontoticket-api-production.up.railway.app/api/events/seo/$1"
+    },
     {
-      "source": "/sitemap.xml",
-      "destination": "https://prontoticket-api-production.up.railway.app/api/events/sitemap"
+      "src": "/sitemap.xml",
+      "dest": "https://prontoticket-api-production.up.railway.app/api/events/sitemap"
     }
   ]
 }
