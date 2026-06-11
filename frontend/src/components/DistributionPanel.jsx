@@ -1,14 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Globe,
   Send,
   CheckCircle,
-  XCircle,
   Loader2,
-  ExternalLink,
+  Copy,
 } from "lucide-react";
 import api from "../api/api";
-import { useCallback } from "react";
+
+import {
+  Toast,
+  ToastProvider,
+  ToastViewport,
+  ToastTitle,
+  ToastDescription,
+} from "./ui/toast";
 
 const PLATFORMS = [
   { key: "bandsintown", label: "Bandsintown" },
@@ -24,27 +30,128 @@ export default function DistributionPanel({ eventId }) {
   const [statusData, setStatusData] = useState([]);
   const [result, setResult] = useState(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  
-const loadStatus = useCallback(async () => {
-  try {
-    const res = await api.get(`/distribution/${eventId}`);
-    console.log("🔥 DATA BACKEND:", res.data);
+  const [event, setEvent] = useState(null);
+  const [fn, setFn] = useState(null);
 
-    const safeData = Array.isArray(res.data)
-      ? res.data
-      : res.data?.data || [];
+  const [savedVenues, setSavedVenues] = useState([]);
+  const [savedArtists, setSavedArtists] = useState([]);
 
-    console.log("✅ DATA PROCESADA:", safeData);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastTitle, setToastTitle] = useState("");
+  const [toastDesc, setToastDesc] = useState("");
 
-    setStatusData(safeData);
-    setStatusData([...safeData]);
+  const showToast = (title, description = "") => {
+    setToastTitle(title);
+    setToastDesc(description);
+    setToastOpen(true);
+    setTimeout(() => setToastOpen(false), 2500);
+  };
 
-  } catch (err) {
-    console.error("❌ Error cargando distribución", err);
-    setStatusData([]);
-  }
-}, [eventId]);
+  // 🔥 LOAD EVENT + FUNCTION
+  useEffect(() => {
+    if (!eventId) return;
+
+    const loadData = async () => {
+      try {
+        const eventRes = await api.get(`/events/${eventId}`);
+        const evt = eventRes.data?.data || eventRes.data;
+        setEvent(evt);
+
+        const fnRes = await api.get(`/event-functions/event/${eventId}`);
+        const functions = fnRes.data?.data || [];
+
+        if (functions.length > 0) {
+          setFn(functions[0]);
+        }
+      } catch (err) {
+        console.error("Error cargando datos", err);
+      }
+    };
+
+    loadData();
+  }, [eventId]);
+
+  // 🔥 LOAD STATUS
+  const loadStatus = useCallback(async () => {
+    try {
+      const res = await api.get(`/distribution/${eventId}`);
+      const safeData = Array.isArray(res.data)
+        ? res.data
+        : res.data?.data || [];
+      setStatusData([...safeData]);
+    } catch {
+      setStatusData([]);
+    }
+  }, [eventId]);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
+
+  // 🔥 DATA BASE
+  const name = event?.title || "";
+  const venue = fn?.venueName || "";
+  const city = fn?.city || "";
+  const date = fn?.date ? new Date(fn.date).toLocaleString() : "";
+
+  // 🔥 URL
+  const eventUrl = event?.slug
+    ? `${window.location.origin}/evento/${event.slug}-${eventId}`
+    : `${window.location.origin}/evento/${eventId}`;
+
+  // 🔥 AUTOGUARDAR VENUE
+  useEffect(() => {
+    if (!venue) return;
+
+    try {
+      const saved = JSON.parse(localStorage.getItem("ptl_venues") || "[]");
+
+      const exists = saved.find(
+        (v) => v.venue === venue && v.city === city
+      );
+
+      if (!exists) {
+        const updated = [...saved, { venue, city }];
+        localStorage.setItem("ptl_venues", JSON.stringify(updated));
+      }
+    } catch {}
+  }, [venue, city]);
+
+  // 🔥 AUTOGUARDAR ARTISTA
+  useEffect(() => {
+    if (!name) return;
+
+    try {
+      const saved = JSON.parse(localStorage.getItem("ptl_artists") || "[]");
+
+      const exists = saved.find((a) => a.name === name);
+
+      if (!exists) {
+        const updated = [...saved, { name }];
+        localStorage.setItem("ptl_artists", JSON.stringify(updated));
+      }
+    } catch {}
+  }, [name]);
+
+  // 🔥 LOAD VENUES
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("ptl_venues") || "[]");
+      setSavedVenues(saved);
+    } catch {
+      setSavedVenues([]);
+    }
+  }, []);
+
+  // 🔥 LOAD ARTISTS
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("ptl_artists") || "[]");
+      setSavedArtists(saved);
+    } catch {
+      setSavedArtists([]);
+    }
+  }, []);
 
   const togglePlatform = (key) => {
     setSelected((prev) => ({
@@ -52,6 +159,25 @@ const loadStatus = useCallback(async () => {
       [key]: !prev[key],
     }));
   };
+
+  const copy = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      showToast("Copiado", label);
+    } catch {
+      showToast("Error", "No se pudo copiar");
+    }
+  };
+
+  const fullText = `
+${name}
+
+📍 ${venue} - ${city}
+📅 ${date}
+
+🎟 Tickets:
+${eventUrl}
+`;
 
   const handleDistribute = async () => {
     try {
@@ -61,156 +187,186 @@ const loadStatus = useCallback(async () => {
       const platforms = Object.keys(selected).filter((k) => selected[k]);
 
       if (platforms.length === 0) {
-        alert("Selecciona al menos una plataforma");
+        showToast("Error", "Selecciona al menos una plataforma");
         return;
       }
 
-    // 🔥 FACEBOOK HANDLER
-    if (platforms.includes("facebook")) {
-       const eventUrl = `${window.location.origin}/evento/${eventId}`;
+      if (platforms.includes("facebook")) {
+        await navigator.clipboard.writeText(fullText);
+        window.open(
+          "https://www.facebook.com/events/create/?ref_source=NEWSFEED",
+          "_blank"
+        );
+        showToast("Facebook", "Pega los datos");
+      }
 
-       const facebookUrl = `https://www.facebook.com/events/create/?ref_source=NEWSFEED`;
+      if (platforms.includes("bandsintown")) {
+        window.open("https://artists.bandsintown.com", "_blank");
+        showToast("Bandsintown", "Usa copiar campos");
+      }
 
-       window.open(facebookUrl, "_blank");
-     }  
+      if (platforms.includes("email")) {
+        await api.post("/mail/send-event-campaign", {
+          eventId,
+          segment: "all",
+        });
+        showToast("Email", "Campaña enviada");
+      }
 
-    await api.post("/distribution", {
-         eventId,
-         platforms,
+      await api.post("/distribution", {
+        eventId,
+        platforms,
       });
 
       await loadStatus();
-
       setResult("success");
-    } catch (error) {
-      console.error(error);
+    } catch {
       setResult("error");
+      showToast("Error", "Distribución fallida");
     } finally {
       setLoading(false);
     }
   };
 
   const getStatus = (platform) => {
-  if (!Array.isArray(statusData)) return null;
-  return statusData.find((s) => s.platform === platform);
-};
+    return statusData.find((s) => s.platform === platform);
+  };
 
   return (
-    <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
-      <div className="flex items-center gap-2 mb-4">
-        <Globe className="text-blue-400" />
-        <h2 className="text-white font-semibold">
-          Distribución del Evento 🌎
-        </h2>
-      </div>
+    <ToastProvider>
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {PLATFORMS.map((p) => {
-          const status = getStatus(p.key);
+        <h2 className="text-white mb-4">🌍 Distribución del Evento</h2>
 
-          return (
-            <div
-              key={p.key}
-              className="flex flex-col border border-zinc-700 rounded-xl p-3"
-            >
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                   type="checkbox"
-                   checked={p.key === "google" ? true : !!selected[p.key]}
-                   onChange={() => p.key !== "google" && togglePlatform(p.key)}
-                   disabled={p.key === "google"}
-                 />
-                <span className="text-white text-sm">{p.label}</span>
+        {/* 🔥 ARTISTAS */}
+        {savedArtists.length > 0 && (
+          <div className="bg-zinc-800 p-4 rounded-xl mb-6">
+            <h3 className="text-white mb-2">🎤 Artistas recientes</h3>
 
-                {p.key === "facebook" && (
-                  <span className="text-yellow-400 text-xs">
-                  Requiere creación manual en Facebook
-                  </span>
-                )}
-
-              </label>
-
-              <div className="mt-2 text-xs flex items-center gap-2">
-
-               {p.key === "google" && (
-              <>
-                 <CheckCircle size={14} className="text-green-400" />
-                 <span className="text-green-400">
-                 Distribuido automáticamente
-                </span>
-               </>
-              )}
-
-                {status?.status === "success" && (
-                  <>
-                    <CheckCircle size={14} className="text-green-400" />
-                    <span className="text-green-400">Publicado</span>
-                  </>
-                )}
-
-                {status?.status === "error" && (
-                  <>
-                    <XCircle size={14} className="text-red-400" />
-                    <span className="text-red-400">Error</span>
-                  </>
-                )}
-
-                {status?.status === "pending" && (
-                  <>
-                    <Loader2
-                      size={14}
-                      className="animate-spin text-yellow-400"
-                    />
-                    <span className="text-yellow-400">Procesando</span>
-                  </>
-                )}
-
-                {status?.externalUrl && (
-                  <a
-                    href={status.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-blue-400 hover:underline"
-                  >
-                    Ver <ExternalLink size={12} />
-                  </a>
-                )}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {savedArtists.map((a, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => copy(a.name, "Artista")}
+                  className="bg-purple-700 hover:bg-purple-600 text-xs px-3 py-1 rounded-full text-white"
+                >
+                  {a.name}
+                </button>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {/* 🔥 VENUES */}
+        {savedVenues.length > 0 && (
+          <div className="bg-zinc-800 p-4 rounded-xl mb-6">
+            <h3 className="text-white mb-2">⚡ Lugares usados</h3>
+
+            <div className="flex flex-wrap gap-2">
+              {savedVenues.map((v, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() =>
+                    copy(`${v.venue} - ${v.city}`, "Venue")
+                  }
+                  className="bg-zinc-700 text-xs px-3 py-1 rounded-full text-white"
+                >
+                  {v.venue} ({v.city})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* COPY PANEL */}
+        <div className="bg-zinc-800 p-4 rounded-xl mb-6">
+          <CopyField label="Nombre" value={name} onCopy={copy} />
+          <CopyField label="Venue" value={venue} onCopy={copy} />
+          <CopyField label="Ciudad" value={city} onCopy={copy} />
+          <CopyField label="Fecha" value={date} onCopy={copy} />
+          <CopyField label="Link" value={eventUrl} onCopy={copy} />
+        </div>
+
+        {/* PLATAFORMAS */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {PLATFORMS.map((p) => {
+            const status = getStatus(p.key);
+
+            return (
+              <div key={p.key} className="border p-3 rounded-xl">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={p.key === "google" ? true : !!selected[p.key]}
+                    onChange={() =>
+                      p.key !== "google" && togglePlatform(p.key)
+                    }
+                    disabled={p.key === "google"}
+                  />
+
+                  <span className="text-white">{p.label}</span>
+
+                  {p.key === "google" && (
+                    <span className="text-green-400 text-xs">
+                      (Automático)
+                    </span>
+                  )}
+
+                  {p.key === "facebook" && (
+                    <span className="text-green-400 text-xs">
+                      (Manual)
+                    </span>
+                  )}
+                </label>
+
+                <div className="mt-2">
+                  {status?.status === "success" && (
+                    <CheckCircle className="text-green-400" size={16} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDistribute}
+          className="w-full bg-blue-600 text-white py-3 rounded-xl"
+        >
+          {loading ? "Distribuyendo..." : "Distribuir evento"}
+        </button>
+
+        {result === "success" && (
+          <div className="text-green-400 mt-4">
+            Distribución completada
+          </div>
+        )}
       </div>
 
+      <Toast open={toastOpen}>
+        <ToastTitle>{toastTitle}</ToastTitle>
+        <ToastDescription>{toastDesc}</ToastDescription>
+      </Toast>
+      <ToastViewport />
+    </ToastProvider>
+  );
+}
+
+function CopyField({ label, value, onCopy }) {
+  return (
+    <div className="flex justify-between bg-zinc-900 p-2 rounded-lg">
+      <span className="text-xs text-gray-300">
+        {label}: {value || "-"}
+      </span>
       <button
-        onClick={handleDistribute}
-        disabled={loading}
-        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
+        type="button"
+        onClick={() => onCopy(value, label)}
       >
-        {loading ? (
-          <>
-            <Loader2 className="animate-spin" size={18} />
-            Distribuyendo...
-          </>
-        ) : (
-          <>
-            <Send size={18} />
-            Distribuir evento
-          </>
-        )}
+        <Copy size={14} className="text-blue-400" />
       </button>
-
-      {/* 🔥 MENSAJES */}
-      {result === "success" && (
-        <div className="mt-4 text-green-400">
-          Evento distribuido correctamente
-        </div>
-      )}
-
-      {result === "error" && (
-        <div className="mt-4 text-red-400">
-          Error al distribuir el evento
-        </div>
-      )}
     </div>
   );
 }

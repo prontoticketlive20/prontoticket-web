@@ -730,7 +730,10 @@ export default function EditEventPage() {
   </p>
 
   {/* 🔥 AQUÍ SÍ FUNCIONA */}
-  <DistributionPanel eventId={id} />
+  <DistributionPanel
+  eventId={id}
+  eventData={form}
+/>
 </div>
 
       <div className="flex items-center justify-end gap-3">

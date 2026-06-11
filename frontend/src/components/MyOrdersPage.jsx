@@ -119,7 +119,7 @@ const MyOrdersPage = () => {
     upcoming: orders.filter(isUpcomingPaid),
     history: orders.filter(isHistory),
     invalid: orders.filter(isCancelledOrRefunded),
-    all: orders,
+    all: orders.filter(order => String(order?.status || "").toUpperCase() !== "PENDING"),
   };
 }, [orders]);
 

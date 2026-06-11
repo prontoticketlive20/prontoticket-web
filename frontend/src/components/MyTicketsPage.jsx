@@ -571,71 +571,107 @@ const MyTicketsPage = () => {
   };
 
   const handleDownloadTickets = async () => {
-    if (!orderData || isGeneratingPDF || !orderData.tickets?.length) return;
+  // 🔥 FIX 3 — VALIDACIÓN DE SEGURIDAD
+  const orderStatus = String(orderData?.status || "").toUpperCase();
 
-    setIsGeneratingPDF(true);
-
-    try {
-      const combinedDoc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      for (let i = 0; i < orderData.tickets.length; i++) {
-        const ticket = orderData.tickets[i];
-        if (i > 0) combinedDoc.addPage();
-        await generateTicketPDF(ticket, i, orderData.tickets.length, combinedDoc);
-      }
-
-      combinedDoc.save(`ProntoTicketLive_Tickets_${orderData.id}.pdf`);
-    } catch (error) {
-      console.error("[MyTicketsPage] Error generating PDF:", error);
-      alert("No pude generar el PDF. Intenta nuevamente.");
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-white/70">
-          <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
-            <Loader2 size={24} className="animate-spin" />
-          </div>
-          <span className="text-sm sm:text-base">Cargando tickets...</span>
-        </div>
-      </div>
-    );
+  if (orderStatus !== "PAID") {
+    alert("Esta orden no es válida para descarga de tickets.");
+    return;
   }
+
+  if (!orderData || isGeneratingPDF || !orderData.tickets?.length) return;
+
+  setIsGeneratingPDF(true);
+
+  try {
+    const combinedDoc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    for (let i = 0; i < orderData.tickets.length; i++) {
+      const ticket = orderData.tickets[i];
+      if (i > 0) combinedDoc.addPage();
+      await generateTicketPDF(ticket, i, orderData.tickets.length, combinedDoc);
+    }
+
+    combinedDoc.save(`ProntoTicketLive_Tickets_${orderData.id}.pdf`);
+  } catch (error) {
+    console.error("[MyTicketsPage] Error generating PDF:", error);
+    alert("No pude generar el PDF. Intenta nuevamente.");
+  } finally {
+    setIsGeneratingPDF(false);
+  }
+};
+
+if (loading) {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-white/70">
+        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin" />
+        </div>
+        <span className="text-sm sm:text-base">Cargando tickets...</span>
+      </div>
+    </div>
+  );
+}
 
   if (!orderData) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A] text-white">
-        <Header />
-        <div className="pt-28 pb-20 px-4">
-          <div className="max-w-xl mx-auto bg-[#121212] border border-white/10 rounded-[32px] p-6 sm:p-8 text-center shadow-2xl shadow-black/30">
-            <div className="mx-auto mb-5 w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <img src={icono2026} alt="ProntoTicketLive" className="w-20 h-20 object-contain" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-3">No pudimos encontrar esta orden</h1>
-            <p className="text-white/60 text-sm sm:text-base mb-6">
-              Verifica el enlace o vuelve a intentar desde tu correo de confirmación.
-            </p>
-            <button
-              onClick={() => navigate("/")}
-              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold"
-              type="button"
-            >
-              Volver al inicio
-            </button>
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white">
+      <Header />
+      <div className="pt-28 pb-20 px-4">
+        <div className="max-w-xl mx-auto bg-[#121212] border border-white/10 rounded-[32px] p-6 sm:p-8 text-center shadow-2xl shadow-black/30">
+          <div className="mx-auto mb-5 w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <img src={icono2026} alt="ProntoTicketLive" className="w-20 h-20 object-contain" />
           </div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-3">No pudimos encontrar esta orden</h1>
+          <p className="text-white/60 text-sm sm:text-base mb-6">
+            Verifica el enlace o vuelve a intentar desde tu correo de confirmación.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold"
+            type="button"
+          >
+            Volver al inicio
+          </button>
         </div>
-        <Footer />
       </div>
-    );
-  }
+      <Footer />
+    </div>
+  );
+}
+
+// 🔥 FIX 2 — BLOQUEO TOTAL DE PENDING
+const orderStatus = String(orderData?.status || "").toUpperCase();
+
+if (orderStatus === "PENDING") {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center">
+      <div className="bg-[#121212] border border-white/10 rounded-[32px] p-8 text-center max-w-md shadow-2xl shadow-black/30">
+        <div className="mx-auto mb-5 w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+          <img src={icono2026} alt="ProntoTicketLive" className="w-10 h-10 object-contain" />
+        </div>
+
+        <h2 className="text-2xl font-bold mb-3">Compra no completada</h2>
+
+        <p className="text-white/60 mb-6 text-sm">
+          Esta orden no fue completada. Los tickets no son válidos y no pueden utilizarse para ingresar al evento.
+        </p>
+
+        <button
+          onClick={() => navigate("/my-orders")}
+          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold"
+        >
+          Volver a Mis Compras
+        </button>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
