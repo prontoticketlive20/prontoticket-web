@@ -14,7 +14,7 @@ export default function SupportChatWidget() {
 
       const timer = setTimeout(() => {
         setShowTyping(false);
-      }, 1500);
+      }, 3000);
 
       return () => clearTimeout(timer);
     }
@@ -67,10 +67,7 @@ ${eventTitle}`;
 
     const encoded = encodeURIComponent(message);
 
-    window.open(
-      `https://wa.me/14073604497?text=${encoded}`,
-      "_blank"
-    );
+    window.location.href = `https://wa.me/14073604497?text=${encoded}`;
   };
 
   const options = [
@@ -190,9 +187,9 @@ Puedes contactarnos directamente por WhatsApp usando el botón inferior.`,
                       <div className="flex items-center gap-2 text-white/60">
                         <span className="text-xs">Ticky está escribiendo</span>
                         <div className="flex gap-1">
-                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce"></span>
-                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse"></span>
+                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse"></span>
+                          <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse"></span>
                         </div>
                       </div>
                     ) : (
