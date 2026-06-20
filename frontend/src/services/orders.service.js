@@ -2,7 +2,15 @@ import api from "../api/api";
 
 // Crear orden guest (checkout)
 export async function createGuestOrder(payload) {
-  const res = await api.post("/orders/guest", payload);
+  // 🔥 Agregar platform automáticamente
+  const enrichedPayload = {
+    ...payload,
+    platform: localStorage.getItem("ptl_platform") || "direct",
+  };
+
+  console.log("🚀 Enviando orden con platform:", enrichedPayload);
+
+  const res = await api.post("/orders/guest", enrichedPayload);
   return res.data; // { success, data: { orderId, order, tickets } }
 }
 

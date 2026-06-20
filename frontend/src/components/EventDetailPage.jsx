@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -113,8 +113,9 @@ const normalizeEventFunctions = (evt) => {
     functions,
   };
 };
-
+  
   const EventDetailPage = () => {
+  const hasTrackedClick = useRef(false);
   const { id } = useParams();
 
   // 🔥 EXTRAER ID REAL
@@ -149,111 +150,137 @@ const normalizeEventFunctions = (evt) => {
   const { selectEvent, selectFunction: setContextFunction } = usePurchase();
 
     // ===============================
-  // 🔥 CAPTURAR CAMPAIGN ID DESDE EMAIL
-  // ===============================
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const campaignId = params.get('campaignId');
+// 🔥 CAPTURAR CAMPAIGN ID DESDE EMAIL
+// ===============================
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const campaignId = params.get('campaignId');
 
-    if (!campaignId || !id) return;
+  if (!campaignId || !id) return;
 
-    localStorage.setItem('ptl_campaign_id', campaignId);
-    localStorage.setItem('ptl_campaign_event_id', id);
+  localStorage.setItem('ptl_campaign_id', campaignId);
+  localStorage.setItem('ptl_campaign_event_id', id);
 
-    console.log('📩 Campaign tracking capturado:', {
-      campaignId,
-      eventId: id,
-    });
-  }, [location.search, id]);
+  console.log('📩 Campaign tracking capturado:', {
+    campaignId,
+    eventId: id,
+  });
+}, [location.search, id]);
 
-  useEffect(() => {
-         if (!event?.id) return;
+// ===============================
+// 🔥 CAPTURAR PLATFORM (facebook, google, etc)
+// ===============================
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const platform = params.get('platform');
 
-         api.post('/orders/analytics/view', {
-           eventId: event.id,
-           functionId: selectedFunction?.id || '',
-         });
-    }, [event?.id, selectedFunction?.id]);
+  if (platform) {
+    localStorage.setItem('ptl_platform', platform);
 
-  useEffect(() => {
+    console.log('🌍 Platform tracking capturado:', platform);
+  } else {
+    // 🔥 fallback si no viene de campaña
+    if (!localStorage.getItem('ptl_platform')) {
+      localStorage.setItem('ptl_platform', 'direct');
+    }
+  }
+}, [location.search]);
 
-    let mounted = true;
+const hasTrackedView = useRef(false);
 
-    const load = async () => {
-      try {
-        console.log('🧪 EVENT ID QUE SE ENVÍA:', eventId);
-        const rawEvent = await fetchEventById(eventId);
-        const normalized = normalizeEventFunctions(rawEvent);
+useEffect(() => {
+  if (!event?.id || hasTrackedView.current) return;
 
-        console.log("🧪 rawEvent:", rawEvent);
-        console.log("🧪 normalized:", normalized);
-        console.log("🧪 functions raw:", rawEvent?.functions);
-        console.log("🧪 functions normalized:", normalized?.functions);
+  if (!selectedFunction?.id) return;
 
-        console.log('EVENT NORMALIZED:', normalized);
+  api.post('/orders/analytics/view', {
+    eventId: event.id,
+    functionId: selectedFunction.id,
+  });
 
-        if (!mounted) return;
+  hasTrackedView.current = true;
 
-        setEvent(normalized);
-        selectEvent(normalized);
-        loadEventPixels(normalized);
-        trackViewContent(normalized);
-        setPolicies(DEFAULT_POLICIES);
-  
-        localStorage.setItem(
-          "ptl_support_event_context",
-           JSON.stringify({
-           eventId: normalized?.id || "",
-           title: normalized?.title || "",
-           url: window.location.href,
-          })
-        );
-            
-        if (normalized?.functions?.length === 1) {
-          const singleFunc = normalizeFunction(normalized.functions[0]);
-          setSelectedFunction(singleFunc);
-          setContextFunction(singleFunc);
-        } else {
-          setSelectedFunction(null);
-          setContextFunction(null);
-        }
-      } catch (e) {
-  console.error('❌ ERROR COMPLETO:', e);
-  console.log('❌ RESPONSE:', e?.response);
-  console.log('❌ DATA:', e?.response?.data);
-        if (!mounted) return;
+}, [event?.id, selectedFunction?.id]);
 
-        const fallback = FALLBACK_EVENT(eventId);
-        setEvent(fallback);
-        selectEvent(fallback);
-        setPolicies(DEFAULT_POLICIES);
+useEffect(() => {
+
+  let mounted = true;
+
+  const load = async () => {
+    try {
+      console.log('🧪 EVENT ID QUE SE ENVÍA:', eventId);
+      const rawEvent = await fetchEventById(eventId);
+      const normalized = normalizeEventFunctions(rawEvent);
+
+      console.log("🧪 rawEvent:", rawEvent);
+      console.log("🧪 normalized:", normalized);
+      console.log("🧪 functions raw:", rawEvent?.functions);
+      console.log("🧪 functions normalized:", normalized?.functions);
+
+      console.log('EVENT NORMALIZED:', normalized);
+
+      if (!mounted) return;
+
+      setEvent(normalized);
+      selectEvent(normalized);
+      loadEventPixels(normalized);
+      trackViewContent(normalized);
+      setPolicies(DEFAULT_POLICIES);
+
+      localStorage.setItem(
+        "ptl_support_event_context",
+        JSON.stringify({
+          eventId: normalized?.id || "",
+          title: normalized?.title || "",
+          url: window.location.href,
+        })
+      );
+
+      if (normalized?.functions?.length === 1) {
+        const singleFunc = normalizeFunction(normalized.functions[0]);
+        setSelectedFunction(singleFunc);
+        setContextFunction(singleFunc);
+      } else {
+        setSelectedFunction(null);
+        setContextFunction(null);
       }
-    };
+    } catch (e) {
+      console.error('❌ ERROR COMPLETO:', e);
+      console.log('❌ RESPONSE:', e?.response);
+      console.log('❌ DATA:', e?.response?.data);
+      if (!mounted) return;
 
-    if (eventId) load();
+      const fallback = FALLBACK_EVENT(eventId);
+      setEvent(fallback);
+      selectEvent(fallback);
+      setPolicies(DEFAULT_POLICIES);
+    }
+  };
 
-    return () => {
-      mounted = false;
-    };
-  }, [eventId, selectEvent, setContextFunction]);
+  if (eventId) load();
 
-  const normalizedSelectedFunction = useMemo(() => {
-    if (!selectedFunction) return null;
-    return normalizeFunction(selectedFunction);
-  }, [selectedFunction]);
+  return () => {
+    mounted = false;
+  };
+}, [eventId, selectEvent, setContextFunction]);
 
-  const saleType = event?.saleType;
-  const hasValidSaleType = event ? VALID_SALE_TYPES.includes(saleType) : true;
-  const isSeatedEvent = saleType === 'seated';
-  const isGeneralEvent = saleType === 'general';
-  const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
-  const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
-  const canProceed =
-    !!event && hasValidSaleType && (hasSingleFunction || normalizedSelectedFunction !== null);
+const normalizedSelectedFunction = useMemo(() => {
+  if (!selectedFunction) return null;
+  return normalizeFunction(selectedFunction);
+}, [selectedFunction]);
 
-  const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
+const saleType = event?.saleType;
+const hasValidSaleType = event ? VALID_SALE_TYPES.includes(saleType) : true;
+const isSeatedEvent = saleType === 'seated';
+const isGeneralEvent = saleType === 'general';
+const hasMultipleFunctions = !!(event?.functions && event.functions.length > 1);
+const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
+const canProceed =
+  !!event && hasValidSaleType && (hasSingleFunction || normalizedSelectedFunction !== null);
 
- // ===============================
+const youtubeEmbedUrl = getYoutubeEmbedUrl(event?.youtubeUrl);
+
+// ===============================
 // 🔥 GOOGLE EVENTS SEO (JSON-LD)
 // ===============================
 
@@ -380,28 +407,35 @@ const eventSchema = event
   
    // 🔥 REDIRECCIÓN PRIMERO (FIX iPHONE)
 if (event.useExternalTicket && event.externalTicketUrl) {
-  window.location.href = event.externalTicketUrl;
 
-  // 🔥 ANALYTICS EN BACKGROUND (NO BLOQUEA)
-  setTimeout(() => {
-    try {
-      console.log('CLICK ANALYTICS →', {
-        eventId: event?.id,
-        functionId: selectedFunction?.id
-      });
+  try {
+  console.log('CLICK ANALYTICS →', {
+    eventId: event?.id,
+    functionId: selectedFunction?.id
+  });
 
-      api.post('/orders/analytics/click', {
+  // 🔥 ANTI-DUPLICADO
+  if (!hasTrackedClick.current && selectedFunction?.id) {
+
+    navigator.sendBeacon(
+      '/api/orders/analytics/click',
+      JSON.stringify({
         eventId: event.id,
-        functionId: selectedFunction?.id || null,
-      });
-    } catch (err) {
-      console.error('Analytics click error', err);
-    }
-  }, 0);
+        functionId: selectedFunction.id,
+      })
+    );
+
+    hasTrackedClick.current = true;
+  }
+
+} catch (err) {
+  console.error('Analytics click error', err);
+}
+
+  window.location.href = event.externalTicketUrl;
 
   return;
 }
-
 if (!event) return;
 
 if (!hasValidSaleType) {
@@ -413,6 +447,19 @@ if (!canProceed) return;
 
 if (normalizedSelectedFunction) {
   setContextFunction(normalizedSelectedFunction);
+}
+
+// 🔥 TRACK CLICK INTERNO
+if (selectedFunction?.id) {
+  if (!hasTrackedClick.current && selectedFunction?.id) {
+
+  api.post('/orders/analytics/click', {
+    eventId: event.id,
+    functionId: selectedFunction.id,
+  });
+
+  hasTrackedClick.current = true;
+}
 }
 
 if (isSeatedEvent) {

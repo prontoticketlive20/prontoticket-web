@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import PlatformPerformance from "../components/PlatformPerformance";
 
 export default function AnalyticsPage() {
   const reportRef = useRef(null);
@@ -26,10 +27,18 @@ export default function AnalyticsPage() {
   const [eventId, setEventId] = useState("");
   const [showAllEvents, setShowAllEvents] = useState(false);
 
+  const [platformStats, setPlatformStats] = useState([]);
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+  if (eventId) {
+    loadPlatformStats();
+  }
+}, [eventId]);
 
   const money = (value) =>
     new Intl.NumberFormat("en-US", {
@@ -97,6 +106,24 @@ export default function AnalyticsPage() {
       console.error("ERROR ANALYTICS:", error);
     }
   };
+
+     const loadPlatformStats = async () => {
+  try {
+    if (!eventId) {
+      setPlatformStats([]);
+      return;
+    }
+
+    const res = await api.get(`/orders/analytics/platform/${eventId}`);
+
+    console.log("📊 Platform stats:", res.data);
+
+    setPlatformStats(res.data.data || []);
+  } catch (error) {
+    console.error("❌ Error loading platform stats:", error);
+    setPlatformStats([]);
+  }
+};
 
   if (!data) {
     return (
@@ -550,6 +577,10 @@ export default function AnalyticsPage() {
           </Insight>
         )}
       </div>
+
+      {eventId && (
+  <PlatformPerformance data={platformStats} />
+)}
    
       {/* PDF REPORT OCULTO */}
 <div
@@ -623,47 +654,193 @@ export default function AnalyticsPage() {
       background: "#111111",
       border: "1px solid #27272a",
       borderRadius: 18,
-      padding: 18,
-      marginBottom: 24,
+      padding: 22,
+      marginBottom: 28,
     }}
   >
-    <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>
-      Top Eventos por Revenue
+    <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 20 }}>
+  Top Eventos por Revenue
+</div>
+
+{(byEvent || []).slice(0, 8).map((item, index) => {
+  const percentRevenue = (Number(item.revenue || 0) / maxRevenue) * 100;
+
+  return (
+    <div key={item.eventId} style={{ marginBottom: 16 }}>
+
+      {/* 🔥 HEADER CORREGIDO */}
+<div
+  style={{
+    marginBottom: 8,
+    width: "100%",
+  }}
+>
+
+  <div
+    style={{
+      fontSize: 12,
+      display: "flex",
+      justifyContent: "space-between",
+      width: "100%",
+      alignItems: "flex-start",
+      gap: 10,
+    }}
+  >
+
+    <div style={{ flex: 1 }}>
+      <strong>#{index + 1}</strong> — {item.eventName}
     </div>
 
-    {(byEvent || []).slice(0, 8).map((item, index) => {
-      const percentRevenue = (Number(item.revenue || 0) / maxRevenue) * 100;
+    <div
+      style={{
+        fontWeight: 700,
+        color: "#f59e0b",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {money(item.revenue)}
+    </div>
 
-      return (
-        <div key={item.eventId} style={{ marginBottom: 13 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
-            <div style={{ maxWidth: 470, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              <strong>#{index + 1}</strong> — {item.eventName}
-            </div>
-            <strong style={{ color: "#f59e0b" }}>{money(item.revenue)}</strong>
-          </div>
-
-          <div style={{ height: 7, background: "#27272a", borderRadius: 20 }}>
-            <div
-              style={{
-                width: `${percentRevenue}%`,
-                height: "100%",
-                borderRadius: 20,
-                background: "linear-gradient(90deg, #00ffcc, #007aff)",
-              }}
-            />
-          </div>
-        </div>
-      );
-    })}
   </div>
+
+</div>
+
+      {/* 🔥 BARRA (NO TOCAR) */}
+      <div style={{ height: 6, marginTop: 8, background: "#27272a", borderRadius: 20 }}>
+        <div
+          style={{
+            width: `${percentRevenue}%`,
+            height: "100%",
+            borderRadius: 20,
+            background: "linear-gradient(90deg, #00ffcc, #007aff)",
+          }}
+        />
+      </div>
+
+    </div>
+  );
+})}
+  </div>
+
+  <div
+  style={{
+    background: "#111111",
+    border: "1px solid #27272a",
+    borderRadius: 18,
+    padding: 22,
+    marginBottom: 28,
+  }}
+>
+ 
+<div
+  style={{
+    height: 1,
+    background: "#1f2937",
+    margin: "20px 0 16px 0",
+  }}
+/>
+
+  <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>
+    Distribución por Plataforma (Origen de ventas)
+  </div>
+
+  {(platformStats || []).map((p, index) => {
+    const totalRevenue = platformStats.reduce(
+      (acc, item) => acc + Number(item.revenue || 0),
+      0
+    );
+
+    const percent =
+      totalRevenue > 0
+        ? Math.round((Number(p.revenue || 0) / totalRevenue) * 100)
+        : 0;
+
+    return (
+      <div key={index} style={{ marginBottom: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 12,
+            marginBottom: 5,
+          }}
+        >
+          <span style={{ textTransform: "capitalize" }}>
+            {p.platform || "web"}
+          </span>
+
+          <strong style={{ color: "#f59e0b" }}>
+            ${Number(p.revenue || 0).toLocaleString()} (
+            {totalRevenue > 0
+            ? Math.round((Number(p.revenue || 0) / totalRevenue) * 100)
+            : 0}
+             %)
+           </strong>
+        </div>
+
+        <div
+          style={{
+            height: 6,
+            background: "#27272a",
+            borderRadius: 20,
+          }}
+        >
+          <div
+            style={{
+              width: `${percent}%`,
+              height: "100%",
+              borderRadius: 20,
+              background: "linear-gradient(90deg, #00ffcc, #007aff)",
+            }}
+          />
+        </div>
+      </div>
+    );
+  })}
+
+{platformStats.length > 0 && (() => {
+  const totalRevenue = platformStats.reduce(
+    (acc, item) => acc + Number(item.revenue || 0),
+    0
+  );
+
+  const topPlatform = platformStats.reduce((prev, current) =>
+    Number(current.revenue || 0) > Number(prev.revenue || 0)
+      ? current
+      : prev
+  );
+
+  const percent =
+    totalRevenue > 0
+      ? Math.round((Number(topPlatform.revenue || 0) / totalRevenue) * 100)
+      : 0;
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        fontSize: 12,
+        color: "#9ca3af",
+      }}
+    >
+      🔥 La plataforma más efectiva es{" "}
+      <strong style={{ color: "#ffffff" }}>
+        {topPlatform.platform || "web"}
+      </strong>{" "}
+      con el {percent}% del revenue
+    </div>
+  );
+})()}
+
+</div>
 
   <div
     style={{
       background: "#111111",
       border: "1px solid #27272a",
       borderRadius: 18,
-      padding: 18,
+      padding: 22,
+      marginBottom: 28,
     }}
   >
     <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>
@@ -689,9 +866,309 @@ export default function AnalyticsPage() {
     )}
   </div>
 
-  <div style={{ marginTop: 22, fontSize: 10, color: "#6b7280", textAlign: "center" }}>
-    © 2026 ProntoTicketLive — Reporte generado automáticamente desde el panel de Analytics.
+  <div
+  style={{
+    marginTop: 20,
+    paddingTop: 10,
+    borderTop: "1px solid #1f2937",
+    textAlign: "center",
+    fontSize: 11,
+    color: "#9ca3af",
+    pageBreakInside: "avoid",
+  }}
+>
+  © 2026 ProntoTicketLive - Inteligencia aplicada a la venta de eventos
+</div>
+
+  {/* =============================== */}
+{/* 🔥 PAGE 2 */}
+{/* =============================== */}
+
+<div style={{ pageBreakBefore: "always" }} />
+
+<div style={{ height: 30 }} />
+
+{/* HEADER PAGE 2 */}
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+  <img
+    src={logoPronto}
+    alt="ProntoTicketLive"
+    style={{ width: 150 }}
+  />
+
+  <div style={{ textAlign: "right" }}>
+    <div style={{ fontSize: 18, fontWeight: 700 }}>
+      Analytics Report
+    </div>
+    <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+      {new Date().toLocaleDateString()}
+    </div>
   </div>
+</div>
+
+{/* TITULO */}
+<div style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>
+  Performance Inteligente
+</div>
+
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+  <img
+    src={logoPronto}
+    alt="ProntoTicketLive"
+    style={{ width: 150 }}
+  />
+
+  <div style={{ textAlign: "right" }}>
+    <div style={{ fontSize: 18, fontWeight: 700 }}>
+      Analytics Report
+    </div>
+    <div style={{ fontSize: 11, color: "#999" }}>
+      Página 2
+    </div>
+  </div>
+</div>  
+
+  {/* FUNNEL */}
+  <div
+  style={{
+    height: 1,
+    background: "#1f2937",
+    margin: "20px 0 16px 0",
+  }}
+/> 
+  <div style={{ background: "#111111", padding: 18, borderRadius: 18, marginBottom: 24 }}>
+    <div style={{ fontWeight: 800, marginBottom: 12 }}>Conversion Funnel (Comportamiento del usuario)</div>
+
+    {[
+      { label: "Views", value: summary.views },
+      { label: "Clicks", value: summary.clicks },
+      { label: "Purchases", value: summary.purchases },
+    ].map((f, i) => {
+      const max = Math.max(summary.views || 1, 1);
+      const percent = (f.value / max) * 100;
+
+      return (
+        <div key={i} style={{ marginBottom: 12 }}>
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 6,
+  }}
+>
+  <div>{f.label}</div>
+
+  <div
+    style={{
+      fontWeight: 700,
+      whiteSpace: "nowrap",
+    }}
+  >
+    {f.value}
+  </div>
+</div>
+          <div style={{ height: 6, background: "#222", borderRadius: 20 }}>
+            <div
+              style={{
+                width: `${percent}%`,
+                height: "100%",
+                background: "#00ffcc",
+              }}
+            />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {/* SCORE */}
+  <div
+  style={{
+    height: 1,
+    background: "#1f2937",
+    margin: "20px 0 16px 0",
+  }}
+/>
+  <div style={{ background: "#111111", padding: 18, borderRadius: 18 }}>
+  <div style={{ fontWeight: 800 }}>Event Score (Salud del evento)</div>
+
+  {(() => {
+    let score = 0;
+
+    if (summary.views > 50) score += 30;
+    if (summary.clicks > 10) score += 30;
+    if (summary.purchases > 5) score += 40;
+
+    return (
+      <>
+  
+
+     <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  }}
+>
+  <div
+    style={{
+      fontSize: 32,
+      fontWeight: 900,
+      color:
+        score > 70
+          ? "#22c55e"
+          : score > 40
+          ? "#f59e0b"
+          : "#ef4444",
+    }}
+  >
+    {score}/100 ({score}%)
+  </div>
+
+  <div
+    style={{
+      fontSize: 11,
+      fontWeight: 700,
+      padding: "4px 8px",
+      borderRadius: 999,
+      background:
+        score > 70
+          ? "#22c55e22"
+          : score > 40
+          ? "#f59e0b22"
+          : "#ef444422",
+      color:
+        score > 70
+          ? "#22c55e"
+          : score > 40
+          ? "#f59e0b"
+          : "#ef4444",
+    }}
+  >
+    {score > 70
+      ? "HIGH"
+      : score > 40
+      ? "MEDIUM"
+      : "LOW"}
+  </div>
+</div>
+
+{/* 🔥 TERMÓMETRO */}
+<div
+  style={{
+    marginTop: 10,
+    height: 8,
+    background: "#1f2937",
+    borderRadius: 20,
+    overflow: "hidden",
+  }}
+>
+  <div
+    style={{
+      width: `${score}%`,
+      height: "100%",
+      borderRadius: 20,
+      background:
+        score > 70
+          ? "linear-gradient(90deg, #22c55e, #16a34a)"
+          : score > 40
+          ? "linear-gradient(90deg, #f59e0b, #d97706)"
+          : "linear-gradient(90deg, #ef4444, #dc2626)",
+    }}
+  />
+</div>
+
+<div style={{ fontSize: 12, color: "#999" }}>
+  {score > 70
+    ? "🔥 Excelente"
+    : score > 40
+    ? "⚠ Performance media"
+    : "🚨 Bajo rendimiento"}
+</div>
+
+<div
+  style={{
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: 600,
+    color:
+      score > 70
+      ? "#22c55e"
+      : score > 40
+      ? "#f59e0b"
+      : "#ef4444",
+  }}
+>
+  {score > 70
+    ? "🔥 High Performance"
+    : score > 40
+    ? "⚠ Medium Performance"
+    : "🚨 Low Performance"}
+</div>
+
+{/* 🔥 NUEVO BLOQUE IA */}
+<div
+  style={{
+    background: "#0f172a",
+    border: "1px solid #1e293b",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 14,
+  }}
+>
+  <div
+    style={{
+      fontSize: 12,
+      fontWeight: 700,
+      marginBottom: 6,
+      color: "#38bdf8",
+    }}
+  >
+    📊 Recomendación Inteligente
+  </div>
+
+          <div style={{ fontSize: 11, color: "#9ca3af", lineHeight: "16px" }}>
+            {(() => {
+              if (!platformStats || platformStats.length === 0) {
+                return "No hay suficientes datos para generar recomendaciones.";
+              }
+
+              const totalRevenue = platformStats.reduce(
+                (acc, item) => acc + Number(item.revenue || 0),
+                0
+              );
+
+              const topPlatform = platformStats.reduce((prev, current) =>
+                Number(current.revenue || 0) > Number(prev.revenue || 0)
+                  ? current
+                  : prev
+              );
+
+              const percent =
+                totalRevenue > 0
+                  ? Math.round((Number(topPlatform.revenue || 0) / totalRevenue) * 100)
+                  : 0;
+
+              if (percent > 70) {
+                return `Tu canal principal es ${topPlatform.platform}. Escala inversión en este canal para maximizar ventas.`;
+              }
+
+              if (percent > 40) {
+                return `Buen rendimiento en ${topPlatform.platform}, pero puedes optimizar otros canales para diversificar ventas.`;
+              }
+
+              return "Ventas distribuidas. Optimiza campañas para mejorar conversión.";
+            })()}
+          </div>
+        </div>
+
+      </>
+    );
+  })()}
+</div>
+
 </div>
 
    </div>
@@ -743,21 +1220,44 @@ function MiniMetric({ title, value, description }) {
 
 function FunnelRow({ label, value, width, color, last }) {
   return (
-    <div className={last ? "" : "mb-4"}>
-      <div className="flex justify-between text-sm mb-2">
-        <span>{label}</span>
-        <span>{value}</span>
+    <div style={{ marginBottom: last ? 0 : 14 }}>
+
+      {/* HEADER */}
+      <div style={{ marginBottom: 8 }}>
+
+        <div
+          style={{
+            fontSize: 12,
+            lineHeight: "16px",
+          }}
+        >
+          {label}
+        </div>
+
+        <div
+          style={{
+            fontSize: 12,
+            textAlign: "right",
+            marginTop: 2,
+          }}
+        >
+          {value}
+        </div>
+
       </div>
 
-      <div className="h-2 bg-[#2a2a2a] rounded-full overflow-hidden">
+      {/* BARRA */}
+      <div style={{ height: 6, background: "#2a2a2a", borderRadius: 20 }}>
         <div
           style={{
             width: `${Math.min(Number(width || 0), 100)}%`,
+            height: "100%",
+            borderRadius: 20,
             background: color,
           }}
-          className="h-full rounded-full"
         />
       </div>
+
     </div>
   );
 }
@@ -778,6 +1278,7 @@ function PdfKpi({ title, value, color }) {
         border: "1px solid #27272a",
         borderRadius: 14,
         padding: 14,
+        marginBottom: 24,
       }}
     >
       <div style={{ fontSize: 11, color: "#9ca3af" }}>
