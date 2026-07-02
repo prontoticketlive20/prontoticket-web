@@ -21,6 +21,7 @@ import { usePurchase } from '../context/PurchaseContext';
 import { loadEventPixels, trackViewContent } from "../utils/eventPixels";
 import api from '../api/api';  //analytics
 import { Helmet } from "react-helmet";
+import VenezuelaSupportBanner from "../components/VenezuelaSupportBanner";
 
 const VALID_SALE_TYPES = ['seated', 'general'];
 
@@ -551,6 +552,10 @@ return (
 
             <div className="p-8 md:p-12">
               <div className="space-y-6 mb-8 pb-8 border-b border-white/10">
+
+              {/* 🔥 BANNER APOYO VENEZUELA */}
+              <VenezuelaSupportBanner />      
+
                 <h1
                   className="text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight"
                   style={{ fontFamily: "'Outfit', sans-serif" }}

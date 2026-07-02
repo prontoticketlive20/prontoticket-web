@@ -869,6 +869,7 @@ if (!event || (!hasSelections && !storedConfirmation)) {
                       Pago
                     </h2>
                     <p className="text-white/50 text-xs">Procesado de forma segura con Stripe</p>
+                    
                   </div>
                 </div>
 
@@ -887,6 +888,13 @@ if (!event || (!hasSelections && !storedConfirmation)) {
                     </div>
                   </div>
                 )}
+
+                {/* 🔥 MENSAJE EMOCIONAL CHECKOUT */}
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-white/60">
+                    ❤️ Parte del fee de este boleto será destinado a ayuda directa para Venezuela.
+                  </p>
+                </div>
 
                 <button
                   onClick={handlePayNow}

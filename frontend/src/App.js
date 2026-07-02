@@ -56,6 +56,7 @@ import AccountPage from "./pages/AccountPage";
 import faviconIcon from "./assets/icono_2026.png";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import MyOrdersPage from "./components/MyOrdersPage";
+import VenezuelaSupportModal from "./components/VenezuelaSupportModal";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -142,6 +143,9 @@ function App() {
           <FaviconManager />
           <ScrollToTop />
 
+          {/* 🔥 MODAL GLOBAL */}
+          <VenezuelaSupportModal />
+
           <Routes>
             <Route element={<LayoutWithHeader />}>
               <Route path="/" element={<HomeContent />} />
@@ -153,9 +157,7 @@ function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/admin/campaigns/create" element={<CampaignsPage />} />
-              <Route path="/admin/campaigns" element={<CampaignDashboard />} />
-              
-              <Route
+              <Route path="/admin/campaigns" element={<CampaignDashboard />} />                       <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>

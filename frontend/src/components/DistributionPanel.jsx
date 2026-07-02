@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   CheckCircle,
   Loader2,
-  Copy,
   Zap,
   BarChart3,
   Globe,
@@ -23,9 +22,35 @@ export default function DistributionPanel({ eventId }) {
   const [platformStats, setPlatformStats] = useState([]);
   const [statusData, setStatusData] = useState([]);
   const [result, setResult] = useState(null);
+  const [fbUrl, setFbUrl] = useState(null);
+  const [fbText, setFbText] = useState(""); // 🔥 NUEVO
 
   const [event, setEvent] = useState(null);
   const [fn, setFn] = useState(null);
+
+  // ===============================
+  // 🔥 GENERADOR DE TEXTO FACEBOOK
+  // ===============================
+  const generateFacebookText = () => {
+  if (!event) return "";
+
+  const eventUrl = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
+
+  return `🎟️ ${event.title}
+
+📍 ${event.location || ""}
+📅 ${
+  fn?.date
+    ? new Date(fn.date).toLocaleString()
+    : ""
+}
+
+✨ Vive una experiencia única
+
+🎫 Compra tus tickets aquí:
+${eventUrl}
+`;
+};
 
   // ===============================
   // LOAD EVENT
@@ -47,6 +72,20 @@ export default function DistributionPanel({ eventId }) {
     };
 
     loadData();
+  }, [eventId]);
+
+  // ===============================
+  // 🔥 RESTAURAR FB URL
+  // ===============================
+  useEffect(() => {
+    if (!eventId) return;
+
+    const savedFb = localStorage.getItem(`ptl_fb_share_${eventId}`);
+
+    if (savedFb) {
+      console.log("🔁 FB URL RESTAURADA:", savedFb);
+      setFbUrl(savedFb);
+    }
   }, [eventId]);
 
   // ===============================
@@ -77,7 +116,7 @@ export default function DistributionPanel({ eventId }) {
   }, [eventId]);
 
   // ===============================
-  // AUTO MODE → ACTIVA TODO
+  // AUTO MODE
   // ===============================
   useEffect(() => {
     if (autoMode) {
@@ -87,9 +126,6 @@ export default function DistributionPanel({ eventId }) {
     }
   }, [autoMode]);
 
-  // ===============================
-  // HELPERS
-  // ===============================
   const togglePlatform = (key) => {
     setSelected((prev) => ({
       ...prev,
@@ -102,24 +138,66 @@ export default function DistributionPanel({ eventId }) {
   };
 
   // ===============================
-  // DISTRIBUTE
+  // 🔥 DISTRIBUTE (FIX REAL)
   // ===============================
   const handleDistribute = async () => {
     try {
       setLoading(true);
 
+      setFbUrl(null);
+      setFbText(""); // 🔥 limpiar texto
+      localStorage.removeItem(`ptl_fb_share_${eventId}`);
+
       const platforms = autoMode
         ? PLATFORMS.map((p) => p.key)
         : Object.keys(selected).filter((k) => selected[k]);
 
-      await api.post("/distribution", {
+      console.log("PLATFORMS A ENVIAR:", platforms);
+
+      const res = await api.post("/distribution", {
         eventId,
         platforms,
       });
 
+      const results = res.data?.results || [];
+
+      console.log("RESULTS DISTRIBUTION:", results);
+
+      const fb = results.find((r) => r.platform === "facebook");
+
+      if (fb?.externalUrl) {
+        setFbUrl(fb.externalUrl);
+
+        localStorage.setItem(
+          `ptl_fb_share_${eventId}`,
+          fb.externalUrl
+        );
+
+        // 🔥 SOLO GUARDAMOS TEXTO (NO COPIAMOS)
+        const text = generateFacebookText();
+        setFbText(text);
+
+        console.log("📋 TEXTO LISTO:", text);
+      } else if (platforms.includes("facebook")) {
+        const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+          window.location.href
+        )}`;
+
+        setFbUrl(fallbackUrl);
+
+        localStorage.setItem(
+          `ptl_fb_share_${eventId}`,
+          fallbackUrl
+        );
+
+        const text = generateFacebookText();
+        setFbText(text);
+      }
+
       await loadStatus();
       setResult("success");
-    } catch {
+    } catch (error) {
+      console.error("ERROR DISTRIBUTION:", error);
       setResult("error");
     } finally {
       setLoading(false);
@@ -131,8 +209,6 @@ export default function DistributionPanel({ eventId }) {
   // ===============================
   return (
     <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-white/10">
-
-      {/* HEADER */}
       <div className="mb-6">
         <h2 className="text-white text-lg font-semibold flex items-center gap-2">
           🌍 Distribución Inteligente
@@ -142,7 +218,6 @@ export default function DistributionPanel({ eventId }) {
         </p>
       </div>
 
-      {/* AUTO MODE */}
       <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
         <div>
           <div className="text-white flex gap-2 text-sm items-center">
@@ -161,7 +236,6 @@ export default function DistributionPanel({ eventId }) {
         />
       </div>
 
-      {/* PLATAFORMAS */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         {PLATFORMS.map((p) => {
           const active = selected[p.key];
@@ -197,26 +271,29 @@ export default function DistributionPanel({ eventId }) {
         })}
       </div>
 
-      {/* ANALYTICS */}
       {platformStats.length > 0 && (
         <div className="mb-6 bg-gradient-to-r from-[#111] to-[#1a1a1a] border border-white/10 rounded-xl p-4">
           <h3 className="text-white text-sm flex items-center gap-2 mb-3">
             <BarChart3 size={16} /> Impacto por plataforma
           </h3>
 
-          {platformStats.map((p, i) => (
-            <div key={i} className="flex justify-between text-sm text-white/70 py-1">
-              <span className="capitalize">{p.platform}</span>
-              <span className="font-bold text-white">
-                {p._count._all} ventas
-              </span>
-            </div>
-          ))}
+          {platformStats.map((p, i) => {
+            const sales = p?._count?._all || p?.sales || 0;
+
+            return (
+              <div key={i} className="flex justify-between text-sm text-white/70 py-1">
+                <span className="capitalize">{p.platform}</span>
+                <span className="font-bold text-white">
+                  {sales} ventas
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* BOTÓN */}
       <button
+        type="button"
         onClick={handleDistribute}
         className="w-full bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
       >
@@ -232,6 +309,49 @@ export default function DistributionPanel({ eventId }) {
           </>
         )}
       </button>
+
+      {fbUrl && (
+        <>
+          <button
+            type="button"
+            onClick={() => window.open(fbUrl, "_blank")}
+            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition"
+          >
+            Publicar en Facebook
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = fbText;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const success = document.execCommand("copy");
+
+    document.body.removeChild(textarea);
+
+    if (success) {
+      console.log("📋 TEXTO COPIADO (fallback OK)");
+    } else {
+      console.warn("⚠️ No se pudo copiar");
+    }
+  } catch (err) {
+    console.error("❌ Error copiando:", err);
+  }
+}}
+            className="mt-2 w-full bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg font-semibold transition"
+          >
+            Copiar texto para Facebook
+          </button>
+        </>
+      )}
 
       {result === "success" && (
         <div className="text-green-400 text-sm mt-4 text-center">
