@@ -2,7 +2,7 @@
   "routes": [
     {
       "src": "/api/evento-share/(.*)",
-      "dest": "https://prontoticket-api-production.up.railway.app/evento-share/$1"
+      "dest": "https://prontoticket-api-production.up.railway.app/api/evento-share/$1"
     },
     {
       "src": "/evento/(.*)",
