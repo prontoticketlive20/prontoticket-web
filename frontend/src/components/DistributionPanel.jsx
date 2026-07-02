@@ -28,6 +28,9 @@ export default function DistributionPanel({ eventId }) {
   const [event, setEvent] = useState(null);
   const [fn, setFn] = useState(null);
 
+  const [fbPublished, setFbPublished] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   // ===============================
   // 🔥 GENERADOR DE TEXTO FACEBOOK
   // ===============================
@@ -144,6 +147,8 @@ ${eventUrl}
     try {
       setLoading(true);
 
+      setFbPublished(false);
+      setCopied(false);
       setFbUrl(null);
       setFbText(""); // 🔥 limpiar texto
       localStorage.removeItem(`ptl_fb_share_${eventId}`);
@@ -242,32 +247,83 @@ ${eventUrl}
           const status = getStatus(p.key);
 
           return (
-            <div
-              key={p.key}
-              className={`p-3 rounded-xl border transition ${
-                active
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-white/10 bg-white/5"
-              }`}
-              onClick={() => !autoMode && togglePlatform(p.key)}
-            >
-              <div className="flex justify-between items-center">
-                <span className="text-white text-sm">{p.label}</span>
+  <div
+    key={p.key}
+    className={`p-3 rounded-xl border transition ${
+      active
+        ? "border-blue-500 bg-blue-500/10"
+        : "border-white/10 bg-white/5"
+    }`}
+    onClick={() => !autoMode && togglePlatform(p.key)}
+  >
+    <div className="flex justify-between items-center">
+      <span className="text-white text-sm">{p.label}</span>
 
-                {status?.status === "success" && (
-                  <CheckCircle size={16} className="text-green-400" />
-                )}
-              </div>
+      {status?.status === "success" && (
+        <CheckCircle size={16} className="text-green-400" />
+      )}
+    </div>
 
-              <div className="text-xs mt-1 text-white/40">
-                {autoMode
-                  ? "Automático"
-                  : active
-                  ? "Seleccionado"
-                  : "No activo"}
-              </div>
-            </div>
-          );
+    <div className="text-xs mt-1 text-white/40">
+      {autoMode
+        ? "Automático"
+        : active
+        ? "Seleccionado"
+        : "No activo"}
+    </div>
+
+    {/* 🔥 ACCIONES SOLO FACEBOOK */}
+    {p.key === "facebook" && fbUrl && (
+      <div
+        className="mt-3 flex flex-col gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+  window.open(fbUrl, "_blank");
+  setFbPublished(true);
+}}
+          className={`w-full py-2 rounded-lg text-sm font-semibold transition ${
+  fbPublished
+    ? "bg-green-600"
+    : "bg-blue-600 hover:bg-blue-700"
+}`}
+        >
+          {fbPublished ? "Publicado ✅" : "Publicar"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              const textarea = document.createElement("textarea");
+              textarea.value = fbText;
+              textarea.style.position = "fixed";
+              textarea.style.opacity = "0";
+
+              document.body.appendChild(textarea);
+              textarea.focus();
+              textarea.select();
+
+              document.execCommand("copy");
+
+              document.body.removeChild(textarea);
+
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            } catch (err) {
+              console.error("❌ Error copiando:", err);
+            }
+          }}
+          className="w-full bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg text-sm font-semibold transition"
+        >
+          {copied ? "Copiado ✔" : "Copiar texto"}
+        </button>
+      </div>
+    )}
+  </div>
+);
         })}
       </div>
 
@@ -309,49 +365,6 @@ ${eventUrl}
           </>
         )}
       </button>
-
-      {fbUrl && (
-        <>
-          <button
-            type="button"
-            onClick={() => window.open(fbUrl, "_blank")}
-            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition"
-          >
-            Publicar en Facebook
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = fbText;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    const success = document.execCommand("copy");
-
-    document.body.removeChild(textarea);
-
-    if (success) {
-      console.log("📋 TEXTO COPIADO (fallback OK)");
-    } else {
-      console.warn("⚠️ No se pudo copiar");
-    }
-  } catch (err) {
-    console.error("❌ Error copiando:", err);
-  }
-}}
-            className="mt-2 w-full bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg font-semibold transition"
-          >
-            Copiar texto para Facebook
-          </button>
-        </>
-      )}
 
       {result === "success" && (
         <div className="text-green-400 text-sm mt-4 text-center">

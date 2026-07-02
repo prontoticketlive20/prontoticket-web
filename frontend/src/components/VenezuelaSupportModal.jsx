@@ -69,7 +69,7 @@ export default function VenezuelaSupportModal() {
 
         {/* 🔥 MENSAJE */}
         <p className="text-white/70 text-sm leading-relaxed mb-6">
-          Por cada boleto que adquirido fuera de Venezuela, destinaremos un porcentaje del fee a la ayuda directa para quienes más lo necesitan.
+          Por cada boleto vendido para eventos fuera de Venezuela, destinaremos un porcentaje del fee a la ayuda directa para quienes más lo necesitan.
         </p>
 
         {/* 🔥 BOTÓN */}
