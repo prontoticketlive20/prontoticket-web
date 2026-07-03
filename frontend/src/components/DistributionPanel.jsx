@@ -22,38 +22,34 @@ export default function DistributionPanel({ eventId }) {
   const [platformStats, setPlatformStats] = useState([]);
   const [statusData, setStatusData] = useState([]);
   const [result, setResult] = useState(null);
-  const [fbUrl, setFbUrl] = useState(null);
-  const [fbText, setFbText] = useState(""); // 🔥 NUEVO
 
   const [event, setEvent] = useState(null);
   const [fn, setFn] = useState(null);
 
+  const [fbReady, setFbReady] = useState(false);
   const [fbPublished, setFbPublished] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // ===============================
-  // 🔥 GENERADOR DE TEXTO FACEBOOK
+  // 🔥 GENERADOR TEXTO PRO
   // ===============================
   const generateFacebookText = () => {
-  if (!event) return "";
+    if (!event) return "";
 
-  const eventUrl = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
+    const eventUrl = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
 
-  return `🎟️ ${event.title}
+    return `🎟️ ${event.title}
 
 📍 ${event.location || ""}
 📅 ${
-  fn?.date
-    ? new Date(fn.date).toLocaleString()
-    : ""
-}
+      fn?.date ? new Date(fn.date).toLocaleString() : ""
+    }
 
 ✨ Vive una experiencia única
 
 🎫 Compra tus tickets aquí:
 ${eventUrl}
 `;
-};
+  };
 
   // ===============================
   // LOAD EVENT
@@ -75,20 +71,6 @@ ${eventUrl}
     };
 
     loadData();
-  }, [eventId]);
-
-  // ===============================
-  // 🔥 RESTAURAR FB URL
-  // ===============================
-  useEffect(() => {
-    if (!eventId) return;
-
-    const savedFb = localStorage.getItem(`ptl_fb_share_${eventId}`);
-
-    if (savedFb) {
-      console.log("🔁 FB URL RESTAURADA:", savedFb);
-      setFbUrl(savedFb);
-    }
   }, [eventId]);
 
   // ===============================
@@ -141,23 +123,45 @@ ${eventUrl}
   };
 
   // ===============================
-  // 🔥 DISTRIBUTE (FIX REAL)
+  // 🔥 BOTÓN PRO FACEBOOK
+  // ===============================
+  const handleFacebookSharePro = () => {
+    try {
+      const text = generateFacebookText();
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      console.log("📋 TEXTO COPIADO");
+
+      window.open("https://www.facebook.com/sharer/sharer.php", "_blank");
+
+      setFbPublished(true);
+    } catch (err) {
+      console.error("ERROR SHARE PRO:", err);
+    }
+  };
+
+  // ===============================
+  // DISTRIBUTE
   // ===============================
   const handleDistribute = async () => {
     try {
       setLoading(true);
 
+      setFbReady(false);
       setFbPublished(false);
-      setCopied(false);
-      setFbUrl(null);
-      setFbText(""); // 🔥 limpiar texto
-      localStorage.removeItem(`ptl_fb_share_${eventId}`);
 
       const platforms = autoMode
         ? PLATFORMS.map((p) => p.key)
         : Object.keys(selected).filter((k) => selected[k]);
-
-      console.log("PLATFORMS A ENVIAR:", platforms);
 
       const res = await api.post("/distribution", {
         eventId,
@@ -166,43 +170,16 @@ ${eventUrl}
 
       const results = res.data?.results || [];
 
-      console.log("RESULTS DISTRIBUTION:", results);
-
       const fb = results.find((r) => r.platform === "facebook");
 
-      if (fb?.externalUrl) {
-        setFbUrl(fb.externalUrl);
-
-        localStorage.setItem(
-          `ptl_fb_share_${eventId}`,
-          fb.externalUrl
-        );
-
-        // 🔥 SOLO GUARDAMOS TEXTO (NO COPIAMOS)
-        const text = generateFacebookText();
-        setFbText(text);
-
-        console.log("📋 TEXTO LISTO:", text);
-      } else if (platforms.includes("facebook")) {
-        const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-          window.location.href
-        )}`;
-
-        setFbUrl(fallbackUrl);
-
-        localStorage.setItem(
-          `ptl_fb_share_${eventId}`,
-          fallbackUrl
-        );
-
-        const text = generateFacebookText();
-        setFbText(text);
+      if (fb || platforms.includes("facebook")) {
+        setFbReady(true);
       }
 
       await loadStatus();
       setResult("success");
     } catch (error) {
-      console.error("ERROR DISTRIBUTION:", error);
+      console.error(error);
       setResult("error");
     } finally {
       setLoading(false);
@@ -247,83 +224,62 @@ ${eventUrl}
           const status = getStatus(p.key);
 
           return (
-  <div
-    key={p.key}
-    className={`p-3 rounded-xl border transition ${
-      active
-        ? "border-blue-500 bg-blue-500/10"
-        : "border-white/10 bg-white/5"
-    }`}
-    onClick={() => !autoMode && togglePlatform(p.key)}
-  >
-    <div className="flex justify-between items-center">
-      <span className="text-white text-sm">{p.label}</span>
+            <div
+              key={p.key}
+              className={`p-3 rounded-xl border transition ${
+                active
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-white/10 bg-white/5"
+              }`}
+              onClick={() => !autoMode && togglePlatform(p.key)}
+            >
+              <div className="flex justify-between items-center">
+                <span className="text-white text-sm">{p.label}</span>
 
-      {status?.status === "success" && (
-        <CheckCircle size={16} className="text-green-400" />
-      )}
-    </div>
+                {status?.status === "success" && (
+                  <CheckCircle size={16} className="text-green-400" />
+                )}
+              </div>
 
-    <div className="text-xs mt-1 text-white/40">
-      {autoMode
-        ? "Automático"
-        : active
-        ? "Seleccionado"
-        : "No activo"}
-    </div>
+              <div className="text-xs mt-1 text-white/40">
+                {autoMode
+                  ? "Automático"
+                  : active
+                  ? "Seleccionado"
+                  : "No activo"}
+              </div>
 
-    {/* 🔥 ACCIONES SOLO FACEBOOK */}
-    {p.key === "facebook" && fbUrl && (
-      <div
-        className="mt-3 flex flex-col gap-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={() => {
-  window.open(fbUrl, "_blank");
-  setFbPublished(true);
-}}
-          className={`w-full py-2 rounded-lg text-sm font-semibold transition ${
-  fbPublished
-    ? "bg-green-600"
-    : "bg-blue-600 hover:bg-blue-700"
-}`}
-        >
-          {fbPublished ? "Publicado ✅" : "Publicar"}
-        </button>
+              {/* 🔥 FACEBOOK PRO UI */}
+              {p.key === "facebook" && fbReady && (
+                <div
+                  className="mt-3 flex flex-col gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-xs text-blue-400 text-center">
+                    Texto listo para publicar ✔
+                  </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            try {
-              const textarea = document.createElement("textarea");
-              textarea.value = fbText;
-              textarea.style.position = "fixed";
-              textarea.style.opacity = "0";
+                  <button
+                    type="button"
+                    onClick={handleFacebookSharePro}
+                    className={`w-full py-2 rounded-lg text-sm font-semibold transition ${
+                      fbPublished
+                        ? "bg-green-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {fbPublished
+                      ? "Publicado (listo para pegar) ✔"
+                      : "Publicar en Facebook"}
+                  </button>
 
-              document.body.appendChild(textarea);
-              textarea.focus();
-              textarea.select();
-
-              document.execCommand("copy");
-
-              document.body.removeChild(textarea);
-
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch (err) {
-              console.error("❌ Error copiando:", err);
-            }
-          }}
-          className="w-full bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg text-sm font-semibold transition"
-        >
-          {copied ? "Copiado ✔" : "Copiar texto"}
-        </button>
-      </div>
-    )}
-  </div>
-);
+                  <div className="text-[10px] text-white/40 text-center">
+                    Se copiará el texto automáticamente
+                  </div>
+                </div>
+              )}
+            </div>
+          );
         })}
       </div>
 
