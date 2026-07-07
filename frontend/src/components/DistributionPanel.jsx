@@ -11,8 +11,11 @@ import api from "../api/api";
 const PLATFORMS = [
   { key: "google", label: "Google" },
   { key: "facebook", label: "Facebook" },
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "twitter", label: "Twitter / X" },
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
   { key: "bandsintown", label: "Bandsintown" },
-  { key: "email", label: "Email" },
 ];
 
 export default function DistributionPanel({ eventId }) {
@@ -26,29 +29,32 @@ export default function DistributionPanel({ eventId }) {
   const [event, setEvent] = useState(null);
   const [fn, setFn] = useState(null);
 
-  const [fbReady, setFbReady] = useState(false);
-  const [fbPublished, setFbPublished] = useState(false);
+  const [readyPlatforms, setReadyPlatforms] = useState([]);
+
+  // 🔥 NUEVOS ESTADOS
+  const [copiedPlatforms, setCopiedPlatforms] = useState([]);
+  const [publishedPlatforms, setPublishedPlatforms] = useState([]);
+
+  // 🔥 TOAST
+  const [toast, setToast] = useState("");
 
   // ===============================
-  // 🔥 GENERADOR TEXTO PRO
+  // GENERADOR TEXTO
   // ===============================
-  const generateFacebookText = () => {
+  const generateText = () => {
     if (!event) return "";
 
-    const eventUrl = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
+    const url = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
 
     return `🎟️ ${event.title}
 
 📍 ${event.location || ""}
-📅 ${
-      fn?.date ? new Date(fn.date).toLocaleString() : ""
-    }
+📅 ${fn?.date ? new Date(fn.date).toLocaleString() : ""}
 
 ✨ Vive una experiencia única
 
 🎫 Compra tus tickets aquí:
-${eventUrl}
-`;
+${url}`;
   };
 
   // ===============================
@@ -123,30 +129,55 @@ ${eventUrl}
   };
 
   // ===============================
-  // 🔥 BOTÓN PRO FACEBOOK
+  // COPY + ESTADO
   // ===============================
-  const handleFacebookSharePro = () => {
-    try {
-      const text = generateFacebookText();
+  const copyText = (platform) => {
+    const text = generateText();
 
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
 
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
+    setToast("✔ Texto copiado");
+    setTimeout(() => setToast(""), 2000);
 
-      console.log("📋 TEXTO COPIADO");
+    setCopiedPlatforms((prev) => [...new Set([...prev, platform])]);
+  };
 
+  // ===============================
+  // HANDLERS
+  // ===============================
+  const handlePublish = (platform) => {
+    const text = generateText();
+
+    if (platform === "facebook") {
       window.open("https://www.facebook.com/sharer/sharer.php", "_blank");
-
-      setFbPublished(true);
-    } catch (err) {
-      console.error("ERROR SHARE PRO:", err);
     }
+
+    if (platform === "whatsapp") {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    }
+
+    if (platform === "twitter") {
+      window.open(
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+        "_blank"
+      );
+    }
+
+    if (platform === "instagram") {
+      window.open("https://www.instagram.com/", "_blank");
+    }
+
+    if (platform === "tiktok") {
+      window.open("https://www.tiktok.com/upload", "_blank");
+    }
+
+    // 🔥 marcar como publicado
+    setPublishedPlatforms((prev) => [...new Set([...prev, platform])]);
   };
 
   // ===============================
@@ -156,30 +187,20 @@ ${eventUrl}
     try {
       setLoading(true);
 
-      setFbReady(false);
-      setFbPublished(false);
-
       const platforms = autoMode
         ? PLATFORMS.map((p) => p.key)
         : Object.keys(selected).filter((k) => selected[k]);
 
-      const res = await api.post("/distribution", {
+      await api.post("/distribution", {
         eventId,
         platforms,
       });
 
-      const results = res.data?.results || [];
-
-      const fb = results.find((r) => r.platform === "facebook");
-
-      if (fb || platforms.includes("facebook")) {
-        setFbReady(true);
-      }
+      setReadyPlatforms(platforms);
 
       await loadStatus();
       setResult("success");
-    } catch (error) {
-      console.error(error);
+    } catch {
       setResult("error");
     } finally {
       setLoading(false);
@@ -191,91 +212,70 @@ ${eventUrl}
   // ===============================
   return (
     <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-white/10">
-      <div className="mb-6">
-        <h2 className="text-white text-lg font-semibold flex items-center gap-2">
-          🌍 Distribución Inteligente
-        </h2>
-        <p className="text-sm text-white/50">
-          Controla dónde se publica tu evento y mide resultados.
-        </p>
-      </div>
+      <h2 className="text-white text-lg font-semibold mb-4">
+        🌍 Distribución Inteligente
+      </h2>
 
-      <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
-        <div>
-          <div className="text-white flex gap-2 text-sm items-center">
-            <Zap size={16} /> Modo automático
-          </div>
-          <div className="text-xs text-white/50">
-            Activa todas las plataformas con un solo clic
+      {/* TOAST */}
+      {toast && (
+        <div className="mb-4 text-center">
+          <div className="inline-block bg-green-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg">
+            {toast}
           </div>
         </div>
-
-        <input
-          type="checkbox"
-          checked={autoMode}
-          onChange={() => setAutoMode(!autoMode)}
-          className="w-5 h-5"
-        />
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         {PLATFORMS.map((p) => {
           const active = selected[p.key];
           const status = getStatus(p.key);
+          const isReady = readyPlatforms.includes(p.key);
 
           return (
             <div
               key={p.key}
-              className={`p-3 rounded-xl border transition ${
+              className={`p-3 rounded-xl border ${
                 active
                   ? "border-blue-500 bg-blue-500/10"
                   : "border-white/10 bg-white/5"
               }`}
-              onClick={() => !autoMode && togglePlatform(p.key)}
+              onClick={() => togglePlatform(p.key)}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between">
                 <span className="text-white text-sm">{p.label}</span>
 
                 {status?.status === "success" && (
-                  <CheckCircle size={16} className="text-green-400" />
+                  <CheckCircle size={14} className="text-green-400" />
                 )}
               </div>
 
+              {/* 🔥 ESTADO VISUAL */}
               <div className="text-xs mt-1 text-white/40">
-                {autoMode
-                  ? "Automático"
-                  : active
-                  ? "Seleccionado"
-                  : "No activo"}
+                {isReady && "✔ Listo para publicar"}
+                {copiedPlatforms.includes(p.key) && " • Texto copiado"}
+                {publishedPlatforms.includes(p.key) && " • Publicado"}
               </div>
 
-              {/* 🔥 FACEBOOK PRO UI */}
-              {p.key === "facebook" && fbReady && (
+              {isReady && (
                 <div
                   className="mt-3 flex flex-col gap-2"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-xs text-blue-400 text-center">
-                    Texto listo para publicar ✔
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyText(p.key)}
+                    className="bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg text-sm"
+                  >
+                    Copiar texto
+                  </button>
 
                   <button
                     type="button"
-                    onClick={handleFacebookSharePro}
-                    className={`w-full py-2 rounded-lg text-sm font-semibold transition ${
-                      fbPublished
-                        ? "bg-green-600"
-                        : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                    onClick={() => handlePublish(p.key)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm"
                   >
-                    {fbPublished
-                      ? "Publicado (listo para pegar) ✔"
-                      : "Publicar en Facebook"}
+                    Publicar
                   </button>
-
-                  <div className="text-[10px] text-white/40 text-center">
-                    Se copiará el texto automáticamente
-                  </div>
                 </div>
               )}
             </div>
@@ -283,47 +283,16 @@ ${eventUrl}
         })}
       </div>
 
-      {platformStats.length > 0 && (
-        <div className="mb-6 bg-gradient-to-r from-[#111] to-[#1a1a1a] border border-white/10 rounded-xl p-4">
-          <h3 className="text-white text-sm flex items-center gap-2 mb-3">
-            <BarChart3 size={16} /> Impacto por plataforma
-          </h3>
-
-          {platformStats.map((p, i) => {
-            const sales = p?._count?._all || p?.sales || 0;
-
-            return (
-              <div key={i} className="flex justify-between text-sm text-white/70 py-1">
-                <span className="capitalize">{p.platform}</span>
-                <span className="font-bold text-white">
-                  {sales} ventas
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <button
         type="button"
         onClick={handleDistribute}
-        className="w-full bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
+        className="w-full bg-blue-600 py-3 rounded-xl text-white"
       >
-        {loading ? (
-          <>
-            <Loader2 className="animate-spin" size={18} />
-            Distribuyendo...
-          </>
-        ) : (
-          <>
-            <Globe size={18} />
-            Distribuir Evento
-          </>
-        )}
+        {loading ? "Distribuyendo..." : "Distribuir Evento"}
       </button>
 
       {result === "success" && (
-        <div className="text-green-400 text-sm mt-4 text-center">
+        <div className="text-green-400 mt-3 text-center">
           ✔ Distribución completada
         </div>
       )}

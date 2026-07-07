@@ -137,7 +137,6 @@ const SeatsSelectionPage = () => {
 
   const seatmapKey = selectedFunction?._raw?.seatmapKey || '';
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
 useEffect(() => {
   let mounted = true;
 
@@ -184,6 +183,7 @@ useEffect(() => {
     mounted = false;
   };
 
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [id]); // 🔥 SOLO ID (CLAVE DEL FIX)
 
 const hasValidSaleType = useMemo(
@@ -204,7 +204,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
       );
       navigate(`/evento/${event.slug}-${event.id}`);
     }
-  }, [isInitialized, event, hasValidSaleType, isSeatedEvent, id, navigate]);
+  }, [isInitialized, event, hasValidSaleType, isSeatedEvent, navigate]);
 
   useEffect(() => {
    if (!isInitialized || !hasMultipleFunctions) return;
@@ -216,7 +216,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
     }, 150);
 
     return () => clearTimeout(timeout);
-  }, [isInitialized, hasMultipleFunctions, selectedFunction, id, navigate]);
+  }, [isInitialized, hasMultipleFunctions, selectedFunction, event?.id, event?.slug, navigate]);
 
   useEffect(() => {
   if (
@@ -226,10 +226,9 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
     !functionInitializedRef.current
   ) {
     functionInitializedRef.current = true;
-
     selectFunction(event.functions[0]);
   }
-}, [hasSingleFunction, event?.functions?.length]);
+}, [hasSingleFunction, event?.functions, selectedFunction, selectFunction]);
 
   useEffect(() => {
    const timer = setInterval(() => {
@@ -282,7 +281,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
     return () => {
       mounted = false;
     };
-  }, [selectedFunction?.id]);
+  }, [selectedFunction?.id, seatmapKey]);
 
   useEffect(() => {
   if (!selectedFunction?.id) return;
@@ -313,7 +312,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
     setHoldTokenData(null);
   }
 
-}, [selectedFunction?.id]);
+}, [selectedFunction?.id, seatmapKey]);
 
   const pricingMap = useMemo(() => {
     const map = new Map();
@@ -695,7 +694,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
               ) : (
                 <div
                   className="relative w-full bg-[#1E1E1E] rounded-2xl border-2 border-[#007AFF]/30 overflow-visible"
-                  style={{ minHeight: '760px', height: '82vh' }}
+                  style={{ minHeight: '680px', height: 'calc(100vh - 210px)' }}
                   data-testid="seatsio-map-container"
                 >
                   {!chartReady && !chartError && (
@@ -730,6 +729,9 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
                     region={SEATSIO_REGION}
                     session="continue"
                     pricing={seatsioPricing}
+                    showSectionContents="always"
+                    showMinimap={true}
+
                     onRenderStarted={(chart) => {
                       chartRef.current = chart;
                       setChartError('');
@@ -745,10 +747,7 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
                          await chart.zoomToFit();
                            }
 
-                    if (typeof chart?.resetView === 'function') {
-                       await chart.resetView();
-                      }
-                      } catch (error) {
+                     } catch (error) {
                     console.warn(
                  '[SeatsSelectionPage] No pude ajustar la vista inicial del plano:',
                 error
