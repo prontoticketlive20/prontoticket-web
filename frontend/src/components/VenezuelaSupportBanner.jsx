@@ -15,7 +15,7 @@ export default function VenezuelaSupportBanner() {
             </p>
 
             <p className="text-white/70 text-xs leading-relaxed">
-              Con la compra de tu boleto estaras estaras contribuyendo con un donativo para Vzla. Juntos somos mas..!!
+              Con la compra de tu boleto estaras contribuyendo con un donativo para Vzla. Juntos somos mas..!!
             </p>
           </div>
         </div>
