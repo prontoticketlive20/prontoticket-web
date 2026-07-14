@@ -169,18 +169,21 @@ useEffect(() => {
 }, [location.search, id]);
 
 // ===============================
-// 🔥 CAPTURAR PLATFORM (facebook, google, etc)
+// 🔥 CAPTURAR SOURCE / PLATFORM
 // ===============================
 useEffect(() => {
   const params = new URLSearchParams(location.search);
-  const platform = params.get('platform');
 
-  if (platform) {
-    localStorage.setItem('ptl_platform', platform);
+  // 🔥 aceptar ambos (source o platform)
+  const source = params.get('source') || params.get('platform');
 
-    console.log('🌍 Platform tracking capturado:', platform);
+  if (source) {
+    localStorage.setItem('ptl_source', source);
+    localStorage.setItem('ptl_platform', source);
+
+    console.log('🌍 Source/Platform capturado:', source);
   } else {
-    // 🔥 fallback si no viene de campaña
+    // fallback
     if (!localStorage.getItem('ptl_platform')) {
       localStorage.setItem('ptl_platform', 'direct');
     }

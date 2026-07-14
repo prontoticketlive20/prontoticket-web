@@ -41,12 +41,13 @@ export default function DistributionPanel({ eventId }) {
   // ===============================
   // GENERADOR TEXTO
   // ===============================
-  const generateText = () => {
-    if (!event) return "";
+  const generateText = (platform) => {
+  if (!event) return "";
 
-    const url = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
+  const baseUrl = `https://www.prontoticketlive.com/evento/${event.slug}-${event.id}`;
+  const url = `${baseUrl}?source=${platform || "web"}`;
 
-    return `🎟️ ${event.title}
+  return `🎟️ ${event.title}
 
 📍 ${event.location || ""}
 📅 ${fn?.date ? new Date(fn.date).toLocaleString() : ""}
@@ -55,7 +56,7 @@ export default function DistributionPanel({ eventId }) {
 
 🎫 Compra tus tickets aquí:
 ${url}`;
-  };
+};
 
   // ===============================
   // LOAD EVENT
@@ -132,7 +133,7 @@ ${url}`;
   // COPY + ESTADO
   // ===============================
   const copyText = (platform) => {
-    const text = generateText();
+    const text = generateText(platform);
 
     const textarea = document.createElement("textarea");
     textarea.value = text;
@@ -151,7 +152,7 @@ ${url}`;
   // HANDLERS
   // ===============================
   const handlePublish = (platform) => {
-    const text = generateText();
+    const text = generateText(platform);
 
     if (platform === "facebook") {
       window.open("https://www.facebook.com/sharer/sharer.php", "_blank");

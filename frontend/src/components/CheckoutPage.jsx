@@ -162,6 +162,17 @@ const CheckoutForm = () => {
 
 const location = useLocation();
 
+// 🔥 CAPTURAR SOURCE DESDE URL Y GUARDARLO
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("source");
+
+  if (source) {
+    localStorage.setItem("ptl_source", source);
+    console.log("📊 SOURCE CAPTURADO:", source);
+  }
+}, []);
+
 const discountPercent = location.state?.discountPercent || 0;
 const discountAmount = location.state?.discountAmount || 0;
 const finalTotalFromSummary = location.state?.finalTotal;
