@@ -584,7 +584,7 @@ const ConfirmationPage = () => {
             <div>
               <p className="text-white font-semibold text-sm">Descarga tus entradas</p>
               <p className="text-white/60 text-sm">
-                El envío automático por correo será habilitado en la siguiente fase.
+                Se envíaron de manera automática tus Entradas via email.
               </p>
             </div>
           </div>
