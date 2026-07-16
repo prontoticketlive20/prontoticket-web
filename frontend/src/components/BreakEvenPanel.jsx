@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "../api/api";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import {
   LineChart,
   Line,
@@ -10,13 +12,17 @@ import {
   CartesianGrid,
 } from "recharts";
 
+import logo from "../assets/logo-prontoticketlive-large.png";
+
 export default function BreakEvenPanel({ eventId }) {
   const [event, setEvent] = useState(null);
   const [stats, setStats] = useState([]);
   const [cost, setCost] = useState("");
   const [result, setResult] = useState(null);
 
-  // 🔥 SAFE HELPER (anti errores)
+  const reportRef = useRef(null);
+  const chartRef = useRef(null);
+
   const safe = (v) => Number(v || 0);
 
   // ===============================
@@ -140,6 +146,118 @@ export default function BreakEvenPanel({ eventId }) {
   };
 
   // ===============================
+  // PDF EXPORT (PRO VERSION)
+  // ===============================
+  const exportToPDF = async () => {
+    if (!result || !chartRef.current) return;
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    // Fondo negro
+    pdf.setFillColor(5, 5, 5);
+    pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+    // Header
+    pdf.setFillColor(10, 10, 15);
+    pdf.rect(0, 0, pageWidth, 30, "F");
+
+    try {
+      pdf.addImage(logo, "PNG", 14, 8, 25, 10);
+    } catch {}
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text("Break Even Report", 45, 15);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(180, 180, 180);
+    pdf.text(new Date().toLocaleString(), 150, 15);
+
+    pdf.setDrawColor(124, 58, 237);
+    pdf.line(14, 28, 196, 28);
+
+    // Evento
+    pdf.setFontSize(12);
+    pdf.text(event?.title || "Evento", 14, 40);
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(180, 180, 180);
+    pdf.text(`Costo: $${cost}`, 14, 46);
+
+    // Cards
+    const drawCard = (label, value, x, y) => {
+      pdf.setFillColor(25, 25, 30);
+      pdf.roundedRect(x, y, 85, 20, 3, 3, "F");
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(label, x + 3, y + 7);
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(value, x + 3, y + 15);
+    };
+
+    let y = 55;
+
+    drawCard("Revenue", `$${safe(result.totalRevenue).toFixed(2)}`, 14, y);
+    drawCard("Tickets", `${result.totalSales}`, 105, y);
+
+    drawCard("Ticket Promedio", `$${safe(result.avgTicket).toFixed(2)}`, 14, y + 25);
+    drawCard("Break Even", `${result.breakEvenTickets}`, 105, y + 25);
+
+    drawCard("Faltan", `${result.remainingTickets}`, 14, y + 50);
+    drawCard("Tickets/día", `${result.ticketsPerDay}`, 105, y + 50);
+
+    // Progreso
+    const progressY = y + 80;
+
+    pdf.setTextColor(200, 200, 200);
+    pdf.text("Progreso hacia Break Even", 14, progressY);
+
+    pdf.setFillColor(40, 40, 40);
+    pdf.roundedRect(14, progressY + 5, 180, 5, 2, 2, "F");
+
+    const progressWidth = (result.progress / 100) * 180;
+
+    pdf.setFillColor(52, 199, 89);
+    pdf.roundedRect(14, progressY + 5, progressWidth, 5, 2, 2, "F");
+
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(`${safe(result.progress).toFixed(1)}%`, 14, progressY + 15);
+
+    // ALERTA
+    pdf.setTextColor(255, 204, 0);
+    pdf.text(result.message, 14, progressY + 25);
+
+    // CHART (FIX REAL)
+    const canvas = await html2canvas(chartRef.current, {
+      backgroundColor: "#050505",
+      scale: 2,
+      useCORS: true,
+    });
+
+    const img = canvas.toDataURL("image/png");
+
+    pdf.addImage(img, "PNG", 14, progressY + 35, 180, 70);
+
+    // Footer
+    pdf.setFontSize(8);
+    pdf.setTextColor(140, 140, 140);
+    pdf.text(
+      "© 2026 Prontoticketlive • Inteligencia aplicada a eventos",
+      14,
+      290
+    );
+
+    pdf.save(`break_even_${event?.title || "evento"}.pdf`);
+  };
+
+  // ===============================
   // CHART DATA
   // ===============================
   const generateChartData = () => {
@@ -165,7 +283,6 @@ export default function BreakEvenPanel({ eventId }) {
     return data;
   };
 
-  // ===============================
   const getProgressColor = (progress) => {
     if (progress < 40) return "bg-red-500";
     if (progress < 80) return "bg-yellow-500";
@@ -176,7 +293,10 @@ export default function BreakEvenPanel({ eventId }) {
   // UI
   // ===============================
   return (
-    <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mt-6">
+    <div
+      ref={reportRef}
+      className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mt-6"
+    >
       <h3 className="text-white text-lg font-semibold mb-4">
         🎯 Break Even Inteligente
       </h3>
@@ -192,9 +312,16 @@ export default function BreakEvenPanel({ eventId }) {
 
         <button
           onClick={calculate}
-          className="bg-blue-600 px-4 rounded-lg text-white"
+          className="bg-blue-600 px-4 py-2 rounded-lg text-white"
         >
           Calcular
+        </button>
+
+        <button
+          onClick={exportToPDF}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+        >
+          📄 PDF
         </button>
       </div>
 
@@ -211,7 +338,6 @@ export default function BreakEvenPanel({ eventId }) {
             <Card label="Proyección final" value={Math.round(result.projectedFinalSales)} />
           </div>
 
-          {/* PROGRESO */}
           <div className="mt-6">
             <div className="w-full bg-zinc-800 h-3 rounded-full overflow-hidden">
               <div
@@ -225,29 +351,24 @@ export default function BreakEvenPanel({ eventId }) {
             </p>
           </div>
 
-          {/* ALERTA */}
           <div className="mt-4 text-center">
-            <p
-              className={`font-semibold ${
-                result.status === "danger"
-                  ? "text-red-400"
-                  : result.status === "warning"
-                  ? "text-yellow-400"
-                  : "text-green-400"
-              }`}
-            >
+            <p className={`font-semibold ${
+              result.status === "danger"
+                ? "text-red-400"
+                : result.status === "warning"
+                ? "text-yellow-400"
+                : "text-green-400"
+            }`}>
               {result.message}
             </p>
           </div>
 
-          {/* VELOCIDAD */}
           <div className="mt-4 text-xs text-center text-zinc-400">
             Velocidad actual: {safe(result.velocityActual).toFixed(2)} tickets/día •
             Necesario: {result.velocityRequired}
           </div>
 
-          {/* CHART */}
-          <div className="mt-8">
+          <div className="mt-8" ref={chartRef}>
             <h4 className="text-white text-sm mb-2">
               📈 Proyección de ventas vs objetivo
             </h4>
@@ -259,22 +380,8 @@ export default function BreakEvenPanel({ eventId }) {
                 <YAxis />
                 <Tooltip />
 
-                <Line
-                  type="monotone"
-                  dataKey="projected"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={false}
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="ideal"
-                  stroke="#facc15"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                />
+                <Line type="monotone" dataKey="projected" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="ideal" stroke="#facc15" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -287,11 +394,7 @@ export default function BreakEvenPanel({ eventId }) {
 // ===============================
 function Card({ label, value, highlight }) {
   return (
-    <div
-      className={`p-3 rounded-xl ${
-        highlight ? "bg-blue-600" : "bg-zinc-800"
-      }`}
-    >
+    <div className={`p-3 rounded-xl ${highlight ? "bg-blue-600" : "bg-zinc-800"}`}>
       <p className="text-zinc-400 text-xs">{label}</p>
       <p className="text-white font-semibold">{value}</p>
     </div>

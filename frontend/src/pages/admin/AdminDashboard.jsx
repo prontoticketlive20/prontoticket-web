@@ -18,8 +18,9 @@ import {
 
 import api, { setAuthToken, getAuthToken } from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
-import { FileBarChart2 } from "lucide-react";
-import { BarChart3 } from "lucide-react";
+// import { FileBarChart2 } from "lucide-react";
+// import { BarChart3 } from "lucide-react";
+import { BarChart3, FileBarChart2, TrendingUp } from "lucide-react";
 
 // ---------- Helpers ----------
 function toISOStartOfDay(dateStr) {
@@ -577,6 +578,15 @@ export default function AdminDashboard() {
   </button>
 
 <button
+  onClick={() => navigate("/admin/reports/event-close")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#34C759] to-[#1faa4a] text-white font-semibold shadow-lg shadow-[#34C759]/20 hover:brightness-110 active:scale-[0.99]"
+  type="button"
+>
+  <FileBarChart2 size={16} />
+  <span className="text-sm">Reporte cierre</span>
+</button>
+
+<button
   onClick={() => navigate("/analytics")}
   className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#5b21b6] text-white font-semibold shadow-lg shadow-[#7c3aed]/20 hover:brightness-110 active:scale-[0.99]"
   type="button"
@@ -586,12 +596,12 @@ export default function AdminDashboard() {
 </button>
 
 <button
-  onClick={() => navigate("/admin/reports/event-close")}
-  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#34C759] to-[#1faa4a] text-white font-semibold shadow-lg shadow-[#34C759]/20 hover:brightness-110 active:scale-[0.99]"
+  onClick={() => navigate("/admin/break-even")}
+  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#0ea5e9] to-[#0369a1] text-white font-semibold shadow-lg shadow-[#0ea5e9]/20 hover:brightness-110 active:scale-[0.99]"
   type="button"
 >
-  <FileBarChart2 size={16} />
-  <span className="text-sm">Reporte cierre</span>
+  <TrendingUp size={16} />
+  <span className="text-sm">Break Even</span>
 </button>
 
 <button
