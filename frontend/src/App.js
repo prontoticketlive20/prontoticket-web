@@ -26,6 +26,8 @@ import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
 import FinancialReportPage from "./pages/admin/FinancialReportPage";
 import AnalyticsPage from './components/AnalyticsPage';
 
+import BreakEvenPage from "./pages/admin/BreakEvenPage";
+
 import MyTicketsPage from "./components/MyTicketsPage";
 import TicketPage from "./components/TicketPage";
 
@@ -198,6 +200,17 @@ function App() {
                 </ProtectedRoute>
                }
               />
+
+              <Route
+                path="/admin/break-even"
+                element={
+                 <ProtectedRoute>
+                  <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
+                    <BreakEvenPage />
+                  </AdminRoute>
+                 </ProtectedRoute>
+                }
+               />
 
               <Route
                 path="/admin/reports/event-close"

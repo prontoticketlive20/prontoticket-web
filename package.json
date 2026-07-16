@@ -1,7 +1,11 @@
 {
   "dependencies": {
+    "@paypal/paypal-js": "^10.0.3",
+    "@paypal/react-paypal-js": "^10.1.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   }

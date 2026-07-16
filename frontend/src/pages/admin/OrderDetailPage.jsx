@@ -175,6 +175,29 @@ export default function OrderDetailPage() {
   const firstFunction = firstTicket?.function;
   const firstEvent = firstFunction?.event;
 
+  const isPayPalOrder =
+  String(order?.paymentMethod || "").toUpperCase() === "PAYPAL";
+
+const isStripeOrder =
+  String(order?.paymentMethod || "").toUpperCase() === "STRIPE";
+
+  useEffect(() => {
+  if (!order) return;
+
+  if (isPayPalOrder) {
+    setRefundMode("PAYPAL");
+    return;
+  }
+
+  if (isStripeOrder) {
+    setRefundMode("STRIPE");
+    return;
+  }
+
+  setRefundMode("INTERNAL");
+}, [order, isPayPalOrder, isStripeOrder]);
+
+
   const activeTicketsCount =
     order?.tickets?.filter((t) => t.status === "ACTIVE").length || 0;
 
@@ -287,10 +310,12 @@ const confirmRevert = async () => {
       setRefundReason("");
       setRefundNotes("");
       setRefundMsg(
-        refundMode === "STRIPE"
-          ? "Refund procesado correctamente en Stripe."
-          : "Cancelación interna procesada correctamente."
-      );
+  refundMode === "STRIPE"
+    ? "Refund procesado correctamente en Stripe."
+    : refundMode === "PAYPAL"
+      ? "Refund procesado correctamente en PayPal."
+      : "Cancelación interna procesada correctamente."
+  );
     } catch (e) {
       const msg =
         e?.response?.data?.message ||
@@ -703,9 +728,22 @@ const confirmRevert = async () => {
                       className="w-full rounded-xl bg-[#0B0B0B] border border-white/10 px-3 py-2 text-white outline-none"
                       disabled={refundLoading}
                     >
-                      <option value="INTERNAL">Cancelación interna (sin Stripe)</option>
-                      <option value="STRIPE">Refund real en Stripe</option>
-                    </select>
+                      <option value="INTERNAL">
+                         Cancelación interna (sin devolución de dinero)
+                      </option>
+
+                     {isStripeOrder && (
+                       <option value="STRIPE">
+                          Refund real en Stripe
+                       </option>
+                     )}
+
+                     {isPayPalOrder && (
+                       <option value="PAYPAL">
+                          Refund real en PayPal
+                       </option>
+                     )}
+                   </select>
                   </div>
 
                   <div>
@@ -774,6 +812,11 @@ const confirmRevert = async () => {
                       <>
                         <RotateCcw size={16} />
                         Ejecutar Refund Stripe
+                      </>
+                    ) : refundMode === "PAYPAL" ? (
+                      <>
+                        <RotateCcw size={16} />
+                        Ejecutar Refund PayPal
                       </>
                     ) : (
                       <>
