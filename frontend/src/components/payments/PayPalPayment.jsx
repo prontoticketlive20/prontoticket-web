@@ -76,6 +76,7 @@ const getErrorMessage = (error) => {
 const PayPalPayment = ({
   clientId,
   localOrderId,
+  currency = 'USD',
   disabled = false,
   onApproved,
   onCancel,
@@ -139,7 +140,7 @@ const PayPalPayment = ({
       try {
         const paypal = await loadScript({
           clientId,
-          currency: 'USD',
+          currency: String(currency || 'USD').toUpperCase(),
           intent: 'capture',
           components: 'buttons',
           locale: 'es_US',
@@ -374,7 +375,7 @@ const PayPalPayment = ({
        */
       cancelled = true;
     };
-  }, [clientId, localOrderId]);
+  }, [clientId, localOrderId, currency]);
 
   if (!clientId) {
     return (

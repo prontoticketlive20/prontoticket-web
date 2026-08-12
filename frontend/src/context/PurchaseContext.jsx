@@ -362,11 +362,30 @@ const upsertSeat = useCallback((seat) => {
   }, []);
 
   const getCurrency = useCallback(() => {
-    if (!selectedEvent?.country) {
-      return CURRENCY_BY_COUNTRY['Estados Unidos'];
+  const currencyCode = String(
+    selectedFunction?.currency || ''
+  ).toUpperCase();
+
+  if (currencyCode) {
+    const currencyByCode = Object.values(
+      CURRENCY_BY_COUNTRY
+    ).find((item) => item.code === currencyCode);
+
+    if (currencyByCode) {
+      return currencyByCode;
     }
-    return CURRENCY_BY_COUNTRY[selectedEvent.country] || CURRENCY_BY_COUNTRY['Estados Unidos'];
-  }, [selectedEvent]);
+  }
+
+  const country =
+    selectedFunction?.country ||
+    selectedEvent?.country;
+
+  if (country && CURRENCY_BY_COUNTRY[country]) {
+    return CURRENCY_BY_COUNTRY[country];
+  }
+
+  return CURRENCY_BY_COUNTRY['Estados Unidos'];
+}, [selectedFunction, selectedEvent]);
 
   const getTaxRate = useCallback(() => {
     return Number(selectedFunction?.taxRate || 0);

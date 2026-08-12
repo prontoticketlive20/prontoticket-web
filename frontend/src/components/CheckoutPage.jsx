@@ -1341,6 +1341,7 @@ const CheckoutPage = () => {
                       <PayPalPayment
                         clientId={paypalClientId}
                         localOrderId={localOrderId}
+                        currency={summary?.currency?.code || 'USD'}
                         disabled={
                           isTimerBlocking ||
                           isCreatingOrder

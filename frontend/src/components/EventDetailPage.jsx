@@ -364,7 +364,10 @@ const eventSchema = event
             ? window.location.href
             : "",
         price: Number(event.startingPrice),
-        priceCurrency: "USD",
+        priceCurrency:
+          selectedFn?.currency ||
+          event?.functions?.[0]?.currency ||
+          "USD",
         availability: "https://schema.org/InStock",
         validFrom: new Date().toISOString(),
       }
@@ -605,9 +608,19 @@ return (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
                   <div>
                     <div className="text-sm text-white/50 uppercase tracking-wide mb-1">Precio desde</div>
-                    <div className="text-4xl font-bold text-[#FF9500] tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                      ${event.startingPrice}
-                    </div>
+                    <div
+  className="text-4xl font-bold text-[#FF9500] tracking-tight"
+  style={{ fontFamily: "'Outfit', sans-serif" }}
+>
+  {(
+    selectedFn?.currency ||
+    event?.functions?.[0]?.currency ||
+    'USD'
+  ) === 'EUR'
+    ? '€'
+    : '$'}
+  {event.startingPrice}
+</div>
                   </div>
                   <button
                     onClick={handleSelectTickets}
