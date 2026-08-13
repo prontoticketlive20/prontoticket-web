@@ -81,6 +81,24 @@ const EventCard = ({ event, featured = false }) => {
       ? event.price
       : 0;
 
+    // ✅ Moneda de la función del evento
+    const displayCurrency =
+    event?.functions?.[0]?.currency || 'USD';
+
+    const currencySymbols = {
+       USD: '$',
+       EUR: '€',
+       MXN: '$',
+       ARS: '$',
+       COP: '$',
+       CLP: '$',
+       PEN: 'S/',
+    };
+
+    const displayCurrencySymbol =
+      currencySymbols[String(displayCurrency).toUpperCase()] ||
+      displayCurrency;
+
   // ✅ Venue
   const displayVenue =
     event?.venue ||
@@ -173,7 +191,7 @@ const EventCard = ({ event, featured = false }) => {
               className="text-2xl font-bold text-[#FF9500] tracking-tight"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              ${displayPrice}
+              {displayCurrencySymbol}{displayPrice}
             </div>
           </div>
 

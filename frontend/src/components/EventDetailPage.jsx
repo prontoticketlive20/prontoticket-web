@@ -306,6 +306,26 @@ const buildEventDate = (date, time) => {
 // 🔥 definir antes
 const selectedFn = selectedFunction || event?.functions?.[0];
 
+const displayCurrency =
+  selectedFn?.currency ||
+  event?.functions?.[0]?.currency ||
+  'USD';
+
+const currencySymbols = {
+  USD: '$',
+  EUR: '€',
+  MXN: '$',
+  ARS: '$',
+  COP: '$',
+  CLP: '$',
+  PEN: 'S/',
+};
+
+
+const displayCurrencySymbol =
+  currencySymbols[String(displayCurrency).toUpperCase()] ||
+  displayCurrency;
+
 const eventSchema = event
   ? {
       "@context": "https://schema.org",
@@ -612,14 +632,7 @@ return (
   className="text-4xl font-bold text-[#FF9500] tracking-tight"
   style={{ fontFamily: "'Outfit', sans-serif" }}
 >
-  {(
-    selectedFn?.currency ||
-    event?.functions?.[0]?.currency ||
-    'USD'
-  ) === 'EUR'
-    ? '€'
-    : '$'}
-  {event.startingPrice}
+  {displayCurrencySymbol}{event.startingPrice}
 </div>
                   </div>
                   <button

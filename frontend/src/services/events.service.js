@@ -55,6 +55,7 @@ function normalizeEventFromApi(evt) {
     venueName: safeString(fn.venueName),
     city: safeString(fn.city),
     country: safeString(fn.country),
+    currency: safeString(fn.currency, "USD"),
     seatmapKey: safeString(fn.seatmapKey),
     taxRate: safeNumber(fn.taxRate, 0),
     availability: "Disponible",
