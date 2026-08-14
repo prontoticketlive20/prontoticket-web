@@ -50,6 +50,7 @@ export default function AdminDashboard() {
     totalCollected: 0,
 
     ordersPaidCount: 0,
+    financialsByCurrency: {},
   });
 
   const [events, setEvents] = useState([]);
@@ -336,6 +337,8 @@ export default function AdminDashboard() {
           ? Number(s.totalCollected)
           : prev.totalCollected,
 
+        financialsByCurrency: s?.financialsByCurrency || {},
+
         ordersPaidCount: Number.isFinite(Number(s?.ordersPaidCount))
           ? Number(s.ordersPaidCount)
           : prev.ordersPaidCount,
@@ -495,29 +498,104 @@ export default function AdminDashboard() {
     return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   };
 
-  const opsCards = [
-    { label: "Eventos", value: stats.events, icon: CalendarDays },
-    { label: "Tickets vendidos", value: stats.ticketsSold, icon: Ticket },
-    { label: "Órdenes PAID", value: stats.ordersPaidCount || 0, icon: Receipt },
-    { label: "Usuarios", value: stats.users, icon: Users },
-    { label: "Total cobrado", value: money(stats.totalCollected), icon: DollarSign },
-  ];
+   
+  const currencySymbol = (currency) => {
+  const symbols = {
+    USD: "$",
+    EUR: "€",
+  };
 
-  const financeCards = [
-    {
-      label: "Net (boletos)",
-      value: money(stats.netTickets),
-      icon: BadgeDollarSign,
-      hint: "Sin fees / taxes",
-    },
-    {
-      label: "Fees",
-      value: money(stats.fees),
-      icon: Receipt,
-      hint: "Service fee / platform fee",
-    },
-    { label: "Taxes", value: money(stats.taxes), icon: Percent, hint: "Impuestos" },
-  ];
+  return symbols[String(currency || "").toUpperCase()] || currency;
+};
+
+const moneyByCurrency = (amount, currency) =>
+  `${currencySymbol(currency)}${Number(amount || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+  const usdFinancials = stats.financialsByCurrency?.USD || {
+  netTickets: 0,
+  fees: 0,
+  taxes: 0,
+  totalCollected: 0,
+};
+
+const eurFinancials = stats.financialsByCurrency?.EUR || {
+  netTickets: 0,
+  fees: 0,
+  taxes: 0,
+  totalCollected: 0,
+};
+
+  const opsCards = [
+  { label: "Eventos", value: stats.events, icon: CalendarDays },
+  { label: "Tickets vendidos", value: stats.ticketsSold, icon: Ticket },
+  { label: "Órdenes PAID", value: stats.ordersPaidCount || 0, icon: Receipt },
+  { label: "Usuarios", value: stats.users, icon: Users },
+  {
+    label: "Total cobrado",
+    valuesByCurrency: [
+      {
+        currency: "USD",
+        value: moneyByCurrency(usdFinancials.totalCollected, "USD"),
+      },
+      {
+        currency: "EUR",
+        value: moneyByCurrency(eurFinancials.totalCollected, "EUR"),
+      },
+    ],
+    icon: DollarSign,
+  },
+];
+
+const financeCards = [
+  {
+    label: "Net (boletos)",
+    valuesByCurrency: [
+      {
+        currency: "USD",
+        value: moneyByCurrency(usdFinancials.netTickets, "USD"),
+      },
+      {
+        currency: "EUR",
+        value: moneyByCurrency(eurFinancials.netTickets, "EUR"),
+      },
+    ],
+    icon: BadgeDollarSign,
+    hint: "Sin fees / taxes",
+  },
+  {
+    label: "Fees",
+    valuesByCurrency: [
+      {
+        currency: "USD",
+        value: moneyByCurrency(usdFinancials.fees, "USD"),
+      },
+      {
+        currency: "EUR",
+        value: moneyByCurrency(eurFinancials.fees, "EUR"),
+      },
+    ],
+    icon: Receipt,
+    hint: "Service fee / platform fee",
+  },
+  {
+    label: "Taxes",
+    valuesByCurrency: [
+      {
+        currency: "USD",
+        value: moneyByCurrency(usdFinancials.taxes, "USD"),
+      },
+      {
+        currency: "EUR",
+        value: moneyByCurrency(eurFinancials.taxes, "EUR"),
+      },
+    ],
+    icon: Percent,
+    hint: "Impuestos",
+  },
+];
 
   const handleCreateEvent = () => {
     navigate("/admin/events/new");
@@ -755,8 +833,28 @@ export default function AdminDashboard() {
                   <Icon size={18} className="text-white/70" />
                 </div>
               </div>
-              <div className="mt-2 text-3xl font-bold text-white">{c.value}</div>
-              <div className="mt-1 text-xs text-white/40">
+              {c.valuesByCurrency ? (
+  <div className="mt-3 space-y-1">
+    {c.valuesByCurrency.map((item) => (
+      <div
+        key={item.currency}
+        className="flex items-center justify-between"
+      >
+        <span className="text-xs font-semibold text-white/45">
+          {item.currency}
+        </span>
+
+        <span className="text-xl font-bold text-white">
+          {item.value}
+        </span>
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="mt-2 text-3xl font-bold text-white">{c.value}</div>
+)}
+              
+           <div className="mt-1 text-xs text-white/40">
                 (Filtrable por fecha / evento / función)
               </div>
             </div>
@@ -783,8 +881,28 @@ export default function AdminDashboard() {
                   <Icon size={18} className="text-white/70" />
                 </div>
               </div>
-              <div className="mt-2 text-3xl font-bold text-white">{c.value}</div>
-              <div className="mt-1 text-xs text-white/40">
+              {c.valuesByCurrency ? (
+  <div className="mt-3 space-y-1">
+    {c.valuesByCurrency.map((item) => (
+      <div
+        key={item.currency}
+        className="flex items-center justify-between"
+      >
+        <span className="text-xs font-semibold text-white/45">
+          {item.currency}
+        </span>
+
+        <span className="text-xl font-bold text-white">
+          {item.value}
+        </span>
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="mt-2 text-3xl font-bold text-white">{c.value}</div>
+)}
+              
+       <div className="mt-1 text-xs text-white/40">
                 (Filtrable por fecha / evento / función)
               </div>
             </div>
@@ -998,8 +1116,16 @@ export default function AdminDashboard() {
                       </td>
 
                       <td className="py-3 pr-3 text-white font-semibold">
-                        ${Number(o.total).toLocaleString()}
-                      </td>
+  <div className="flex items-center gap-2">
+    <span>
+      {moneyByCurrency(o.total, o.currency || "USD")}
+    </span>
+
+    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 border border-white/10 text-white/50">
+      {String(o.currency || "USD").toUpperCase()}
+    </span>
+  </div>
+</td>
 
                       <td className="py-3 pr-3">
                         <span className="px-2 py-1 text-xs rounded-full bg-green-500/10 border border-green-500/30 text-green-300">
