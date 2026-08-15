@@ -20,10 +20,22 @@ import {
 } from "lucide-react";
 import icono2026 from "../../assets/icono_2026.png";
 
-function money(n) {
+function currencySymbol(currency) {
+  const symbols = {
+    USD: "$",
+    EUR: "€",
+  };
+
+  return symbols[String(currency || "").toUpperCase()] || currency || "$";
+}
+
+function money(n, currency = "USD") {
   const v = Number(n);
   const safe = Number.isFinite(v) ? v : 0;
-  return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+  return `${currencySymbol(currency)}${safe.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function pct(n) {
@@ -353,6 +365,10 @@ export default function EventCloseReportPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  const reportCurrency = String(
+  report?.function?.currency || "USD"
+).toUpperCase();
+
   useEffect(() => {
     let alive = true;
 
@@ -476,30 +492,30 @@ export default function EventCloseReportPage() {
       },
       {
         label: "Subtotal boletos",
-        value: money(report.summary.netTickets),
+        value: money(report.summary.netTickets, reportCurrency),
         icon: BadgeDollarSign,
         accent: "blue",
       },
       {
         label: "Taxes",
-        value: money(report.summary.taxes),
+        value: money(report.summary.taxes, reportCurrency),
         icon: Landmark,
         accent: "orange",
       },
       {
         label: "Fee",
-        value: money(report.summary.fees ?? 0),
+        value: money(report.summary.fees ?? 0, reportCurrency),
         icon: Receipt,
         accent: "purple",
       },
       {
         label: "Total recaudado",
-        value: money(report.summary.totalCollected),
+        value: money(report.summary.totalCollected, reportCurrency),
         icon: Landmark,
         accent: "green",
       },
     ];
-  }, [report]);
+  }, [report, reportCurrency]);
 
   const exportPdf = async () => {
     if (!report) return;
@@ -596,10 +612,10 @@ export default function EventCloseReportPage() {
         ["Usados", String(report.summary?.ticketsUsed || 0)],
         ["Pendientes", String(report.summary?.ticketsPending || 0)],
         ["Asistencia", pct(report.summary?.attendanceRate || 0)],
-        ["Boletos", money(report.summary?.netTickets || 0)],
-        ["Taxes", money(report.summary?.taxes || 0)],
-        ["Fee", money(report.summary?.fees ?? 0)],
-        ["Total", money(report.summary?.totalCollected || 0)],
+        ["Boletos", money(report.summary?.netTickets || 0, reportCurrency)],
+        ["Taxes", money(report.summary?.taxes || 0, reportCurrency)],
+        ["Fee", money(report.summary?.fees ?? 0, reportCurrency)],
+        ["Total", money(report.summary?.totalCollected || 0, reportCurrency)],
       ];
 
       kpis.forEach((item, idx) => {
@@ -620,11 +636,23 @@ export default function EventCloseReportPage() {
       });
 
       drawBox(margin, 80, 86, 40, "Resumen financiero", [
-        `Subtotal boletos: ${money(report.summary?.netTickets || 0)}`,
-        `Taxes: ${money(report.summary?.taxes || 0)}`,
-        `Fee: ${money(report.summary?.fees ?? 0)}`,
-        `Total recaudado: ${money(report.summary?.totalCollected || 0)}`,
-      ]);
+  `Subtotal boletos: ${money(
+    report.summary?.netTickets || 0,
+    reportCurrency
+  )}`,
+  `Taxes: ${money(
+    report.summary?.taxes || 0,
+    reportCurrency
+  )}`,
+  `Fee: ${money(
+    report.summary?.fees ?? 0,
+    reportCurrency
+  )}`,
+  `Total recaudado: ${money(
+    report.summary?.totalCollected || 0,
+    reportCurrency
+  )}`,
+]);
 
       if (salesChart) {
         doc.addImage(salesChart, "PNG", 102, 80, 89, 56);
@@ -659,10 +687,29 @@ export default function EventCloseReportPage() {
         doc.text(String(row.ticketTypeName || "-").slice(0, 24), margin, y1);
         doc.text(String(row.ticketsSold || 0), margin + 42, y1);
         doc.text(pct(row.salesPercent || 0), margin + 58, y1);
-        doc.text(money(row.subtotal || 0), margin + 70, y1);
-        doc.text(money(row.salesTax || 0), margin + 98, y1);
-        doc.text(money(row.serviceFee || 0), margin + 116, y1);
-        doc.text(money(row.totalGross || 0), margin + 132, y1);
+        doc.text(
+  money(row.subtotal || 0, reportCurrency),
+  margin + 70,
+  y1
+);
+
+doc.text(
+  money(row.salesTax || 0, reportCurrency),
+  margin + 98,
+  y1
+);
+
+doc.text(
+  money(row.serviceFee || 0, reportCurrency),
+  margin + 116,
+  y1
+);
+
+doc.text(
+  money(row.totalGross || 0, reportCurrency),
+  margin + 132,
+  y1
+);
         y1 += 6;
       });
 
@@ -918,16 +965,16 @@ export default function EventCloseReportPage() {
                           {pct(row.salesPercent)}
                         </td>
                         <td className="py-3 pr-3 text-slate-600 text-sm">
-                          {money(row.subtotal)}
+                          {money(row.subtotal, reportCurrency)}
                         </td>
                         <td className="py-3 pr-3 text-slate-600 text-sm">
-                          {money(row.salesTax)}
+                          {money(row.salesTax, reportCurrency)}
                         </td>
                         <td className="py-3 pr-3 text-slate-600 text-sm">
-                          {money(row.serviceFee || 0)}
+                          {money(row.serviceFee || 0, reportCurrency)}
                         </td>
                         <td className="py-3 pr-0 text-slate-900 font-semibold text-sm">
-                          {money(row.totalGross)}
+                          {money(row.totalGross, reportCurrency)}
                         </td>
                       </tr>
                     ))}
@@ -1036,28 +1083,28 @@ export default function EventCloseReportPage() {
               <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
                 <div className="text-slate-400 text-xs">Boletos</div>
                 <div className="text-slate-900 text-2xl font-bold mt-1">
-                  {money(report.summary?.netTickets || 0)}
+                  {money(report.summary?.netTickets || 0, reportCurrency)}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
                 <div className="text-slate-400 text-xs">Taxes</div>
                 <div className="text-slate-900 text-2xl font-bold mt-1">
-                  {money(report.summary?.taxes || 0)}
+                  {money(report.summary?.taxes || 0, reportCurrency)}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
                 <div className="text-slate-400 text-xs">Fee</div>
                 <div className="text-slate-900 text-2xl font-bold mt-1">
-                  {money(report.summary?.fees ?? 0)}
+                  {money(report.summary?.fees ?? 0, reportCurrency)}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-gradient-to-r from-[#0f2746] to-[#16345b] border border-[#007AFF]/20 px-4 py-4">
                 <div className="text-white/60 text-xs">Total recaudado</div>
                 <div className="text-white text-2xl font-bold mt-1">
-                  {money(report.summary?.totalCollected || 0)}
+                  {money(report.summary?.totalCollected || 0, reportCurrency)}
                 </div>
               </div>
             </div>
