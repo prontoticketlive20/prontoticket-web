@@ -16,10 +16,22 @@ import {
 } from "lucide-react";
 import icono2026 from "../../assets/icono_2026.png";
 
-function money(n) {
+function currencySymbol(currency) {
+  const symbols = {
+    USD: "$",
+    EUR: "€",
+  };
+
+  return symbols[String(currency || "").toUpperCase()] || currency || "$";
+}
+
+function money(n, currency = "USD") {
   const v = Number(n);
   const safe = Number.isFinite(v) ? v : 0;
-  return `$${safe.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+  return `${currencySymbol(currency)}${safe.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function pct(n) {
@@ -74,7 +86,14 @@ function WhiteStatCard({ label, value, icon: Icon, accent = "blue" }) {
   );
 }
 
-function ExecutivePieCard({ title, subtitle, items, valueKey, totalLabel }) {
+function ExecutivePieCard({
+  title,
+  subtitle,
+  items,
+  valueKey,
+  totalLabel,
+  currency = "USD",
+}) {
   const total = items.reduce((acc, item) => acc + Number(item[valueKey] || 0), 0);
   const colors = buildPalette(items.length);
 
@@ -123,7 +142,7 @@ function ExecutivePieCard({ title, subtitle, items, valueKey, totalLabel }) {
           />
           <div className="absolute inset-[24%] rounded-full border flex flex-col items-center justify-center text-center px-4 bg-white border-slate-200">
             <div className="text-slate-400 text-xs">{totalLabel}</div>
-            <div className="text-slate-900 text-2xl font-bold mt-1">{money(total)}</div>
+            <div className="text-slate-900 text-2xl font-bold mt-1">{money(total, currency)}</div>
           </div>
         </div>
 
@@ -152,7 +171,7 @@ function ExecutivePieCard({ title, subtitle, items, valueKey, totalLabel }) {
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="text-slate-900 font-semibold">{money(value)}</div>
+                    <div className="text-slate-900 font-semibold">{money(value, currency)}</div>
                   </div>
                 </div>
               );
@@ -164,7 +183,13 @@ function ExecutivePieCard({ title, subtitle, items, valueKey, totalLabel }) {
   );
 }
 
-async function createExecutivePieChartDataUrl(items, valueKey, title, totalLabel) {
+async function createExecutivePieChartDataUrl(
+  items,
+  valueKey,
+  title,
+  totalLabel,
+  currency = "USD"
+) {
   const total = items.reduce((acc, item) => acc + Number(item[valueKey] || 0), 0);
   const colors = buildPalette(items.length);
 
@@ -255,7 +280,7 @@ async function createExecutivePieChartDataUrl(items, valueKey, title, totalLabel
 
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 28px Arial";
-  ctx.fillText(money(total), cx, cy + 28);
+  ctx.fillText(money(total, currency), cx, cy + 28);
   ctx.textAlign = "left";
 
   let legendY = 130;
@@ -274,7 +299,7 @@ async function createExecutivePieChartDataUrl(items, valueKey, title, totalLabel
 
     ctx.fillStyle = "#64748b";
     ctx.font = "18px Arial";
-    ctx.fillText(`${money(value)} • ${percent}%`, 620, legendY + 28);
+    ctx.fillText(`${money(value, currency)} • ${percent}%`, 620, legendY + 28);
 
     legendY += 72;
   });
@@ -297,6 +322,10 @@ export default function FinancialReportPage() {
   const [report, setReport] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  
+  const reportCurrency = String(
+  report?.function?.currency || "USD"
+).toUpperCase();
 
   useEffect(() => {
     let alive = true;
@@ -383,59 +412,62 @@ export default function FinancialReportPage() {
   };
 
   const summaryCards = useMemo(() => {
-    if (!report?.summary) return [];
+  if (!report?.summary) return [];
 
-    return [
-      {
-        label: "Boletos netos",
-        value: money(report.summary.netTickets),
-        icon: BadgeDollarSign,
-        accent: "blue",
-      },
-      {
-        label: "Taxes",
-        value: money(report.summary.taxes),
-        icon: Percent,
-        accent: "orange",
-      },
-      {
-        label: "Fee bruto",
-        value: money(report.summary.fees),
-        icon: Receipt,
-        accent: "purple",
-      },
-      {
-        label: "Stripe bruto",
-        value: money(report.summary.stripeGross),
-        icon: CreditCard,
-        accent: "blue",
-      },
-      {
-        label: "Comisión Stripe 3%",
-        value: money(report.summary.stripeCommissionEstimate),
-        icon: Percent,
-        accent: "orange",
-      },
-      {
-        label: "Neto ProntoTicketLive",
-        value: money(report.summary.prontoNet),
-        icon: Landmark,
-        accent: "green",
-      },
-      {
-        label: "Refunds / cancelaciones",
-        value: money(report.summary.refundsTotal),
-        icon: RefreshCw,
-        accent: "purple",
-      },
-      {
-        label: "Total recaudado",
-        value: money(report.summary.totalCollected),
-        icon: Landmark,
-        accent: "green",
-      },
-    ];
-  }, [report]);
+  return [
+    {
+      label: "Boletos netos",
+      value: money(report.summary.netTickets, reportCurrency),
+      icon: BadgeDollarSign,
+      accent: "blue",
+    },
+    {
+      label: "Taxes",
+      value: money(report.summary.taxes, reportCurrency),
+      icon: Percent,
+      accent: "orange",
+    },
+    {
+      label: "Fee bruto",
+      value: money(report.summary.fees, reportCurrency),
+      icon: Receipt,
+      accent: "purple",
+    },
+    {
+      label: "Merchant bruto",
+      value: money(report.summary.stripeGross, reportCurrency),
+      icon: CreditCard,
+      accent: "blue",
+    },
+    {
+      label: "Comisión Merchant 3%",
+      value: money(
+        report.summary.stripeCommissionEstimate,
+        reportCurrency
+      ),
+      icon: Percent,
+      accent: "orange",
+    },
+    {
+      label: "Neto ProntoTicketLive",
+      value: money(report.summary.prontoNet, reportCurrency),
+      icon: Landmark,
+      accent: "green",
+    },
+    {
+      label: "Refunds / cancelaciones",
+      value: money(report.summary.refundsTotal, reportCurrency),
+      icon: RefreshCw,
+      accent: "purple",
+    },
+    {
+      label: "Total recaudado",
+      value: money(report.summary.totalCollected, reportCurrency),
+      icon: Landmark,
+      accent: "green",
+    },
+  ];
+}, [report, reportCurrency]);
 
   const exportPdf = async () => {
     if (!report) return;
@@ -454,11 +486,12 @@ export default function FinancialReportPage() {
       const margin = 10;
 
       const methodsChart = await createExecutivePieChartDataUrl(
-        report.methods || [],
-        "grossAmount",
-        "Ventas brutas por método de pago",
-        "Bruto total"
-      );
+  report.methods || [],
+  "grossAmount",
+  "Ventas brutas por método de pago",
+  "Bruto total",
+  reportCurrency
+);
 
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
@@ -498,15 +531,21 @@ export default function FinancialReportPage() {
       const kpiGap = 4;
 
       const kpis = [
-        ["Boletos", money(report.summary?.netTickets || 0)],
-        ["Taxes", money(report.summary?.taxes || 0)],
-        ["Fee bruto", money(report.summary?.fees || 0)],
-        ["Stripe bruto", money(report.summary?.stripeGross || 0)],
-        ["Stripe 3%", money(report.summary?.stripeCommissionEstimate || 0)],
-        ["Neto PTL", money(report.summary?.prontoNet || 0)],
-        ["Refunds", money(report.summary?.refundsTotal || 0)],
-        ["Total", money(report.summary?.totalCollected || 0)],
-      ];
+  ["Boletos", money(report.summary?.netTickets || 0, reportCurrency)],
+  ["Taxes", money(report.summary?.taxes || 0, reportCurrency)],
+  ["Fee bruto", money(report.summary?.fees || 0, reportCurrency)],
+  ["Merchant bruto", money(report.summary?.stripeGross || 0, reportCurrency)],
+  [
+    "Merchant 3%",
+    money(
+      report.summary?.stripeCommissionEstimate || 0,
+      reportCurrency
+    ),
+  ],
+  ["Neto PTL", money(report.summary?.prontoNet || 0, reportCurrency)],
+  ["Refunds", money(report.summary?.refundsTotal || 0, reportCurrency)],
+  ["Total", money(report.summary?.totalCollected || 0, reportCurrency)],
+];
 
       kpis.forEach((item, idx) => {
         const x = margin + idx * (kpiW + kpiGap);
@@ -551,9 +590,9 @@ export default function FinancialReportPage() {
         if (y > 178) return;
         doc.text(String(row.label || "-"), 136, y);
         doc.text(String(row.ordersCount || 0), 168, y);
-        doc.text(money(row.grossAmount || 0), 188, y);
-        doc.text(money(row.refundsAmount || 0), 214, y);
-        doc.text(money(row.netAmount || 0), 240, y);
+        doc.text(money(row.grossAmount || 0, reportCurrency), 188, y);
+        doc.text(money(row.refundsAmount || 0, reportCurrency), 214, y);
+        doc.text(money(row.netAmount || 0, reportCurrency), 240, y);
         doc.text(pct(row.percentOfGross || 0), 266, y);
         y += 6;
       });
@@ -566,12 +605,19 @@ export default function FinancialReportPage() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.text(
-        `Fee bruto (${money(report.summary?.fees || 0)}) - comisión Stripe estimada (${money(
-          report.summary?.stripeCommissionEstimate || 0
-        )}) = ${money(report.summary?.prontoNet || 0)}`,
-        140,
-        197
-      );
+  `Fee bruto (${money(
+    report.summary?.fees || 0,
+    reportCurrency
+  )}) - comisión Merchant estimada (${money(
+    report.summary?.stripeCommissionEstimate || 0,
+    reportCurrency
+  )}) = ${money(
+    report.summary?.prontoNet || 0,
+    reportCurrency
+  )}`,
+  140,
+  197
+);
 
       doc.setDrawColor(220, 226, 234);
       doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
@@ -605,7 +651,7 @@ export default function FinancialReportPage() {
 
           <h1 className="text-2xl font-bold text-white">Reporte financiero</h1>
           <p className="text-white/50 text-sm mt-1">
-            Control interno de ingresos, fee, Stripe y neto para ProntoTicketLive.
+            Control interno de ingresos, fee, Merchant y neto para ProntoTicketLive.
           </p>
         </div>
 
@@ -800,13 +846,13 @@ export default function FinancialReportPage() {
                           {row.ordersCount}
                         </td>
                         <td className="py-3 pr-3 text-slate-600 text-sm">
-                          {money(row.grossAmount)}
+                          {money(row.grossAmount, reportCurrency)}
                         </td>
                         <td className="py-3 pr-3 text-red-600 text-sm">
-                          {money(row.refundsAmount)}
+                          {money(row.refundsAmount, reportCurrency)}
                         </td>
                         <td className="py-3 pr-3 text-slate-900 text-sm font-semibold">
-                          {money(row.netAmount)}
+                          {money(row.netAmount, reportCurrency)}
                         </td>
                         <td className="py-3 pr-0 text-slate-600 text-sm">
                           {pct(row.percentOfGross)}
@@ -824,6 +870,7 @@ export default function FinancialReportPage() {
               items={report.methods || []}
               valueKey="grossAmount"
               totalLabel="Bruto total"
+              currency={reportCurrency}
             />
           </div>
 
@@ -836,28 +883,31 @@ export default function FinancialReportPage() {
               <div className="rounded-2xl bg-slate-50 border border-slate-200 px-5 py-5">
                 <div className="text-slate-400 text-xs">Fee bruto recaudado</div>
                 <div className="text-slate-900 text-3xl font-bold mt-2">
-                  {money(report.summary?.fees || 0)}
+                  {money(report.summary?.fees || 0, reportCurrency)}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-slate-50 border border-slate-200 px-5 py-5">
-                <div className="text-slate-400 text-xs">Comisión Stripe estimada (3%)</div>
+                <div className="text-slate-400 text-xs">Comisión Merchant estimada (3%)</div>
                 <div className="text-[#FF9500] text-3xl font-bold mt-2">
-                  {money(report.summary?.stripeCommissionEstimate || 0)}
+                  {money(
+  report.summary?.stripeCommissionEstimate || 0,
+  reportCurrency
+)}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-gradient-to-r from-[#0f2746] to-[#16345b] border border-[#007AFF]/20 px-5 py-5">
                 <div className="text-white/60 text-xs">Neto ProntoTicketLive</div>
                 <div className="text-white text-3xl font-bold mt-2">
-                  {money(report.summary?.prontoNet || 0)}
+                  {money(report.summary?.prontoNet || 0, reportCurrency)}
                 </div>
               </div>
             </div>
 
             <div className="mt-4 text-slate-500 text-sm">
               Fórmula aplicada: <strong>Fee bruto</strong> -{" "}
-              <strong>3% del bruto vendido por Stripe</strong> ={" "}
+              <strong>3% del bruto vendido por Merchant</strong> ={" "}
               <strong>Neto para ProntoTicketLive</strong>.
             </div>
           </div>
