@@ -20,6 +20,7 @@ import {
 import Header from './Header';
 import Footer from './Footer';
 import PayPalPayment from './payments/PayPalPayment';
+import AuthorizeNetPayment from './payments/AuthorizeNetPayment';
 
 import { usePurchase } from '../context/PurchaseContext';
 import { createGuestOrder } from '../services/orders.service';
@@ -753,6 +754,81 @@ const CheckoutPage = () => {
     );
   };
 
+     /*
+   * AuthorizeNetPayment llama este método después de que:
+   *
+   * 1. Accept.js tokenizó la tarjeta.
+   * 2. Authorize.net aprobó el cobro.
+   * 3. Nuestro backend registró PaymentTransaction.
+   * 4. La orden local quedó PAID.
+   * 5. Se confirmó inventario, Seats.io, analytics y email.
+   */
+  const handleAuthorizeNetApproved = async ({
+    localOrderId: approvedLocalOrderId,
+    transactionId,
+    authorizationCode,
+    status,
+  }) => {
+    const confirmationData = {
+      orderId: approvedLocalOrderId,
+      backendTickets,
+
+      event: {
+        id: event?.id,
+        title: event?.title,
+        image: event?.image,
+        imageUrl:
+          event?.imageUrl || event?.image,
+        date:
+          selectedFunction?.date || event?.date,
+        time:
+          selectedFunction?.time || event?.time,
+        venue: event?.venue,
+        city: event?.city,
+        functions: event?.functions || [],
+      },
+
+      selectedFunction:
+        selectedFunction ||
+        event?.functions?.[0] ||
+        null,
+
+      tickets: selectedTickets || [],
+      seats: selectedSeats || [],
+      buyer: formData,
+      total,
+      currency: summary?.currency || 'USD',
+
+      paymentMethod: 'AUTHORIZE_NET',
+      transactionId,
+      authorizationCode,
+      paymentStatus: status,
+
+      timestamp: new Date().toISOString(),
+    };
+
+    sessionStorage.setItem(
+      'prontoticket_confirmation',
+      JSON.stringify(confirmationData),
+    );
+
+    clearPurchase();
+
+    navigate(
+      `/evento/${id}/confirmacion/${approvedLocalOrderId}`,
+    );
+  };
+
+  const handleAuthorizeNetError = (error) => {
+    console.error(
+      '[CheckoutPage] Error recibido desde Authorize.net:',
+      error,
+    );
+
+    setIsProcessingPayment(false);
+    setPaymentError(getErrorMessage(error));
+  };
+
   const handlePayPalCancel = () => {
     setIsProcessingPayment(false);
     setPaymentError(
@@ -778,8 +854,6 @@ const CheckoutPage = () => {
     acceptTerms &&
     hasSelections &&
     !authLoading &&
-    !paypalConfigLoading &&
-    Boolean(paypalClientId) &&
     !isCreatingOrder &&
     !isProcessingPayment &&
     !checkoutLocked &&
@@ -1324,27 +1398,61 @@ const CheckoutPage = () => {
                     </>
                   )}
 
-                {localOrderId &&
-                  paypalClientId && (
-                    <>
-                      <div className="mb-5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 px-4 py-3">
-                        <p className="text-[#86efac] text-sm font-semibold">
-                          Orden preparada correctamente
-                        </p>
+                  {localOrderId && (
+                  <>
+                    <div className="mb-5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 px-4 py-3">
+                      <p className="text-[#86efac] text-sm font-semibold">
+                        Orden preparada correctamente
+                      </p>
 
-                        <p className="text-white/60 text-xs mt-1">
-                          Selecciona PayPal o la opción de
-                          tarjeta que aparezca disponible.
-                        </p>
+                      <p className="text-white/60 text-xs mt-1">
+                        {String(
+                          summary?.currency?.code || 'USD',
+                        ).toUpperCase() === 'USD'
+                          ? 'Selecciona tarjeta de crédito, débito o PayPal.'
+                          : 'Selecciona PayPal para completar tu compra.'}
+                      </p>
+                    </div>
+
+                    {String(
+                      summary?.currency?.code || 'USD',
+                    ).toUpperCase() === 'USD' && (
+                      <div className="mb-6">
+                        <AuthorizeNetPayment
+                          localOrderId={localOrderId}
+                          currency={
+                            summary?.currency?.code || 'USD'
+                          }
+                          amount={total}
+                          disabled={
+                            isTimerBlocking ||
+                            isCreatingOrder ||
+                            isProcessingPayment
+                          }
+                          onApproved={
+                            handleAuthorizeNetApproved
+                          }
+                          onError={
+                            handleAuthorizeNetError
+                          }
+                          onProcessingChange={
+                            setIsProcessingPayment
+                          }
+                        />
                       </div>
+                    )}
 
+                    {paypalClientId && (
                       <PayPalPayment
                         clientId={paypalClientId}
                         localOrderId={localOrderId}
-                        currency={summary?.currency?.code || 'USD'}
+                        currency={
+                          summary?.currency?.code || 'USD'
+                        }
                         disabled={
                           isTimerBlocking ||
-                          isCreatingOrder
+                          isCreatingOrder ||
+                          isProcessingPayment
                         }
                         onApproved={
                           handlePayPalApproved
@@ -1359,8 +1467,25 @@ const CheckoutPage = () => {
                           setIsProcessingPayment
                         }
                       />
-                    </>
-                  )}
+                    )}
+
+                    {!paypalClientId &&
+                      String(
+                        summary?.currency?.code || 'USD',
+                      ).toUpperCase() !== 'USD' && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                          <p className="text-red-400 font-semibold text-sm">
+                            PayPal no está disponible
+                          </p>
+
+                          <p className="text-red-300/80 text-sm mt-1">
+                            No se pudo cargar el método de pago
+                            disponible para esta moneda.
+                          </p>
+                        </div>
+                      )}
+                  </>
+                )}
 
                 {paymentError && (
                   <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start space-x-3">
