@@ -1291,12 +1291,11 @@ const CheckoutPage = () => {
                           "'Outfit', sans-serif",
                       }}
                     >
-                      Paga con PayPal o tarjeta
+                      Método de pago
                     </h2>
 
                     <p className="text-white/50 text-xs">
-                      PayPal mostrará las opciones disponibles
-                      para tu dispositivo y ubicación.
+                      Selecciona cómo deseas completar tu compra.                      
                     </p>
                   </div>
                 </div>
@@ -1409,8 +1408,8 @@ const CheckoutPage = () => {
                         {String(
                           summary?.currency?.code || 'USD',
                         ).toUpperCase() === 'USD'
-                          ? 'Selecciona tarjeta de crédito, débito o PayPal.'
-                          : 'Selecciona PayPal para completar tu compra.'}
+                          ? 'Selecciona tu método de pago para completar la compra.'
+                          : 'Selecciona tu método de pago para completar la compra.'}
                       </p>
                     </div>
 

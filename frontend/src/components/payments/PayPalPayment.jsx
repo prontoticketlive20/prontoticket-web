@@ -138,14 +138,28 @@ const PayPalPayment = ({
       paypalContainerRef.current.innerHTML = '';
 
       try {
-        const paypal = await loadScript({
-          clientId,
-          currency: String(currency || 'USD').toUpperCase(),
-          intent: 'capture',
-          components: 'buttons',
-          locale: 'es_US',
-          enableFunding: 'card,venmo,paylater',
-        });
+        const normalizedCurrency = String(
+  currency || 'USD',
+).toUpperCase();
+
+const paypal = await loadScript({
+  clientId,
+  currency: normalizedCurrency,
+  intent: 'capture',
+  components: 'buttons',
+  locale: 'es_US',
+
+  // USD:
+  // La tarjeta se procesa con Authorize.net.
+  //
+  // Otras monedas:
+  // PayPal puede ofrecer también pago con tarjeta.
+  ...(normalizedCurrency !== 'USD'
+    ? { enableFunding: 'card' }
+    : {
+        disableFunding: 'card,venmo,paylater',
+      }),
+});
 
         if (cancelled) {
           return;
@@ -405,13 +419,8 @@ const PayPalPayment = ({
         )}
 
         <div
-          ref={paypalContainerRef}
-          className={
-            disabled
-              ? 'opacity-50 pointer-events-none'
-              : ''
-          }
-        />
+  ref={paypalContainerRef}
+/>
       </div>
 
       {sdkError && (
