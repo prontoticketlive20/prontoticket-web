@@ -1401,7 +1401,7 @@ const CheckoutPage = () => {
                   <>
                     <div className="mb-5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 px-4 py-3">
                       <p className="text-[#86efac] text-sm font-semibold">
-                        Orden preparada correctamente
+                        Todo listo para pagar
                       </p>
 
                       <p className="text-white/60 text-xs mt-1">

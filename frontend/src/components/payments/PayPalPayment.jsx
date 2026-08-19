@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
-  BadgeCheck,
   Loader2,
   Lock,
 } from 'lucide-react';
@@ -441,39 +440,6 @@ const paypal = await loadScript({
           </div>
         </div>
       )}
-
-      <div className="rounded-2xl bg-white/5 border border-white/10 px-5 py-4">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <BadgeCheck
-            size={16}
-            className="text-[#22c55e]"
-          />
-
-          <span className="text-white/80 text-sm font-semibold">
-            Formas de pago disponibles
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {[
-            'PayPal',
-            'Tarjeta de débito',
-            'Tarjeta de crédito',
-          ].map((method) => (
-            <div
-              key={method}
-              className="px-3 py-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-white/70 text-xs font-medium"
-            >
-              {method}
-            </div>
-          ))}
-        </div>
-
-        <p className="text-center text-white/40 text-[11px] mt-3 leading-relaxed">
-          PayPal mostrará únicamente los métodos disponibles
-          para el comprador, dispositivo y ubicación.
-        </p>
-      </div>
 
       <div className="flex items-center justify-center gap-1 pt-1">
         <Lock size={12} className="text-white/40" />
