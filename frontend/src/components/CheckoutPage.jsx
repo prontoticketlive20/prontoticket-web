@@ -619,8 +619,13 @@ const CheckoutPage = () => {
         Boolean(currentUser?.id) &&
         !purchaseAsGuest;
 
-      const source =
-        localStorage.getItem('ptl_source') || 'web';
+      const trackedEventId =
+        localStorage.getItem('ptl_platform_event_id');
+
+      const platform =
+        trackedEventId === id
+          ? localStorage.getItem('ptl_platform') || 'direct'
+          : 'direct';
 
       const payload = {
         functionId,
@@ -639,7 +644,7 @@ const CheckoutPage = () => {
           : undefined,
 
         campaignId: campaignId || undefined,
-        platform: source,
+        platform,
 
         /*
          * El backend recalcula estos valores.
