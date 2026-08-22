@@ -172,23 +172,24 @@ useEffect(() => {
 // 🔥 CAPTURAR SOURCE / PLATFORM
 // ===============================
 useEffect(() => {
+  if (!id) return;
+
   const params = new URLSearchParams(location.search);
 
-  // 🔥 aceptar ambos (source o platform)
-  const source = params.get('source') || params.get('platform');
+  // Aceptar ambos nombres por compatibilidad con links existentes.
+  const source =
+    params.get('source') ||
+    params.get('platform') ||
+    'direct';
 
-  if (source) {
-    localStorage.setItem('ptl_source', source);
-    localStorage.setItem('ptl_platform', source);
+  localStorage.setItem('ptl_platform', source);
+  localStorage.setItem('ptl_platform_event_id', id);
 
-    console.log('🌍 Source/Platform capturado:', source);
-  } else {
-    // fallback
-    if (!localStorage.getItem('ptl_platform')) {
-      localStorage.setItem('ptl_platform', 'direct');
-    }
-  }
-}, [location.search]);
+  console.log('📊 Platform tracking capturado:', {
+    platform: source,
+    eventId: id,
+  });
+}, [location.search, id]);
 
 const hasTrackedView = useRef(false);
 
