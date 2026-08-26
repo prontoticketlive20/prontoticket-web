@@ -191,6 +191,37 @@ useEffect(() => {
   });
 }, [location.search, id]);
 
+
+// ===============================
+// CAPTURAR AFFILIATE REF
+// ===============================
+useEffect(() => {
+  if (!id) return;
+
+  const params = new URLSearchParams(location.search);
+  const affiliateRef = params.get('ref');
+
+  if (affiliateRef) {
+    const normalizedRef = affiliateRef.trim().toUpperCase();
+
+    localStorage.setItem('ptl_affiliate_ref', normalizedRef);
+    localStorage.setItem('ptl_affiliate_event_id', id);
+
+    console.log('Affiliate tracking capturado:', {
+      affiliateRef: normalizedRef,
+      eventId: id,
+    });
+  } else {
+    /*
+     * Si el usuario entra a otro evento sin ?ref=,
+     * eliminamos cualquier afiliado anterior para evitar
+     * atribuciones cruzadas entre eventos.
+     */
+    localStorage.removeItem('ptl_affiliate_ref');
+    localStorage.removeItem('ptl_affiliate_event_id');
+  }
+}, [location.search, id]);
+
 const hasTrackedView = useRef(false);
 
 useEffect(() => {

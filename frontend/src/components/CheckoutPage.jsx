@@ -627,6 +627,14 @@ const CheckoutPage = () => {
           ? localStorage.getItem('ptl_platform') || 'direct'
           : 'direct';
 
+       const affiliateTrackedEventId =
+        localStorage.getItem('ptl_affiliate_event_id');
+
+       const affiliateRef =
+        affiliateTrackedEventId === id
+          ? localStorage.getItem('ptl_affiliate_ref') || undefined
+          : undefined;
+
       const payload = {
         functionId,
         buyerEmail: formData.email.trim().toLowerCase(),
@@ -645,6 +653,7 @@ const CheckoutPage = () => {
 
         campaignId: campaignId || undefined,
         platform,
+        affiliateRef,
 
         /*
          * El backend recalcula estos valores.
