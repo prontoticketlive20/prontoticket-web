@@ -24,6 +24,7 @@ import EditEventPage from "./pages/admin/EditEventPage";
 import ManualSalesPage from "./pages/admin/ManualSalesPage";
 import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
 import FinancialReportPage from "./pages/admin/FinancialReportPage";
+import AffiliatesPage from "./pages/admin/AffiliatesPage";
 import AnalyticsPage from './components/AnalyticsPage';
 
 import BreakEvenPage from "./pages/admin/BreakEvenPage";
@@ -207,6 +208,17 @@ function App() {
                  <ProtectedRoute>
                   <AdminRoute allowedRoles={["ADMIN", "PRODUCER"]}>
                     <BreakEvenPage />
+                  </AdminRoute>
+                 </ProtectedRoute>
+                }
+               />
+
+              <Route
+                path="/admin/affiliates"
+                element={
+                 <ProtectedRoute>
+                  <AdminRoute allowedRoles={["ADMIN"]}>
+                    <AffiliatesPage />
                   </AdminRoute>
                  </ProtectedRoute>
                 }
