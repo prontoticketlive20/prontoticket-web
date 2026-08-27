@@ -835,6 +835,48 @@ export default function AffiliatesPage() {
   // COPY
   // =========================================================
 
+  const getGeneratedAffiliateUrl = () => {
+  const refCode = generatedAssignment?.refCode;
+
+  if (!refCode) return "";
+
+  const selectedEvent = events.find(
+    (eventItem) => eventItem.id === selectedEventId
+  );
+
+  if (!selectedEvent?.id) return "";
+
+  const eventPath = selectedEvent.slug
+    ? `/evento/${selectedEvent.slug}-${selectedEvent.id}`
+    : `/evento/${selectedEvent.id}`;
+
+  return `${window.location.origin}${eventPath}?ref=${encodeURIComponent(
+    refCode
+  )}`;
+};
+
+const copyAffiliateUrl = async () => {
+  const affiliateUrl = getGeneratedAffiliateUrl();
+
+  if (!affiliateUrl) return;
+
+  try {
+    await navigator.clipboard.writeText(affiliateUrl);
+
+    setLinkMessage({
+      type: "success",
+      text: "Link de afiliado copiado.",
+    });
+  } catch (error) {
+    console.error("No fue posible copiar el link:", error);
+
+    setLinkMessage({
+      type: "error",
+      text: "No fue posible copiar el link de afiliado.",
+    });
+  }
+};
+
   const copyRefCode = async () => {
     const refCode = generatedAssignment?.refCode;
 
@@ -1267,33 +1309,74 @@ export default function AffiliatesPage() {
             <Message message={linkMessage} />
 
             {generatedAssignment?.refCode && (
-              <div className="mt-6 rounded-2xl border border-orange-500/20 bg-orange-500/[0.06] p-5">
-                <p className="text-white/50 text-sm mb-2">
-                  Código de referencia generado
-                </p>
+  <div className="mt-6 rounded-2xl border border-orange-500/20 bg-orange-500/[0.06] p-5">
+    <div className="flex items-center gap-2 mb-5">
+      <CheckCircle2 size={19} className="text-green-400" />
+      <div>
+        <p className="text-white font-semibold">
+          Link de afiliado generado
+        </p>
+        <p className="text-white/40 text-xs mt-1">
+          La asignación quedó asociada correctamente al afiliado y al evento.
+        </p>
+      </div>
+    </div>
 
-                <div className="flex flex-col md:flex-row md:items-center gap-3">
-                  <code className="text-orange-300 font-semibold text-lg bg-black/20 rounded-lg px-4 py-3">
-                    {generatedAssignment.refCode}
-                  </code>
+    {/* CÓDIGO DE REFERENCIA */}
+    <div className="mb-5">
+      <p className="text-white/50 text-sm mb-2">
+        Código de referencia
+      </p>
 
-                  <button
-                    type="button"
-                    onClick={copyRefCode}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-white/80 hover:bg-white/5"
-                  >
-                    <Copy size={17} />
-                    Copiar código
-                  </button>
-                </div>
+      <div className="flex flex-col md:flex-row md:items-center gap-3">
+        <code className="text-orange-300 font-semibold text-lg bg-black/20 rounded-lg px-4 py-3">
+          {generatedAssignment.refCode}
+        </code>
 
-                <p className="text-white/40 text-xs mt-4">
-                  El código ya quedó asociado al afiliado y al evento. En el
-                  siguiente ajuste conectaremos este código con la URL pública
-                  exacta del evento.
-                </p>
-              </div>
-            )}
+        <button
+          type="button"
+          onClick={copyRefCode}
+          className="flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-white/80 hover:bg-white/5"
+        >
+          <Copy size={17} />
+          Copiar código
+        </button>
+      </div>
+    </div>
+
+    {/* LINK DEL AFILIADO */}
+    <div>
+      <p className="text-white/50 text-sm mb-2">
+        Link exclusivo del afiliado
+      </p>
+
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="flex-1 min-w-0 bg-black/20 border border-white/5 rounded-xl px-4 py-3">
+          <p
+            className="text-blue-300 text-sm break-all font-mono"
+            title={getGeneratedAffiliateUrl()}
+          >
+            {getGeneratedAffiliateUrl()}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={copyAffiliateUrl}
+          className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] hover:bg-[#0066d6] px-5 py-3 text-white font-semibold"
+        >
+          <Copy size={17} />
+          Copiar link
+        </button>
+      </div>
+    </div>
+
+    <p className="text-white/40 text-xs mt-4">
+      Comparte este link con el afiliado. Las compras realizadas desde este
+      enlace quedarán identificadas con su código de referencia.
+    </p>
+  </div>
+)}
           </div>
         )}
 
