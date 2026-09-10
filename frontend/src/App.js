@@ -56,6 +56,7 @@ import CampaignDashboard from './pages/CampaignDashboard';
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AccountPage from "./pages/AccountPage";
+import MyAffiliatePage from "./components/MyAffiliatePage";
 
 import faviconIcon from "./assets/icono_2026.png";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -353,6 +354,15 @@ function App() {
                     <AdminRoute allowedRoles={["CUSTOMER", "ADMIN"]}>
                       <AccountPage />
                     </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/my-affiliate"
+                element={
+                  <ProtectedRoute>
+                    <MyAffiliatePage />
                   </ProtectedRoute>
                 }
               />
