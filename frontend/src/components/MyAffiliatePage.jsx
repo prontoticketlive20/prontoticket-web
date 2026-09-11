@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
+import logoProntoTicketLive from "../assets/logo-prontoticketlive.png";
 import {
   ArrowLeft,
   BadgeDollarSign,
@@ -242,22 +243,41 @@ export default function MyAffiliatePage() {
         doc.setFillColor(15, 23, 42);
         doc.rect(0, 0, pageWidth, 32, "F");
 
-        // Branding textual seguro.
-        // Evitamos depender de un asset que esta pagina aun no importa.
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(17);
-        doc.text("ProntoTicketLive", margin, 13);
+        // Logo corporativo ProntoTicketLive.
+try {
+  doc.addImage(
+    logoProntoTicketLive,
+    "PNG",
+    margin,
+    7,
+    42,
+    14
+  );
+} catch (logoError) {
+  console.warn(
+    "[MyAffiliatePage] No se pudo agregar el logo al PDF:",
+    logoError
+  );
+}
 
-        doc.setFontSize(11);
-        doc.text(title, margin, 21);
+// Titulo y subtitulo del reporte.
+const headerTextX = margin + 50;
 
-        if (subtitle) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(203, 213, 225);
-          doc.text(String(subtitle).slice(0, 125), margin, 27);
-        }
+doc.setTextColor(255, 255, 255);
+doc.setFont("helvetica", "bold");
+doc.setFontSize(11);
+doc.text(title, headerTextX, 14);
+
+if (subtitle) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(203, 213, 225);
+  doc.text(
+    String(subtitle).slice(0, 105),
+    headerTextX,
+    21
+  );
+}
       };
 
       const drawFooter = () => {
