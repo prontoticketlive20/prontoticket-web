@@ -1,5 +1,7 @@
 import api from "../api/api";
 
+const DEFAULT_TIME_ZONE = "America/New_York";
+
 // ---------- Helpers ----------
 function safeString(v, fallback = "") {
   return typeof v === "string" && v.trim().length ? v : fallback;
@@ -10,30 +12,67 @@ function safeNumber(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Formato simple tipo "15 JUN 2025"
-function formatDateShort(dateValue) {
-  if (!dateValue) return "";
-  const d = new Date(dateValue);
-  if (Number.isNaN(d.getTime())) return "";
-
-  const day = String(d.getDate()).padStart(2, "0");
-  const months = [
-    "ENE", "FEB", "MAR", "ABR", "MAY", "JUN",
-    "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"
-  ];
-  const mon = months[d.getMonth()];
-  const year = d.getFullYear();
-
-  return `${day} ${mon} ${year}`;
+function getTimeZone(timeZone) {
+  return safeString(timeZone, DEFAULT_TIME_ZONE);
 }
 
-function formatTimeHHMM(dateValue) {
+// Formato tipo "15 JUN 2025" respetando el huso horario de la función
+function formatDateShort(dateValue, timeZone = DEFAULT_TIME_ZONE) {
   if (!dateValue) return "";
+
   const d = new Date(dateValue);
   if (Number.isNaN(d.getTime())) return "";
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+
+  try {
+    const parts = new Intl.DateTimeFormat("es-US", {
+      timeZone: getTimeZone(timeZone),
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).formatToParts(d);
+
+    const day =
+      parts.find((part) => part.type === "day")?.value || "";
+
+    const month =
+      parts.find((part) => part.type === "month")?.value || "";
+
+    const year =
+      parts.find((part) => part.type === "year")?.value || "";
+
+    return `${day} ${month.replace(".", "").toUpperCase()} ${year}`;
+  } catch (error) {
+    console.error("Error formatting event date:", error);
+    return "";
+  }
+}
+
+// Formato 24 horas tipo "21:00" respetando el huso horario de la función
+function formatTimeHHMM(dateValue, timeZone = DEFAULT_TIME_ZONE) {
+  if (!dateValue) return "";
+
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return "";
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: getTimeZone(timeZone),
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(d);
+
+    const hour =
+      parts.find((part) => part.type === "hour")?.value || "";
+
+    const minute =
+      parts.find((part) => part.type === "minute")?.value || "";
+
+    return `${hour}:${minute}`;
+  } catch (error) {
+    console.error("Error formatting event time:", error);
+    return "";
+  }
 }
 
 function unwrapData(payload) {
@@ -46,21 +85,28 @@ function normalizeEventFromApi(evt) {
   if (!evt) return null;
 
   const firstFn =
-    Array.isArray(evt.functions) && evt.functions.length ? evt.functions[0] : null;
+    Array.isArray(evt.functions) && evt.functions.length
+      ? evt.functions[0]
+      : null;
 
-  const normalizedFunctions = (evt.functions || []).map((fn) => ({
-    id: fn.id,
-    date: formatDateShort(fn.date),
-    time: formatTimeHHMM(fn.date),
-    venueName: safeString(fn.venueName),
-    city: safeString(fn.city),
-    country: safeString(fn.country),
-    currency: safeString(fn.currency, "USD"),
-    seatmapKey: safeString(fn.seatmapKey),
-    taxRate: safeNumber(fn.taxRate, 0),
-    availability: "Disponible",
-    _raw: fn,
-  }));
+  const normalizedFunctions = (evt.functions || []).map((fn) => {
+    const timeZone = getTimeZone(fn.timeZone);
+
+    return {
+      id: fn.id,
+      date: formatDateShort(fn.date, timeZone),
+      time: formatTimeHHMM(fn.date, timeZone),
+      timeZone,
+      venueName: safeString(fn.venueName),
+      city: safeString(fn.city),
+      country: safeString(fn.country),
+      currency: safeString(fn.currency, "USD"),
+      seatmapKey: safeString(fn.seatmapKey),
+      taxRate: safeNumber(fn.taxRate, 0),
+      availability: "Disponible",
+      _raw: fn,
+    };
+  });
 
   const normalizedTicketTypes = (evt.ticketTypes || []).map((tt) => ({
     id: tt.id,
@@ -75,8 +121,16 @@ function normalizeEventFromApi(evt) {
   const computedStartingPrice =
     safeNumber(evt.startingPrice, 0) ||
     (normalizedTicketTypes.length
-      ? Math.min(...normalizedTicketTypes.map((t) => safeNumber(t.price, 0)))
+      ? Math.min(
+          ...normalizedTicketTypes.map((t) =>
+            safeNumber(t.price, 0)
+          )
+        )
       : 0);
+
+  const firstFnTimeZone = firstFn
+    ? getTimeZone(firstFn.timeZone)
+    : DEFAULT_TIME_ZONE;
 
   return {
     id: evt.id,
@@ -94,12 +148,19 @@ function normalizeEventFromApi(evt) {
 
     saleType: safeString(evt.saleType, "GENERAL").toLowerCase(),
 
-    date: firstFn ? formatDateShort(firstFn.date) : "",
-    time: firstFn ? formatTimeHHMM(firstFn.date) : "",
+    date: firstFn
+      ? formatDateShort(firstFn.date, firstFnTimeZone)
+      : "",
+    time: firstFn
+      ? formatTimeHHMM(firstFn.date, firstFnTimeZone)
+      : "",
+    timeZone: firstFnTimeZone,
     venue: firstFn ? safeString(firstFn.venueName) : "",
     location: safeString(evt.location, ""),
     city: firstFn ? safeString(firstFn.city) : "",
-    country: firstFn ? safeString(firstFn.country, "México") : "México",
+    country: firstFn
+      ? safeString(firstFn.country, "México")
+      : "México",
 
     startingPrice: computedStartingPrice,
 
@@ -110,12 +171,16 @@ function normalizeEventFromApi(evt) {
     producerEmail: safeString(evt.producerEmail, ""),
     producerPhone: safeString(evt.producerPhone, ""),
     producerContact: evt.producerEmail
-      ? { email: evt.producerEmail, phone: evt.producerPhone || "" }
+      ? {
+          email: evt.producerEmail,
+          phone: evt.producerPhone || "",
+        }
       : null,
 
     isFeatured: Boolean(evt.isFeatured),
     featuredOrder:
-      evt.featuredOrder === null || evt.featuredOrder === undefined
+      evt.featuredOrder === null ||
+      evt.featuredOrder === undefined
         ? null
         : Number(evt.featuredOrder),
 
@@ -142,7 +207,6 @@ export async function fetchEventById(param) {
     const raw = unwrapData(res.data);
 
     return normalizeEventFromApi(raw);
-
   } catch (error) {
     console.error("❌ Error fetchEventById:", error);
     return null;

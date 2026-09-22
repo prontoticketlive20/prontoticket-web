@@ -145,15 +145,25 @@ const normalizeEventFromApi = (evt) => {
       ]
         .filter(Boolean)
         .join(', '),
-    date: firstFunction?.date
-      ? new Date(firstFunction.date).toLocaleDateString()
-      : evt.date || '',
-    time: firstFunction?.date
-      ? new Date(firstFunction.date).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : evt.time || '',
+          
+       date: firstFunction?.date
+  ? new Intl.DateTimeFormat('es-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      timeZone: firstFunction.timeZone || 'America/New_York',
+    }).format(new Date(firstFunction.date))
+  : evt.date || '',
+
+time: firstFunction?.date
+  ? new Intl.DateTimeFormat('es-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: firstFunction.timeZone || 'America/New_York',
+    }).format(new Date(firstFunction.date))
+  : evt.time || '',
+
     producerContact:
       evt.producerEmail || evt.producerPhone
         ? {

@@ -101,6 +101,7 @@ const MyTicketsPage = () => {
       venue: functionInfo?.venueName || event?.location || "",
       city: functionInfo?.city || "",
       eventDateISO: functionInfo?.date || null,
+      timeZone: functionInfo?.timeZone || "America/New_York",
     };
   }, [functionInfo]);
 
@@ -111,7 +112,7 @@ const MyTicketsPage = () => {
         year: "numeric",
         month: "short",
         day: "2-digit",
-        timeZone: "America/New_York",
+        timeZone: eventInfo.timeZone,
       }).format(new Date(eventInfo.eventDateISO));
     } catch {
       return "-";
@@ -125,7 +126,7 @@ const MyTicketsPage = () => {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-        timeZone: "America/New_York",
+        timeZone: eventInfo.timeZone,
       }).format(new Date(eventInfo.eventDateISO));
     } catch {
       return "-";
