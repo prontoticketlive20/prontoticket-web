@@ -23,6 +23,23 @@ const SEATSIO_WORKSPACE_KEY = '525c2c82-fb6b-4e5d-899f-8bed4d5c1130';
 const SEATSIO_REGION = 'na';
 const SEATSIO_SESSION_STORAGE_KEY = 'prontoticket_seatsio_session';
 
+const DIAGNOSTIC_SESSION_STORAGE_KEY = 'prontoticket_diagnostic_session';
+
+const getDiagnosticSessionId = () => {
+  try {
+    let sessionId = sessionStorage.getItem(DIAGNOSTIC_SESSION_STORAGE_KEY);
+
+    if (!sessionId) {
+      sessionId = `PTL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem(DIAGNOSTIC_SESSION_STORAGE_KEY, sessionId);
+    }
+
+    return sessionId;
+  } catch {
+    return `PTL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+};
+
 const normalizeText = (value) =>
   String(value || '')
     .normalize('NFD')
@@ -30,6 +47,29 @@ const normalizeText = (value) =>
     .trim()
     .toLowerCase();
 
+const sendClientDiagnostic = (checkpoint, context = {}) => {
+  try {
+    const payload = {
+      sessionId: getDiagnosticSessionId(),
+      checkpoint,
+      route: window.location.pathname,
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      online: navigator.onLine,
+      translated:
+        document.documentElement.classList.contains('translated-ltr') ||
+        document.documentElement.classList.contains('translated-rtl'),
+      ...context,
+    };
+
+    api.post('/client-diagnostics', payload).catch(() => {
+  // El diagnóstico nunca debe interferir con la compra.
+});
+  } catch {
+    // El diagnóstico nunca debe interferir con la compra.
+  }
+};
 const getDisplayedLabel = (object) =>
   object?.labels?.displayedLabel ||
   object?.labels?.own?.label ||
@@ -108,6 +148,23 @@ const SeatsSelectionPage = () => {
   const chartRef = useRef(null);
   const syncingSelectionRef = useRef(false);
   const functionInitializedRef = useRef(false);
+  const chartTimeoutRef = useRef(null);
+
+useEffect(() => {
+  return () => {
+    if (chartTimeoutRef.current) {
+      clearTimeout(chartTimeoutRef.current);
+      chartTimeoutRef.current = null;
+    }
+  };
+}, []);
+
+useEffect(() => {
+  sendClientDiagnostic('PAGE_MOUNT', {
+    eventId: id,
+    details: 'SeatsSelectionPage mounted',
+  });
+}, [id]);
   
   const {
   selectedEvent,
@@ -137,6 +194,18 @@ const SeatsSelectionPage = () => {
 
   const seatmapKey = selectedFunction?._raw?.seatmapKey || '';
 
+  useEffect(() => {
+  if (!selectedFunction?.id) return;
+
+  sendClientDiagnostic('FUNCTION_READY', {
+    eventId: event?.id || selectedEvent?.id || id,
+    functionId: selectedFunction.id,
+    details: `seatmapKeyPresent=${Boolean(
+      String(seatmapKey || '').trim()
+    )}`,
+  });
+}, [selectedFunction?.id, seatmapKey, event?.id, selectedEvent?.id, id]);
+
 useEffect(() => {
   let mounted = true;
 
@@ -148,7 +217,13 @@ useEffect(() => {
       if (selectedEvent?.id === id) {
         setEvent(selectedEvent);
         setIsInitialized(true);
-        return;
+
+        sendClientDiagnostic('EVENT_READY', {
+          eventId: selectedEvent?.id,
+          details: `source=context; functions=${selectedEvent?.functions?.length || 0}`,
+        });
+
+       return;
       }
 
       const storedEventId = getStoredEventId();
@@ -159,6 +234,11 @@ useEffect(() => {
       setEvent(normalized);
       selectEvent(normalized);
       setIsInitialized(true);
+
+      sendClientDiagnostic('EVENT_READY', {
+        eventId: normalized?.id,
+        details: `source=api; functions=${normalized?.functions?.length || 0}`,
+});
 
       // 🔥 SOLO seleccionar función una vez
       if (normalized?.functions?.length === 1 && !selectedFunction) {
@@ -267,6 +347,13 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
         if (!mounted) return;
 
         setPricingList(list);
+       
+        sendClientDiagnostic('PRICING_READY', {
+          eventId: event?.id || selectedEvent?.id || id,
+          functionId: selectedFunction?.id,
+          details: `pricingItems=${list.length}`,
+        });
+   
       } catch (err) {
         console.error('[SeatsSelectionPage] Error loading pricing:', err);
         if (!mounted) return;
@@ -281,7 +368,13 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
     return () => {
       mounted = false;
     };
-  }, [selectedFunction?.id, seatmapKey]);
+  }, [
+  selectedFunction?.id,
+  seatmapKey,
+  event?.id,
+  selectedEvent?.id,
+  id,
+]);
 
   useEffect(() => {
   if (!selectedFunction?.id) return;
@@ -735,11 +828,42 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
                     onRenderStarted={(chart) => {
                       chartRef.current = chart;
                       setChartError('');
-                    }}
+
+                      sendClientDiagnostic('RENDER_STARTED', {
+                        eventId: event?.id || selectedEvent?.id || id,
+                        functionId: selectedFunction?.id,
+                        details: 'Seats.io render started',
+                      });
+
+                     if (chartTimeoutRef.current) {
+                       clearTimeout(chartTimeoutRef.current);
+                     }
+
+                     chartTimeoutRef.current = setTimeout(() => {
+                      sendClientDiagnostic('CHART_TIMEOUT', {
+                        eventId: event?.id || selectedEvent?.id || id,
+                        functionId: selectedFunction?.id,
+                        details: 'Seats.io render started but did not complete or fail within 15 seconds',
+                      });
+
+                    chartTimeoutRef.current = null;
+                  }, 15000);
+                }}
                     onChartRendered={(chart) => {
                     chartRef.current = chart;
                     setChartReady(true);
                     setChartError('');
+
+                     if (chartTimeoutRef.current) {
+                      clearTimeout(chartTimeoutRef.current);
+                      chartTimeoutRef.current = null;
+                     }
+                         
+                    sendClientDiagnostic('CHART_RENDERED', {
+                      eventId: event?.id || selectedEvent?.id || id,
+                      functionId: selectedFunction?.id,
+                      details: 'Seats.io chart rendered successfully',
+                    });
 
                     const adjustView = async () => {
                        try {
@@ -762,6 +886,12 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
           }, 300);
       }}
                     onSessionInitialized={(holdToken) => {
+                      sendClientDiagnostic('SESSION_INITIALIZED', {
+                      eventId: event?.id || selectedEvent?.id || id,
+                      functionId: selectedFunction?.id,
+                      details: 'Seats.io session initialized',
+                    });
+                      
                       const payload = {
                         token: holdToken?.token,
                         expiresAt: holdToken?.expiresAt,
@@ -798,6 +928,20 @@ const hasSingleFunction = !!(event?.functions && event.functions.length === 1);
                         '[SeatsSelectionPage] Seats.io render error:',
                         error
                       );
+
+                      if (chartTimeoutRef.current) {
+                        clearTimeout(chartTimeoutRef.current);
+                        chartTimeoutRef.current = null;
+                      }
+
+                      sendClientDiagnostic('CHART_FAILED', {
+                        eventId: event?.id || selectedEvent?.id || id,
+                        functionId: selectedFunction?.id,
+                        details: String(
+                          error?.message || 'Seats.io chart rendering failed'
+                        ).slice(0, 250),
+                      });
+
                       setChartReady(false);
                       setChartError(
                         error?.message || 'Error cargando el mapa de Seats.io.'
