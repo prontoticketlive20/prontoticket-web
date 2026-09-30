@@ -146,23 +146,19 @@ const normalizeEventFromApi = (evt) => {
         .filter(Boolean)
         .join(', '),
           
-       date: firstFunction?.date
-  ? new Intl.DateTimeFormat('es-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      timeZone: firstFunction.timeZone || 'America/New_York',
-    }).format(new Date(firstFunction.date))
-  : evt.date || '',
+       date: firstFunction?._raw?.date || firstFunction?.date || evt.date || '',
 
-time: firstFunction?.date
+time: firstFunction?._raw?.date
   ? new Intl.DateTimeFormat('es-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-      timeZone: firstFunction.timeZone || 'America/New_York',
-    }).format(new Date(firstFunction.date))
-  : evt.time || '',
+      timeZone:
+        firstFunction?._raw?.timeZone ||
+        firstFunction?.timeZone ||
+        'America/New_York',
+    }).format(new Date(firstFunction._raw.date))
+  : firstFunction?.time || evt.time || '',
 
     producerContact:
       evt.producerEmail || evt.producerPhone
@@ -248,7 +244,8 @@ export const PurchaseProvider = ({ children }) => {
   }, []);
 
   const selectEvent = useCallback((event) => {
-    const normalized = normalizeEventFromApi(event);
+
+  const normalized = normalizeEventFromApi(event);
 
     if (normalized && !isValidSaleType(normalized.saleType)) {
       console.error(
