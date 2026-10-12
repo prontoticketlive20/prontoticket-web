@@ -290,24 +290,65 @@ export default function ManualSalesPage() {
   }, [ticketTypes]);
 
   const seatedItems = useMemo(() => {
-    return selectedSeats.flatMap((seat) => {
-      if (seat.isGeneralAdmission) {
-        return [
-          {
-            ticketTypeId: seat.ticketTypeId,
-            quantity: Number(seat.quantity || 1),
-          },
-        ];
-      }
+  return selectedSeats.flatMap((seat) => {
+    const objectId =
+      seat?.id != null
+        ? String(seat.id)
+        : "";
 
+    /*
+     * General Admission de Seats.io.
+     *
+     * No utiliza seatId individual.
+     * El mismo seatsioObjectId representa el area,
+     * mientras quantity indica cuantas admisiones
+     * se estan vendiendo.
+     */
+    if (seat.isGeneralAdmission) {
       return [
         {
-          ticketTypeId: seat.ticketTypeId,
-          seatId: seat.id,
+          ticketTypeId:
+            seat.ticketTypeId,
+
+          quantity:
+            Math.max(
+              1,
+              Number(seat.quantity || 1),
+            ),
+
+          seatsioObjectId:
+            objectId,
+
+          seatsioObjectType:
+            "GENERAL_ADMISSION",
         },
       ];
-    });
-  }, [selectedSeats]);
+    }
+
+    /*
+     * Asiento individual de Seats.io.
+     *
+     * Aplica tanto a VIP como a los BOOTH
+     * actuales de Sevilla, porque cada posicion
+     * vendible es realmente un objeto tipo seat.
+     */
+    return [
+      {
+        ticketTypeId:
+          seat.ticketTypeId,
+
+        seatId:
+          objectId,
+
+        seatsioObjectId:
+          objectId,
+
+        seatsioObjectType:
+          "SEAT",
+      },
+    ];
+  });
+}, [selectedSeats]);
 
   useEffect(() => {
     let alive = true;

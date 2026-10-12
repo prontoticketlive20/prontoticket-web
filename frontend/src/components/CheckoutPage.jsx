@@ -508,24 +508,92 @@ const CheckoutPage = () => {
   };
 
   const buildGuestItems = () => {
-    if (!isSeatedEvent) {
-      return (selectedTickets || [])
-        .filter(
-          (ticket) =>
-            Number(ticket?.quantity || 0) > 0,
-        )
-        .map((ticket) => ({
-          ticketTypeId:
-            ticket.ticketTypeId || ticket.id,
-          quantity: Number(ticket.quantity || 0),
-        }));
+  /*
+   * Eventos tradicionales sin Seats.io.
+   *
+   * Continuan funcionando por ticketTypeId + quantity.
+   */
+  if (!isSeatedEvent) {
+    return (selectedTickets || [])
+      .filter(
+        (ticket) =>
+          Number(ticket?.quantity || 0) > 0,
+      )
+      .map((ticket) => ({
+        ticketTypeId:
+          ticket.ticketTypeId || ticket.id,
+        quantity:
+          Number(ticket.quantity || 0),
+      }));
+  }
+
+  /*
+   * Eventos con Seats.io.
+   *
+   * Debemos distinguir entre:
+   *
+   * SEAT
+   *   - un objeto unico
+   *   - quantity = 1
+   *   - seatId identifica el asiento individual
+   *
+   * GENERAL_ADMISSION
+   *   - un area de Seats.io
+   *   - puede representar varias admisiones
+   *   - NO utiliza seatId
+   *   - seatsioObjectId identifica el area
+   */
+  return (selectedSeats || []).map((seat) => {
+    const objectId =
+      seat?.id != null
+        ? String(seat.id)
+        : '';
+
+    /*
+     * SeatsSelectionPage ya conserva este dato
+     * cuando el objeto seleccionado es un area GA.
+     */
+    if (seat?.isGeneralAdmission) {
+      return {
+        ticketTypeId:
+          seat.ticketTypeId,
+
+        quantity:
+          Math.max(
+            1,
+            Number(seat.quantity || 1),
+          ),
+
+        seatsioObjectId:
+          objectId,
+
+        seatsioObjectType:
+          'GENERAL_ADMISSION',
+      };
     }
 
-    return (selectedSeats || []).map((seat) => ({
-      ticketTypeId: seat.ticketTypeId,
-      seatId: seat.id,
-    }));
-  };
+    /*
+     * Asiento individual de Seats.io.
+     *
+     * Esto incluye los VIP y los BOOTH actuales
+     * de Sevilla, porque cada posicion vendible
+     * es realmente un objeto tipo seat.
+     */
+    return {
+      ticketTypeId:
+        seat.ticketTypeId,
+
+      seatId:
+        objectId,
+
+      seatsioObjectId:
+        objectId,
+
+      seatsioObjectType:
+        'SEAT',
+    };
+  });
+};
 
   /*
    * Primer paso:
