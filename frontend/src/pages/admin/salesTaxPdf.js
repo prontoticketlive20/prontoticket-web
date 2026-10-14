@@ -55,15 +55,25 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
 
   const report = unwrapResponse(response);
 
-  const currencies = [
-    ...new Set([
-      ...Object.keys(report.summaryByCurrency || {}),
-      ...(report.taxed || []).map((row) => row.currency),
-      ...(report.untaxed || []).map((row) => row.currency),
-      ...Object.keys(report.refundsByCurrency || {}),
-      ...Object.keys(report.cancellationsByCurrency || {}),
-    ].filter(Boolean)),
-  ].sort();
+  const summaries = Array.isArray(report.summaryByCurrency)
+  ? report.summaryByCurrency
+  : Object.entries(report.summaryByCurrency || {}).map(
+      ([currency, values]) => ({ ...values, currency })
+    );
+
+const summaryMap = Object.fromEntries(
+  summaries.map((item) => [item.currency, item])
+);
+
+const currencies = [
+  ...new Set([
+    ...summaries.map((item) => item.currency),
+    ...(report.taxed || []).map((row) => row.currency),
+    ...(report.untaxed || []).map((row) => row.currency),
+    ...Object.keys(report.refundsByCurrency || {}),
+    ...Object.keys(report.cancellationsByCurrency || {}),
+  ].filter(Boolean)),
+].sort();
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -146,7 +156,7 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   sectionTitle("RESUMEN GENERAL POR MONEDA");
 
   const summaryRows = currencies.map((currency) => {
-    const s = report.summaryByCurrency?.[currency] || {};
+    const s = summaryMap[currency] || {};
 
     return [
       currency,
