@@ -24,7 +24,7 @@ const formatRate = (value) => {
     return "N/D";
   }
 
-  const rate = number(value);
+  const rate = number(value) * 100;
   return `${rate.toFixed(2)}%`;
 };
 
@@ -162,6 +162,7 @@ const currencies = [
       currency,
       formatMoney(s.grossSales, currency),
       formatMoney(s.taxableSales, currency),
+      formatMoney(s.taxableBase, currency),
       formatMoney(s.nonTaxableSales, currency),
       formatMoney(s.salesTax, currency),
       formatMoney(s.refundsTotal, currency),
@@ -176,6 +177,7 @@ const currencies = [
       "Moneda",
       "Ventas brutas",
       "Ventas gravadas",
+      "Base imponible",
       "Ventas no gravadas",
       "Sales Tax",
       "Reembolsos",
