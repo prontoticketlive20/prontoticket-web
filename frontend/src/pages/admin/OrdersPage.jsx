@@ -14,6 +14,7 @@ import {
 import api from "../../api/api";
 import AdminLayout from "../../components/admin/AdminLayout";
 import * as XLSX from "xlsx";
+import { exportSalesTaxPdf } from "./salesTaxPdf";
 
 function money(n) {
   const v = Number(n);
@@ -231,6 +232,32 @@ export default function OrdersPage() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedFunctionId, setSelectedFunctionId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+
+  const [exportingSalesTax, setExportingSalesTax] = useState(false);
+
+const handleExportSalesTax = async () => {
+  if (exportingSalesTax) return;
+
+  setErrorMsg("");
+  setExportingSalesTax(true);
+
+  try {
+    await exportSalesTaxPdf(api, fromDate, toDate);
+  } catch (error) {
+    console.error("[OrdersPage] Sales Tax PDF error:", error);
+
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      "No se pudo generar el reporte de Sales Taxes.";
+
+    setErrorMsg(
+      Array.isArray(message) ? message.join(". ") : String(message)
+    );
+  } finally {
+    setExportingSalesTax(false);
+  }
+};
 
   useEffect(() => {
     let alive = true;
@@ -521,6 +548,20 @@ export default function OrdersPage() {
     >
       Exportar Excel
     </button>
+
+    {user?.role === "ADMIN" && (
+  <button
+    type="button"
+    onClick={handleExportSalesTax}
+    disabled={exportingSalesTax || loading}
+    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#007AFF] to-[#0056b3] text-white font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {exportingSalesTax
+      ? "Generando PDF..."
+      : "Exportar Sales Taxes (PDF)"}
+  </button>
+)}
+
   </div>
 </div>
 
