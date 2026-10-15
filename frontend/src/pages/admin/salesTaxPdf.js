@@ -340,7 +340,8 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
     );
 
   const salesTable = (heading, rows) => {
-    title(heading);
+  space(rows.length ? 30 : 22);
+  title(heading);
 
     if (!rows.length) {
       note("No se registraron ventas en esta categoria.");
@@ -531,14 +532,7 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
     doc.setFillColor(...WHITE);
     doc.circle(cx, cy, innerRadius, "F");
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...NAVY);
-
-    doc.text("100%", cx, cy + 1.2, {
-      align: "center",
-    });
-  };
+   };
 
   const chartCard = (x, cy, width, height, heading, description) => {
     doc.setFillColor(...WHITE);
