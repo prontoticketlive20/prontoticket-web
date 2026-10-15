@@ -31,16 +31,19 @@ const rateText = (value) =>
 
 const unwrap = (response) => {
   let data = response?.data ?? response;
+
   for (let i = 0; i < 4; i += 1) {
     if (data?.summaryByCurrency) return data;
     if (!data?.data) break;
     data = data.data;
   }
+
   throw new Error("El servidor no devolvio un reporte fiscal valido.");
 };
 
 const entriesByCurrency = (value) => {
   if (Array.isArray(value)) return value;
+
   return Object.entries(value || {}).map(([currency, values]) => ({
     ...values,
     currency,
@@ -51,6 +54,7 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   if (!fromDate || !toDate) {
     throw new Error("Selecciona las fechas Desde y Hasta.");
   }
+
   if (fromDate > toDate) {
     throw new Error("La fecha Desde no puede ser posterior a Hasta.");
   }
@@ -58,45 +62,68 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   const response = await api.get("/admin/reports/sales-tax", {
     params: { from: fromDate, to: toDate },
   });
+
   const report = unwrap(response);
   const summaries = entriesByCurrency(report.summaryByCurrency);
+
   const summaryMap = Object.fromEntries(
     summaries.map((item) => [item.currency, item])
   );
+
   const taxed = Array.isArray(report.taxed) ? report.taxed : [];
   const untaxed = Array.isArray(report.untaxed) ? report.untaxed : [];
   const refunds = report.refundsByCurrency || {};
   const cancellations = report.cancellationsByCurrency || {};
-  const currencies = [...new Set([
-    ...summaries.map((item) => item.currency),
-    ...taxed.map((item) => item.currency),
-    ...untaxed.map((item) => item.currency),
-    ...Object.keys(refunds),
-    ...Object.keys(cancellations),
-  ].filter(Boolean))].sort();
 
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const currencies = [
+    ...new Set(
+      [
+        ...summaries.map((item) => item.currency),
+        ...taxed.map((item) => item.currency),
+        ...untaxed.map((item) => item.currency),
+        ...Object.keys(refunds),
+        ...Object.keys(cancellations),
+      ].filter(Boolean)
+    ),
+  ].sort();
+
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 15;
   const RIGHT = W - M;
   const BOTTOM = H - 19;
+
   let y = 0;
 
-  const header = (first = false) => {
+  // =====================================================
+  // 1. ENCABEZADOS Y PAGINACION
+  // =====================================================
+
+  const drawHeader = (first = false) => {
+    const headerHeight = first ? 44 : 27;
+
     doc.setFillColor(...NAVY);
-    doc.rect(0, 0, W, first ? 44 : 27, "F");
+    doc.rect(0, 0, W, headerHeight, "F");
+
     doc.setFillColor(...BLUE);
-    doc.rect(0, first ? 44 : 27, W, 1.7, "F");
+    doc.rect(0, headerHeight, W, 1.7, "F");
 
     // Proporcion original del logo: 1198 x 393.
     const logoW = first ? 47 : 33;
     const logoH = logoW * (393 / 1198);
+
     doc.addImage(logoPronto, "PNG", M, 5, logoW, logoH);
 
     doc.setTextColor(...WHITE);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(first ? 14 : 11);
+
     doc.text(
       first
         ? "REPORTE EJECUTIVO DE SALES TAXES"
@@ -108,12 +135,20 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(224, 233, 245);
-    doc.text(`Periodo: ${fromDate} al ${toDate}`, RIGHT, first ? 14 : 11, {
-      align: "right",
-    });
-    doc.text("Zona horaria: America/New_York", RIGHT, first ? 22 : 17, {
-      align: "right",
-    });
+
+    doc.text(
+      `Periodo: ${fromDate} al ${toDate}`,
+      RIGHT,
+      first ? 14 : 11,
+      { align: "right" }
+    );
+
+    doc.text(
+      "Zona horaria: America/New_York",
+      RIGHT,
+      first ? 22 : 17,
+      { align: "right" }
+    );
 
     if (first) {
       const generated = report.generatedAt
@@ -133,25 +168,32 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
 
       doc.text(label, RIGHT, 30, { align: "right" });
     }
-
-    y = first ? 53 : 36;
   };
 
   const newPage = () => {
     doc.addPage();
-    header(false);
+    drawHeader(false);
+    y = 36;
   };
 
   const space = (height = 15) => {
-    if (y + height > BOTTOM) newPage();
+    if (y + height > BOTTOM) {
+      newPage();
+    }
   };
+
+  // =====================================================
+  // 2. COMPONENTES VISUALES
+  // =====================================================
 
   const title = (text, description = "") => {
     space(description ? 20 : 14);
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11.5);
     doc.setTextColor(...NAVY);
     doc.text(text, M, y);
+
     y += 5.5;
 
     if (description) {
@@ -166,12 +208,19 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   const table = (head, body, options = {}) => {
     space(19);
 
+    const startPage = doc.internal.getCurrentPageInfo().pageNumber;
+
     autoTable(doc, {
       startY: y,
       head: [head],
       body,
       theme: "striped",
-      margin: { left: M, right: M, top: 34, bottom: 20 },
+      margin: {
+        left: M,
+        right: M,
+        top: 34,
+        bottom: 20,
+      },
       styles: {
         font: "helvetica",
         fontSize: options.fontSize || 7.7,
@@ -190,9 +239,16 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
         fillColor: [245, 248, 252],
       },
       columnStyles: options.columnStyles || {},
+
       didDrawPage: (data) => {
+        // Encabezado en paginas nuevas generadas por AutoTable.
         if (data.pageNumber > 1) {
-          header(false);
+          const currentPage =
+            doc.internal.getCurrentPageInfo().pageNumber;
+
+          if (currentPage > startPage) {
+            drawHeader(false);
+          }
         }
       },
     });
@@ -219,28 +275,59 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
 
     const availableWidth = w - 10;
     const valueWidth = doc.getTextWidth(value);
+
     if (valueWidth > availableWidth) {
-      doc.setFontSize(Math.max(7.5, 12 * availableWidth / valueWidth));
+      doc.setFontSize(
+        Math.max(7.5, (12 * availableWidth) / valueWidth)
+      );
     }
 
     doc.text(value, x + 5, cy + 16.3);
   };
 
   const note = (message, warning = false) => {
-    const lines = doc.splitTextToSize(message, W - M * 2 - 10);
+    const lines = doc.splitTextToSize(
+      message,
+      W - M * 2 - 10
+    );
+
     const height = 7 + lines.length * 4;
+
     space(height + 3);
 
-    doc.setFillColor(...(warning ? [255, 248, 231] : LIGHT));
-    doc.setDrawColor(...(warning ? [248, 205, 126] : BORDER));
-    doc.roundedRect(M, y, W - M * 2, height, 2, 2, "FD");
+    doc.setFillColor(
+      ...(warning ? [255, 248, 231] : LIGHT)
+    );
+
+    doc.setDrawColor(
+      ...(warning ? [248, 205, 126] : BORDER)
+    );
+
+    doc.roundedRect(
+      M,
+      y,
+      W - M * 2,
+      height,
+      2,
+      2,
+      "FD"
+    );
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...(warning ? [130, 80, 15] : SLATE));
+
+    doc.setTextColor(
+      ...(warning ? [130, 80, 15] : SLATE)
+    );
+
     doc.text(lines, M + 5, y + 6.5);
+
     y += height + 5;
   };
+
+  // =====================================================
+  // 3. TABLAS FINANCIERAS
+  // =====================================================
 
   const eventLabel = (row) =>
     row.eventName || row.eventId || "Sin evento";
@@ -294,45 +381,483 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   const adjustmentTable = (heading, data) => {
     title(heading);
 
-    const rows = Object.entries(data).map(([currency, item]) => [
-      currency,
-      money(item.total, currency),
-      money(item.salesTax, currency),
-    ]);
+    const rows = Object.entries(data || {}).map(
+      ([currency, item]) => [
+        currency,
+        money(item.total, currency),
+        money(item.salesTax, currency),
+      ]
+    );
 
     table(
       ["Moneda", "Monto total", "Sales Tax asociado"],
-      rows.length ? rows : [["Sin movimientos", "-", "-"]]
+      rows.length
+        ? rows
+        : [["Sin movimientos", "-", "-"]]
     );
   };
 
-  const graphPanel = (heading, description, draw) => {
-    const panelH = 66;
-    space(panelH + 10);
+  // =====================================================
+  // 4. GRAFICOS VECTORIALES
+  // =====================================================
+
+  const chartColors = [
+    BLUE,
+    TEAL,
+    AMBER,
+    [139, 92, 246],
+    [236, 72, 153],
+  ];
+
+  const percentText = (value, total) =>
+    total > 0
+      ? `${((value / total) * 100).toFixed(1)}%`
+      : "0.0%";
+
+  const drawLegendItem = (
+    x,
+    ly,
+    color,
+    label,
+    value,
+    currency,
+    width
+  ) => {
+    doc.setFillColor(...color);
+    doc.roundedRect(x, ly - 3, 3.5, 3.5, 0.7, 0.7, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.4);
+    doc.setTextColor(...SLATE);
+
+    const maxLabelWidth = Math.max(20, width - 6);
+    const labelLine =
+      doc.splitTextToSize(label, maxLabelWidth)[0] || label;
+
+    doc.text(labelLine, x + 6, ly);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...NAVY);
+
+    doc.text(
+      money(value, currency),
+      x + 6,
+      ly + 4.7
+    );
+  };
+
+  const drawDonut = (
+    cx,
+    cy,
+    outerRadius,
+    innerRadius,
+    slices
+  ) => {
+    const positiveSlices = slices.filter(
+      (item) => num(item.value) > 0
+    );
+
+    const total = positiveSlices.reduce(
+      (sum, item) => sum + num(item.value),
+      0
+    );
+
+    if (total <= 0) {
+      doc.setFillColor(...LIGHT);
+      doc.circle(cx, cy, outerRadius, "F");
+
+      doc.setFillColor(...WHITE);
+      doc.circle(cx, cy, innerRadius, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED);
+
+      doc.text("Sin datos", cx, cy + 1, {
+        align: "center",
+      });
+
+      return;
+    }
+
+    // Segmentos vectoriales para conservar nitidez al imprimir.
+    let startAngle = -Math.PI / 2;
+
+    positiveSlices.forEach((slice) => {
+      const angle =
+        (num(slice.value) / total) * Math.PI * 2;
+
+      const endAngle = startAngle + angle;
+
+      doc.setFillColor(...slice.color);
+
+      const steps = Math.max(
+        12,
+        Math.ceil((angle / (Math.PI * 2)) * 100)
+      );
+
+      const points = [];
+
+      for (let i = 0; i <= steps; i += 1) {
+        const theta =
+          startAngle + (angle * i) / steps;
+
+        points.push([
+          cx + outerRadius * Math.cos(theta),
+          cy + outerRadius * Math.sin(theta),
+        ]);
+      }
+
+      // Dibujar cada sector como triangulos.
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const a = points[i];
+        const b = points[i + 1];
+
+        doc.triangle(
+          cx,
+          cy,
+          a[0],
+          a[1],
+          b[0],
+          b[1],
+          "F"
+        );
+      }
+
+      startAngle = endAngle;
+    });
 
     doc.setFillColor(...WHITE);
+    doc.circle(cx, cy, innerRadius, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...NAVY);
+
+    doc.text("100%", cx, cy + 1.2, {
+      align: "center",
+    });
+  };
+
+  const chartCard = (x, cy, width, height, heading, description) => {
+    doc.setFillColor(...WHITE);
     doc.setDrawColor(...BORDER);
-    doc.roundedRect(M, y, W - M * 2, panelH, 3, 3, "FD");
+
+    doc.roundedRect(
+      x,
+      cy,
+      width,
+      height,
+      3,
+      3,
+      "FD"
+    );
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...NAVY);
+
+    doc.text(heading, x + 6, cy + 9);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+
+    const descriptionLines = doc.splitTextToSize(
+      description,
+      width - 12
+    );
+
+    doc.text(
+      descriptionLines.slice(0, 2),
+      x + 6,
+      cy + 15
+    );
+  };
+
+  const drawSalesDistribution = (
+    x,
+    cy,
+    width,
+    height,
+    currency,
+    summary
+  ) => {
+    chartCard(
+      x,
+      cy,
+      width,
+      height,
+      `DISTRIBUCION DE VENTAS | ${currency}`,
+      "Ventas gravadas y no gravadas, sobre importes brutos."
+    );
+
+    const taxable = Math.max(
+      0,
+      num(summary.taxableSales)
+    );
+
+    const nonTaxable = Math.max(
+      0,
+      num(summary.nonTaxableSales)
+    );
+
+    const total = taxable + nonTaxable;
+
+    const cx = x + 35;
+    const centerY = cy + 43;
+
+    drawDonut(
+      cx,
+      centerY,
+      20,
+      11.5,
+      [
+        {
+          value: taxable,
+          color: BLUE,
+        },
+        {
+          value: nonTaxable,
+          color: TEAL,
+        },
+      ]
+    );
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...NAVY);
+
+    doc.text(
+      total > 0 ? "VENTAS" : "SIN VENTAS",
+      cx,
+      centerY - 1,
+      { align: "center" }
+    );
+
+    if (total > 0) {
+      doc.setFontSize(7);
+      doc.text(
+        "100%",
+        cx,
+        centerY + 4,
+        { align: "center" }
+      );
+    }
+
+    const legendX = x + 66;
+    const legendW = width - 73;
+
+    drawLegendItem(
+      legendX,
+      cy + 33,
+      BLUE,
+      `Gravadas (${percentText(taxable, total)})`,
+      taxable,
+      currency,
+      legendW
+    );
+
+    drawLegendItem(
+      legendX,
+      cy + 52,
+      TEAL,
+      `No gravadas (${percentText(nonTaxable, total)})`,
+      nonTaxable,
+      currency,
+      legendW
+    );
+  };
+
+  const drawEventTaxBars = (
+    x,
+    cy,
+    width,
+    height,
+    currency,
+    rows
+  ) => {
+    chartCard(
+      x,
+      cy,
+      width,
+      height,
+      `SALES TAX POR EVENTO | ${currency}`,
+      "Principales eventos por impuesto recaudado."
+    );
+
+    const taxByEvent = new Map();
+
+    rows
+      .filter((row) => row.currency === currency)
+      .forEach((row) => {
+        const key = row.eventId || eventLabel(row);
+
+        const current = taxByEvent.get(key);
+
+        if (current) {
+          current.value += num(row.taxes);
+        } else {
+          taxByEvent.set(key, {
+            name: eventLabel(row),
+            value: num(row.taxes),
+          });
+        }
+      });
+
+    const eventTaxes = [...taxByEvent.values()]
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    const top = eventTaxes.slice(0, 4);
+
+    const otherTotal = eventTaxes
+      .slice(4)
+      .reduce(
+        (sum, item) => sum + item.value,
+        0
+      );
+
+    if (otherTotal > 0) {
+      top.push({
+        name: "Otros eventos",
+        value: otherTotal,
+      });
+    }
+
+    if (!top.length) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+
+      doc.text(
+        "Sin Sales Tax registrado para esta moneda.",
+        x + 7,
+        cy + 39
+      );
+
+      return;
+    }
+
+    const maxTax = Math.max(
+      ...top.map((item) => item.value)
+    );
+
+    const labelW = 42;
+    const valueW = 32;
+    const chartW = width - labelW - valueW - 20;
+
+    const rowHeight = 9;
+    const startY = cy + 24;
+
+    top.forEach((item, index) => {
+      const rowY = startY + index * rowHeight;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(...SLATE);
+
+      const shortened =
+        doc.splitTextToSize(
+          item.name,
+          labelW - 3
+        )[0] || item.name;
+
+      doc.text(
+        shortened,
+        x + 6,
+        rowY + 3.8
+      );
+
+      const barX = x + 6 + labelW;
+
+      doc.setFillColor(...LIGHT);
+      doc.roundedRect(
+        barX,
+        rowY,
+        chartW,
+        4.7,
+        1,
+        1,
+        "F"
+      );
+
+      doc.setFillColor(
+        ...chartColors[index % chartColors.length]
+      );
+
+      doc.rect(
+        barX,
+        rowY,
+        maxTax > 0
+          ? (item.value / maxTax) * chartW
+          : 0,
+        4.7,
+        "F"
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.9);
+      doc.setTextColor(...NAVY);
+
+      doc.text(
+        money(item.value, currency),
+        x + width - 6,
+        rowY + 3.8,
+        { align: "right" }
+      );
+    });
+  };
+
+  const drawExecutiveCharts = (currency, summary) => {
+    const chartHeight = 77;
+
+    space(chartHeight + 17);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(...NAVY);
-    doc.text(heading, M + 7, y + 9);
+    doc.setTextColor(...BLUE);
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...MUTED);
-    doc.text(description, M + 7, y + 15);
+    doc.text(
+      `ANALISIS GRAFICO | ${currency}`,
+      M,
+      y
+    );
 
-    draw(M + 7, y + 20, W - M * 2 - 14, 40);
-    y += panelH + 8;
+    y += 7;
+
+    const gap = 5;
+    const chartWidth =
+      (W - M * 2 - gap) / 2;
+
+    drawSalesDistribution(
+      M,
+      y,
+      chartWidth,
+      chartHeight,
+      currency,
+      summary
+    );
+
+    drawEventTaxBars(
+      M + chartWidth + gap,
+      y,
+      chartWidth,
+      chartHeight,
+      currency,
+      taxed
+    );
+
+    y += chartHeight + 11;
   };
 
   // =====================================================
-  // 1. ENCABEZADO Y PANORAMA FINANCIERO
+  // 5. ENCABEZADO PRINCIPAL
   // =====================================================
 
-  header(true);
+  drawHeader(true);
+  y = 53;
 
   title(
     "PANORAMA FINANCIERO",
@@ -340,21 +865,31 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   );
 
   if (!currencies.length) {
-    note("No se registraron movimientos para el periodo seleccionado.");
+    note(
+      "No se registraron movimientos para el periodo seleccionado."
+    );
   }
 
   for (const currency of currencies) {
     const s = summaryMap[currency] || {};
+
     space(39);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(...BLUE);
-    doc.text(`MONEDA: ${currency}`, M, y);
+
+    doc.text(
+      `MONEDA: ${currency}`,
+      M,
+      y
+    );
+
     y += 5;
 
     const gap = 3;
-    const cardW = (W - 2 * M - gap * 3) / 4;
+    const cardW =
+      (W - 2 * M - gap * 3) / 4;
 
     card(
       M,
@@ -395,7 +930,7 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   }
 
   // =====================================================
-  // 2. RESUMEN GENERAL
+  // 6. RESUMEN GENERAL POR MONEDA
   // =====================================================
 
   title("RESUMEN GENERAL POR MONEDA");
@@ -432,7 +967,20 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
     ],
     summaryRows.length
       ? summaryRows
-      : [["Sin movimientos", "-", "-", "-", "-", "-", "-", "-", "-", "-"]],
+      : [
+          [
+            "Sin movimientos",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+          ],
+        ],
     {
       fontSize: 7.1,
       headFontSize: 6.9,
@@ -440,25 +988,39 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   );
 
   // =====================================================
-  // 3. DETALLE DE VENTAS Y AJUSTES
+  // 7. DETALLE DE VENTAS Y AJUSTES
   // =====================================================
 
-  salesTable("DETALLE DE VENTAS CON SALES TAX", taxed);
-  salesTable("DETALLE DE VENTAS SIN SALES TAX", untaxed);
+  salesTable(
+    "DETALLE DE VENTAS CON SALES TAX",
+    taxed
+  );
 
-  adjustmentTable("REEMBOLSOS DEL PERIODO", refunds);
-  adjustmentTable("CANCELACIONES INTERNAS DEL PERIODO", cancellations);
+  salesTable(
+    "DETALLE DE VENTAS SIN SALES TAX",
+    untaxed
+  );
 
-  // Advertencia: tasa configurada inconsistente
-  // con impuestos efectivamente registrados.
+  adjustmentTable(
+    "REEMBOLSOS DEL PERIODO",
+    refunds
+  );
+
+  adjustmentTable(
+    "CANCELACIONES INTERNAS DEL PERIODO",
+    cancellations
+  );
+
+  // Verificar discrepancias entre la tasa actualmente
+  // configurada y el impuesto registrado en tickets.
   const rateWarnings = taxed.filter(
-    (r) =>
-      num(r.taxes) > 0 &&
+    (row) =>
+      num(row.taxes) > 0 &&
       (
-        r.taxRate === null ||
-        r.taxRate === undefined ||
-        r.taxRate === "" ||
-        num(r.taxRate) <= 0
+        row.taxRate === null ||
+        row.taxRate === undefined ||
+        row.taxRate === "" ||
+        num(row.taxRate) <= 0
       )
   );
 
@@ -470,172 +1032,27 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
   }
 
   // =====================================================
-  // 4. GRAFICOS EJECUTIVOS
+  // 8. DASHBOARD GRAFICO EJECUTIVO
   // =====================================================
 
   if (currencies.length) {
     newPage();
 
     title(
-      "ANALISIS GRAFICO",
-      "Visualizaciones descriptivas basadas en los importes registrados."
+      "DASHBOARD EJECUTIVO",
+      "Distribucion de ventas y recaudacion fiscal por evento."
     );
 
     for (const currency of currencies) {
-      const s = summaryMap[currency] || {};
-      const taxable = Math.max(0, num(s.taxableSales));
-      const nonTaxable = Math.max(0, num(s.nonTaxableSales));
-      const combined = taxable + nonTaxable;
-
-      // Grafico 1: distribucion de ventas
-      graphPanel(
-        `DISTRIBUCION DE VENTAS | ${currency}`,
-        "Ventas gravadas frente a ventas no gravadas (importes brutos).",
-        (x, gy, width) => {
-          const barY = gy + 3;
-          const barW = width;
-          const barH = 12;
-
-          doc.setFillColor(...LIGHT);
-          doc.roundedRect(x, barY, barW, barH, 2, 2, "F");
-
-          if (combined > 0) {
-            const taxableW = (taxable / combined) * barW;
-            const nonTaxableW = barW - taxableW;
-
-            if (taxableW > 0) {
-              doc.setFillColor(...BLUE);
-              doc.rect(x, barY, taxableW, barH, "F");
-            }
-
-            if (nonTaxableW > 0) {
-              doc.setFillColor(...TEAL);
-              doc.rect(
-                x + taxableW,
-                barY,
-                nonTaxableW,
-                barH,
-                "F"
-              );
-            }
-          }
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(...SLATE);
-
-          doc.text(
-            `Gravadas: ${money(taxable, currency)} (${combined ? (100 * taxable / combined).toFixed(1) : "0.0"}%)`,
-            x,
-            gy + 25
-          );
-
-          doc.text(
-            `No gravadas: ${money(nonTaxable, currency)} (${combined ? (100 * nonTaxable / combined).toFixed(1) : "0.0"}%)`,
-            x + width / 2,
-            gy + 25
-          );
-        }
-      );
-
-      // Grafico 2: Sales Tax por evento
-      const taxByEvent = new Map();
-
-      taxed
-        .filter((r) => r.currency === currency)
-        .forEach((r) => {
-          const name = eventLabel(r);
-          taxByEvent.set(
-            name,
-            (taxByEvent.get(name) || 0) + num(r.taxes)
-          );
-        });
-
-      const eventTaxes = [...taxByEvent.entries()]
-        .sort((a, b) => b[1] - a[1]);
-
-      const top = eventTaxes.slice(0, 4);
-
-      const others = eventTaxes
-        .slice(4)
-        .reduce((sum, [, value]) => sum + value, 0);
-
-      if (others > 0) {
-        top.push(["Otros eventos", others]);
-      }
-
-      const maxTax = Math.max(
-        0,
-        ...top.map(([, value]) => value)
-      );
-
-      graphPanel(
-        `SALES TAX RECAUDADO POR EVENTO | ${currency}`,
-        "Eventos ordenados por impuesto recaudado; otros eventos se agrupan cuando aplica.",
-        (x, gy, width) => {
-          if (!top.length || maxTax <= 0) {
-            doc.setFontSize(9);
-            doc.setTextColor(...MUTED);
-            doc.text(
-              "Sin Sales Tax registrado para esta moneda.",
-              x,
-              gy + 12
-            );
-            return;
-          }
-
-          const nameW = 87;
-          const valueW = 38;
-          const barW = width - nameW - valueW - 5;
-          const rowH = 7.4;
-
-          top.forEach(([name, value], i) => {
-            const yy = gy + 2 + i * rowH;
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(7.5);
-            doc.setTextColor(...SLATE);
-
-            const shortened =
-              doc.splitTextToSize(name, nameW - 4)[0] || name;
-
-            doc.text(shortened, x, yy + 4);
-
-            doc.setFillColor(...LIGHT);
-            doc.roundedRect(
-              x + nameW,
-              yy,
-              barW,
-              4.7,
-              1,
-              1,
-              "F"
-            );
-
-            doc.setFillColor(...BLUE);
-            doc.rect(
-              x + nameW,
-              yy,
-              (value / maxTax) * barW,
-              4.7,
-              "F"
-            );
-
-            doc.setTextColor(...NAVY);
-            doc.text(
-              money(value, currency),
-              x + width,
-              yy + 4,
-              { align: "right" }
-            );
-          });
-        }
+      drawExecutiveCharts(
+        currency,
+        summaryMap[currency] || {}
       );
     }
   }
 
   // =====================================================
-  // 5. CRITERIOS Y NOTAS
+  // 9. CRITERIOS Y NOTAS
   // =====================================================
 
   title("CRITERIOS Y NOTAS DEL REPORTE");
@@ -657,21 +1074,36 @@ export async function exportSalesTaxPdf(api, fromDate, toDate) {
 
   for (const line of notes) {
     space(6);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...SLATE);
+
     doc.text(`- ${line}`, M, y);
     y += 5;
   }
 
   // =====================================================
-  // 6. PIE DE PAGINA CORPORATIVO
+  // 10. PIE DE PAGINA CORPORATIVO
   // =====================================================
 
-  const totalPages = doc.internal.getNumberOfPages();
+  const totalPages =
+    doc.internal.getNumberOfPages();
 
-  for (let page = 1; page <= totalPages; page += 1) {
+  for (
+    let page = 1;
+    page <= totalPages;
+    page += 1
+  ) {
     doc.setPage(page);
 
     doc.setDrawColor(...BORDER);
-    doc.line(M, H - 17, RIGHT, H - 17);
+    doc.line(
+      M,
+      H - 17,
+      RIGHT,
+      H - 17
+    );
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
