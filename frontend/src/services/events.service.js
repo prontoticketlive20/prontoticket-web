@@ -142,6 +142,10 @@ function normalizeEventFromApi(evt) {
       "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=1200",
     imageUrl: safeString(evt.imageUrl),
 
+    facebookPixelId: safeString(evt.facebookPixelId, ""),
+    tiktokPixelId: safeString(evt.tiktokPixelId, ""),
+    gtmId: safeString(evt.gtmId, ""),
+
     youtubeUrl: safeString(evt.youtubeUrl, ""),
     useExternalTicket: Boolean(evt.useExternalTicket),
     externalTicketUrl: safeString(evt.externalTicketUrl, ""),

@@ -154,7 +154,7 @@ export const trackViewContent = (event) => {
   const payload = buildBasePayload(event);
 
   if (window.fbq && normalizeValue(event?.facebookPixelId)) {
-    window.fbq("track", "ViewContent", {
+    window.fbq("trackSingle", normalizeValue(event?.facebookPixelId), "ViewContent", {
       content_name: payload.eventTitle,
       content_ids: [payload.eventId],
       content_type: "event",
@@ -186,7 +186,7 @@ export const trackAddToCart = ({ event, total = 0, currency = "USD", items = [] 
   );
 
   if (window.fbq && normalizeValue(event?.facebookPixelId)) {
-    window.fbq("track", "AddToCart", {
+    window.fbq("trackSingle", normalizeValue(event?.facebookPixelId), "AddToCart", {
       content_name: payload.eventTitle,
       content_ids: [payload.eventId],
       content_type: "event",
@@ -233,7 +233,7 @@ export const trackPurchase = ({
   );
 
   if (window.fbq && normalizeValue(event?.facebookPixelId)) {
-    window.fbq("track", "Purchase", {
+    window.fbq("trackSingle", normalizeValue(event?.facebookPixelId), "Purchase", {
       value: Number(total || 0),
       currency,
       content_name: payload.eventTitle,
