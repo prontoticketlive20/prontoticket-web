@@ -2,6 +2,25 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/api";
 
+const DEFAULT_TIME_ZONE = "America/New_York";
+
+const TIME_ZONE_OPTIONS = [
+  { value: "America/New_York", label: "Eastern Time — New York / Orlando / Miami" },
+  { value: "America/Chicago", label: "Central Time — Chicago / Dallas / Houston" },
+  { value: "America/Denver", label: "Mountain Time — Denver" },
+  { value: "America/Los_Angeles", label: "Pacific Time — Los Angeles / Las Vegas" },
+  { value: "America/Phoenix", label: "Arizona — Phoenix" },
+  { value: "America/Puerto_Rico", label: "Atlantic Time — Puerto Rico" },
+  { value: "America/Caracas", label: "Venezuela — Caracas" },
+  { value: "America/Bogota", label: "Colombia — Bogotá" },
+  { value: "America/Panama", label: "Panamá" },
+  { value: "America/Mexico_City", label: "México — Ciudad de México" },
+  { value: "Europe/Madrid", label: "España — Madrid / Barcelona / Valencia / Sevilla / Málaga" },
+  { value: "Europe/London", label: "Reino Unido — Londres" },
+  { value: "Europe/Paris", label: "Europa Central — París / Francia" },
+  { value: "Europe/Rome", label: "Italia — Roma" },
+];
+
 export default function EventFunctionsPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -11,6 +30,8 @@ export default function EventFunctionsPage() {
   const [event, setEvent] = useState(null);
 
   const [date, setDate] = useState("");
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
+  const [currency, setCurrency] = useState("USD");
   const [venueName, setVenueName] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
@@ -20,6 +41,8 @@ export default function EventFunctionsPage() {
 
   const [editingId, setEditingId] = useState(null);
   const [editDate, setEditDate] = useState("");
+  const [editTimeZone, setEditTimeZone] = useState(DEFAULT_TIME_ZONE);
+  const [editCurrency, setEditCurrency] = useState("USD");
   const [editVenueName, setEditVenueName] = useState("");
   const [editCity, setEditCity] = useState("");
   const [editCountry, setEditCountry] = useState("");
@@ -38,14 +61,63 @@ export default function EventFunctionsPage() {
     return Number((n / 100).toFixed(4));
   };
 
-  const formatDateTimeLocal = (value) => {
+  const getTimeZone = (value) => {
+    return value || DEFAULT_TIME_ZONE;
+  };
+
+  const formatDateTimeLocal = (value, zone = DEFAULT_TIME_ZONE) => {
     if (!value) return "";
+
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours()
-    )}:${pad(d.getMinutes())}`;
+
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: getTimeZone(zone),
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(d);
+
+    const getPart = (type) =>
+      parts.find((part) => part.type === type)?.value || "";
+
+    return `${getPart("year")}-${getPart("month")}-${getPart(
+      "day"
+    )}T${getPart("hour")}:${getPart("minute")}`;
+  };
+
+  const formatEventDateTime = (value, zone = DEFAULT_TIME_ZONE) => {
+    if (!value) return "";
+
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+
+    try {
+      return new Intl.DateTimeFormat("es-US", {
+        timeZone: getTimeZone(zone),
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }).format(d);
+    } catch (error) {
+      console.error("Error formatting event date", error);
+      return "";
+    }
+  };
+
+  const getTimeZoneLabel = (zone) => {
+    const normalizedZone = getTimeZone(zone);
+
+    return (
+      TIME_ZONE_OPTIONS.find((option) => option.value === normalizedZone)
+        ?.label || normalizedZone
+    );
   };
 
   const formatTaxLabel = (value) => {
@@ -83,16 +155,13 @@ export default function EventFunctionsPage() {
     }
   }, [eventId, loadFunctions, loadEvent]);
 
-///////
- 
-
-
-///////////
   const createFunction = async () => {
     try {
       await api.post("/event-functions", {
         eventId,
-        date: date ? new Date(date).toISOString() : null,
+        date: date || null,
+        timeZone,
+        currency,
         venueName,
         city,
         country,
@@ -102,11 +171,13 @@ export default function EventFunctionsPage() {
       });
 
       setDate("");
+      setTimeZone(DEFAULT_TIME_ZONE);
+      setCurrency("USD");
       setVenueName("");
       setCity("");
       setCountry("");
       setSeatmapKey("");
-      setChartKey(""); 
+      setChartKey("");
       setTaxRate("");
 
       loadFunctions();
@@ -126,8 +197,12 @@ export default function EventFunctionsPage() {
   };
 
   const startEdit = (f) => {
+    const functionTimeZone = getTimeZone(f.timeZone);
+
     setEditingId(f.id);
-    setEditDate(formatDateTimeLocal(f.date));
+    setEditDate(formatDateTimeLocal(f.date, functionTimeZone));
+    setEditTimeZone(functionTimeZone);
+    setEditCurrency(f.currency || "USD");
     setEditVenueName(f.venueName || "");
     setEditCity(f.city || "");
     setEditCountry(f.country || "");
@@ -139,6 +214,8 @@ export default function EventFunctionsPage() {
   const cancelEdit = () => {
     setEditingId(null);
     setEditDate("");
+    setEditTimeZone(DEFAULT_TIME_ZONE);
+    setEditCurrency("USD");
     setEditVenueName("");
     setEditCity("");
     setEditCountry("");
@@ -150,7 +227,9 @@ export default function EventFunctionsPage() {
   const saveEdit = async (id) => {
     try {
       await api.patch(`/event-functions/${id}`, {
-        date: editDate ? new Date(editDate).toISOString() : null,
+        date: editDate || null,
+        timeZone: editTimeZone,
+        currency: editCurrency,
         venueName: editVenueName,
         city: editCity,
         country: editCountry,
@@ -184,7 +263,7 @@ export default function EventFunctionsPage() {
           Funciones del Evento ({functions.length})
         </h2>
 
-       {event && <p className="text-white/60 text-sm mt-1">{event.title}</p>}
+        {event && <p className="text-white/60 text-sm mt-1">{event.title}</p>}
       </div>
 
       <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
@@ -197,6 +276,27 @@ export default function EventFunctionsPage() {
             onChange={(e) => setDate(e.target.value)}
             className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
           />
+
+          <select
+            value={timeZone}
+            onChange={(e) => setTimeZone(e.target.value)}
+            className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
+          >
+            {TIME_ZONE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm"
+          >
+           <option value="USD">USD — Dólar estadounidense</option>
+           <option value="EUR">EUR — Euro</option>
+         </select>
 
           <input
             placeholder="Venue"
@@ -259,12 +359,15 @@ export default function EventFunctionsPage() {
         <thead className="bg-white/5">
           <tr>
             <th className="text-left p-3">Fecha</th>
+            <th className="text-left p-3">Huso horario</th>
+            <th className="text-left p-3">Moneda</th>
             <th className="text-left p-3">Venue</th>
             <th className="text-left p-3">Ciudad</th>
             <th className="text-left p-3">País</th>
             <th className="text-left p-3">Impuesto</th>
             <th className="text-left p-3">ChartKey</th>
             <th className="text-left p-3">SeatmapKey</th>
+            <th className="text-left p-3">Estado</th>
             <th className="text-left p-3">Acciones</th>
           </tr>
         </thead>
@@ -272,7 +375,7 @@ export default function EventFunctionsPage() {
         <tbody>
           {functions.length === 0 && (
             <tr>
-              <td colSpan="8" className="p-4 text-white/40 text-center">
+              <td colSpan="11" className="p-4 text-white/40 text-center">
                 Este evento aún no tiene funciones
               </td>
             </tr>
@@ -292,9 +395,46 @@ export default function EventFunctionsPage() {
                       className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
                     />
                   ) : (
-                    new Date(f.date).toLocaleString()
+                    formatEventDateTime(f.date, f.timeZone)
                   )}
                 </td>
+
+                <td className="p-3">
+                  {isEditing ? (
+                    <select
+                      value={editTimeZone}
+                      onChange={(e) => setEditTimeZone(e.target.value)}
+                      className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
+                    >
+                      {TIME_ZONE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-sm">
+                      {getTimeZoneLabel(f.timeZone)}
+                    </span>
+                  )}
+                </td>
+
+                <td className="p-3">
+                  {isEditing ? (
+                    <select
+                      value={editCurrency}
+                      onChange={(e) => setEditCurrency(e.target.value)}
+                      className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
+                >
+                  <option value="USD">USD — Dólar</option>
+                  <option value="EUR">EUR — Euro</option>
+                </select>
+              ) : (
+                <span className="text-sm font-medium">
+                  {f.currency || "USD"}
+                </span>
+              )}
+          </td>
 
                 <td className="p-3">
                   {isEditing ? (
@@ -348,18 +488,18 @@ export default function EventFunctionsPage() {
                     </span>
                   )}
                 </td>
-                 
+
                 <td className="p-3">
                   {isEditing ? (
-                 <input
-                   type="text"
-                   placeholder="Chart Key"
-                   value={editChartKey}
-                   onChange={(e) => setEditChartKey(e.target.value)}
-                   className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
-                 />
-                 ) : (
-                    f.chartkey
+                    <input
+                      type="text"
+                      placeholder="Chart Key"
+                      value={editChartKey}
+                      onChange={(e) => setEditChartKey(e.target.value)}
+                      className="bg-black/40 border border-white/10 px-3 py-2 rounded text-sm w-full"
+                    />
+                  ) : (
+                    f.chartKey
                   )}
                 </td>
 
@@ -373,7 +513,9 @@ export default function EventFunctionsPage() {
                     />
                   ) : (
                     <button
-                      onClick={() => navigate(`/admin/functions/${f.id}/pricing`)}
+                      onClick={() =>
+                        navigate(`/admin/functions/${f.id}/pricing`)
+                      }
                       className="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm"
                     >
                       Pricing
@@ -401,6 +543,7 @@ export default function EventFunctionsPage() {
                         >
                           Guardar
                         </button>
+
                         <button
                           onClick={cancelEdit}
                           className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded text-sm"
@@ -431,20 +574,18 @@ export default function EventFunctionsPage() {
                           Eliminar
                         </button>
 
-                        
-        {/* 🔥 NUEVO BOTÓN LLAMA PLANO SEATS.IO */}
-        <button
-  onClick={() => {
-    window.open(
-      `https://app.seats.io/workspace/525c2c82-fb6b-4e5d-899f-8bed4d5c1130/charts/${f.chartKey}/events/${f.seatmapKey}`,
-      "_blank"
-    );
-  }}
-  className="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-xs"
->
-  🎛Administrar Plano
-</button>
-
+                        {/* 🔥 NUEVO BOTÓN LLAMA PLANO SEATS.IO */}
+                        <button
+                          onClick={() => {
+                            window.open(
+                              `https://app.seats.io/workspace/525c2c82-fb6b-4e5d-899f-8bed4d5c1130/charts/${f.chartKey}/events/${f.seatmapKey}`,
+                              "_blank"
+                            );
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-xs"
+                        >
+                          🎛Administrar Plano
+                        </button>
                       </>
                     )}
                   </div>
@@ -455,51 +596,51 @@ export default function EventFunctionsPage() {
         </tbody>
       </table>
 
-    {selectedFunction && (
-  <div style={{ marginTop: "20px" }}>
-    
-    {/* HEADER */}
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "10px"
-    }}>
-      <h3 style={{ color: "#fff" }}>
-        Administrar Plano: {selectedFunction.venueName || "Función"}
-      </h3>
+      {selectedFunction && (
+        <div style={{ marginTop: "20px" }}>
+          {/* HEADER */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <h3 style={{ color: "#fff" }}>
+              Administrar Plano: {selectedFunction.venueName || "Función"}
+            </h3>
 
-      <button
-        onClick={() => setSelectedFunction(null)}
-        style={{
-          background: "#ef4444",
-          color: "#fff",
-          border: "none",
-          padding: "6px 12px",
-          borderRadius: "6px",
-          cursor: "pointer"
-        }}
-      >
-        Cerrar
-      </button>
-    </div>
+            <button
+              onClick={() => setSelectedFunction(null)}
+              style={{
+                background: "#ef4444",
+                color: "#fff",
+                border: "none",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
 
-    {/* 🔥 IFRAME MANAGER */}
-    <iframe
-      title="Seats Manager"
-      src={`https://app.seats.io/manager/#/event/${selectedFunction.seatmapKey}`}
-      style={{
-        width: "100%",
-        height: window.innerWidth < 768 ? "500px" : "700px",
-        border: "none",
-        borderRadius: "12px",
-        background: "#111"
-      }}
-    />
-  </div>
-)}
-
-
+          {/* 🔥 IFRAME MANAGER */}
+          <iframe
+            ref={chartRef}
+            title="Seats Manager"
+            src={`https://app.seats.io/manager/#/event/${selectedFunction.seatmapKey}`}
+            style={{
+              width: "100%",
+              height: window.innerWidth < 768 ? "500px" : "700px",
+              border: "none",
+              borderRadius: "12px",
+              background: "#111",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

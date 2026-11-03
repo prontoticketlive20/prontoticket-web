@@ -229,6 +229,16 @@ if (user?.role) localStorage.setItem("ptl_user_role", user.role);
                    🎟 Ver Mis Compras
                   </button>
 
+                  {profile?.affiliateProfile && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/my-affiliate")}
+                      className="w-full text-left rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-3 text-white/80"
+                    >
+                      Panel de Afiliado
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
