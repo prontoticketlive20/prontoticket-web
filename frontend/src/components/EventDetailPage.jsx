@@ -825,6 +825,7 @@ return (
       {showTicketSelection && isGeneralEvent && hasValidSaleType && !event.useExternalTicket && (
         <TicketSelection
           event={event}
+          selectedFunctionId={normalizedSelectedFunction?.id}
           onClose={() => setShowTicketSelection(false)}
         />
       )}

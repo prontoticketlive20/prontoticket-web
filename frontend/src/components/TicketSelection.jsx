@@ -5,52 +5,57 @@ import { usePurchase } from "../context/PurchaseContext";
 import api from "../api/api";
 import { trackAddToCart } from "../utils/eventPixels";
 
-export default function TicketSelection({ event, onClose }) {
+export default function TicketSelection({ event, selectedFunctionId, onClose }) {
   const navigate = useNavigate();
   const { updateTickets, formatPrice } = usePurchase();
   const { id } = useParams();
   const [pricingTypes, setPricingTypes] = useState([]);
 
-  const selectedFunctionId = useMemo(() => {
-    return (
-      event?.selectedFunctionId ||
-      event?.functionId ||
-      event?.selectedFunction?.id ||
-      event?.activeFunction?.id ||
-      event?.function?.id ||
-      event?.functions?.[0]?.id ||
-      null
-    );
-  }, [event]);
+  const activeFunctionId =
+  selectedFunctionId ||
+  event?.selectedFunctionId ||
+  event?.functionId ||
+  event?.selectedFunction?.id ||
+  event?.activeFunction?.id ||
+  event?.function?.id ||
+  event?.functions?.[0]?.id ||
+  null;
 
   useEffect(() => {
     const loadPricing = async () => {
-      if (!selectedFunctionId) {
+      if (!activeFunctionId) {
         setPricingTypes([]);
         return;
       }
 
       try {
         const res = await api.get(
-          `/function-ticket-types/function/${selectedFunctionId}`
+          `/function-ticket-types/function/${activeFunctionId}`
         );
 
         const raw = Array.isArray(res.data)
           ? res.data
           : res.data?.data || [];
 
-        const mapped = raw.map((p) => ({
-          id: p.ticketType?.id || p.ticketTypeId,
-          pricingId: p.id,
-          name: p.ticketType?.name || "Ticket",
-          price: Number(p.price) || 0,
-          serviceFee: Number(p.ticketType?.serviceFee || 0),
-          
-          available:
-          p.available == null
-          ? 999999
-          : Math.max(0, Number(p.available) - Number(p.sold || 0)),
-        }));
+        const mapped = raw
+  .filter(
+    (p) =>
+      p.isConfigured &&
+      p.id &&
+      p.available != null &&
+      Number(p.available) - Number(p.sold || 0) > 0
+  )
+  .map((p) => ({
+    id: p.ticketType?.id || p.ticketTypeId,
+    pricingId: p.id,
+    name: p.ticketType?.name || "Ticket",
+    price: Number(p.price) || 0,
+    serviceFee: Number(p.ticketType?.serviceFee || 0),
+    available: Math.max(
+      0,
+      Number(p.available) - Number(p.sold || 0)
+    ),
+  }));
 
         setPricingTypes(mapped);
       } catch (err) {
@@ -60,31 +65,31 @@ export default function TicketSelection({ event, onClose }) {
     };
 
     loadPricing();
-  }, [selectedFunctionId]);
+  }, [activeFunctionId]);
 
   const ticketTypes = useMemo(() => {
-    if (pricingTypes.length > 0) {
-      return pricingTypes;
-    }
+  if (activeFunctionId) {
+    return pricingTypes;
+  }
 
-    const list = Array.isArray(event?.ticketTypes) ? event.ticketTypes : [];
+  const list = Array.isArray(event?.ticketTypes) ? event.ticketTypes : [];
 
-    return list.map((t) => ({
-      id: t.id,
-      pricingId: null,
-      name: t.name,
-      price: Number(t.price) || 0,
-      serviceFee: Number(t.serviceFee || 0),
-      available:
-        t.available == null || t.available === 0 ? 999999 : t.available,
-    }));
-  }, [event, pricingTypes]);
+  return list.map((t) => ({
+    id: t.id,
+    pricingId: null,
+    name: t.name,
+    price: Number(t.price) || 0,
+    serviceFee: Number(t.serviceFee || 0),
+    available:
+      t.available == null || t.available === 0 ? 999999 : t.available,
+  }));
+}, [event, pricingTypes, activeFunctionId]);
 
   useEffect(() => {
     console.log("[TicketSelection] event.id:", event?.id);
-    console.log("[TicketSelection] selectedFunctionId:", selectedFunctionId);
+    console.log("[TicketSelection] selectedFunctionId:", activeFunctionId);
     console.log("[TicketSelection] ticketTypes:", ticketTypes);
-  }, [event, selectedFunctionId, ticketTypes]);
+  }, [event, activeFunctionId, ticketTypes]);
 
   const [qtyById, setQtyById] = useState({});
 
