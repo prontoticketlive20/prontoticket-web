@@ -24,6 +24,10 @@ import EditEventPage from "./pages/admin/EditEventPage";
 import ManualSalesPage from "./pages/admin/ManualSalesPage";
 import EventCloseReportPage from "./pages/admin/EventCloseReportPage";
 import FinancialReportPage from "./pages/admin/FinancialReportPage";
+import BeneficiosPage from "./pages/admin/BeneficiosPage";
+import BeneficiosComerciosPage from "./pages/admin/BeneficiosComerciosPage";
+import BeneficiosComercioDetallePage from "./pages/admin/BeneficiosComercioDetallePage";
+import BeneficiosPromocionesPage from "./pages/admin/BeneficiosPromocionesPage";
 import AffiliatesPage from "./pages/admin/AffiliatesPage";
 import UsersPage from "./pages/admin/UsersPage";
 import AnalyticsPage from './components/AnalyticsPage';
@@ -278,6 +282,51 @@ function App() {
                       <FinancialReportPage />
                     </AdminRoute>
                   </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/beneficios"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN"]}>
+                      <BeneficiosPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/beneficios/comercios"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN"]}>
+                      <BeneficiosComerciosPage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
+
+              <Route
+                path="/admin/beneficios/comercios/:id"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute allowedRoles={["ADMIN"]}>
+                      <BeneficiosComercioDetallePage />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/admin/beneficios/promociones"
+                element={
+                 <ProtectedRoute>
+                   <AdminRoute allowedRoles={["ADMIN"]}>
+                     <BeneficiosPromocionesPage />
+                   </AdminRoute>
+                 </ProtectedRoute>
                 }
               />
 
