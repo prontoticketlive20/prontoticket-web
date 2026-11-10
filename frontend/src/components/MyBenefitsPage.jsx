@@ -360,6 +360,25 @@ const MyBenefitsPage = () => {
     }
   };
 
+  // Carga del logo con el metodo utilizado en MyTicketsPage.
+  const loadImageAsDataUrl = async (src) => {
+    if (!src) return null;
+    try {
+      const response = await fetch(src);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.warn(error);
+      return null;
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!data?.coupons?.length || generatingPDF) return;
 
@@ -379,7 +398,7 @@ const MyBenefitsPage = () => {
       const contentWidth = pageWidth - margin * 2;
       const total = data.coupons.length;
 
-      const brandLogo = await loadImage(logoProntoTicketLiveLarge);
+      const logoDataUrl = await loadImageAsDataUrl(logoProntoTicketLiveLarge);
       const brandIcon = await loadImage(icono2026);
 
       for (let index = 0; index < total; index++) {
@@ -412,21 +431,19 @@ const MyBenefitsPage = () => {
           "F"
         );
 
-        if (brandLogo) {
-          addImageContained(
-            doc,
-            brandLogo,
-            margin + 5,
-            17,
-            72,
-            23
-          );
+        if (logoDataUrl) {
+          try {
+            doc.addImage(logoDataUrl, "PNG", margin + 6, 17, 70, 18, undefined, "FAST");
+          } catch (error) {
+            console.warn("No se pudo insertar el logo:", error);
+          }
         } else {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(17);
           doc.setTextColor(255, 255, 255);
           doc.text("ProntoTicketLive", margin + 7, 32);
         }
+
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
@@ -636,46 +653,14 @@ const MyBenefitsPage = () => {
 
           const qrX = (pageWidth - qrSize) / 2;
 
-          // Borde corporativo fino.
+          // Marco corporativo redondeado azul y naranja.
+          doc.setLineWidth(0.9);
           doc.setDrawColor(0, 122, 255);
-          doc.setLineWidth(0.8);
-
-          doc.line(
-            qrX - 3,
-            qrY - 3,
-            qrX + qrSize / 2,
-            qrY - 3
-          );
-
-          doc.line(
-            qrX - 3,
-            qrY - 3,
-            qrX - 3,
-            qrY + qrSize / 2
-          );
-
+          doc.roundedRect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6, 4, 4, "S");
           doc.setDrawColor(255, 149, 0);
-
-          doc.line(
-            qrX + qrSize / 2,
-            qrY - 3,
-            qrX + qrSize + 3,
-            qrY - 3
-          );
-
-          doc.line(
-            qrX + qrSize + 3,
-            qrY - 3,
-            qrX + qrSize + 3,
-            qrY + qrSize + 3
-          );
-
-          doc.line(
-            qrX - 3,
-            qrY + qrSize + 3,
-            qrX + qrSize + 3,
-            qrY + qrSize + 3
-          );
+          doc.line(qrX + qrSize / 2, qrY - 3, qrX + qrSize + 1, qrY - 3);
+          doc.line(qrX + qrSize + 3, qrY + qrSize / 2, qrX + qrSize + 3, qrY + qrSize - 1);
+          doc.line(qrX + 2, qrY + qrSize + 3, qrX + qrSize / 2, qrY + qrSize + 3);
 
           doc.addImage(
             qrImage,
