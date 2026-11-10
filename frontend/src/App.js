@@ -35,6 +35,7 @@ import AnalyticsPage from './components/AnalyticsPage';
 import BreakEvenPage from "./pages/admin/BreakEvenPage";
 
 import MyTicketsPage from "./components/MyTicketsPage";
+import MyBenefitsPage from "./components/MyBenefitsPage";
 import TicketPage from "./components/TicketPage";
 
 import NosotrosPage from "./pages/NosotrosPage";
@@ -437,6 +438,8 @@ function App() {
            }
            />
               <Route path="/my-tickets/:orderId" element={<MyTicketsPage />} />
+
+              <Route path="/mis-beneficios/:token" element={<MyBenefitsPage />} />
 
               <Route path="/ticket/:ticketId" element={<TicketPage />} />
 
