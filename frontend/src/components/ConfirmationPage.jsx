@@ -416,6 +416,7 @@ const ConfirmationPage = () => {
   }
 
   const { orderId, event, selectedFunction, buyer, total, currency } = confirmationData;
+  const isFreeOrder = confirmationData.paymentMethod === 'FREE';
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]" data-testid="confirmation-page">
@@ -431,7 +432,7 @@ const ConfirmationPage = () => {
               className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-2"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              ¡Compra exitosa!
+              {isFreeOrder ? '¡Registro exitoso!' : '¡Compra exitosa!'}
             </h1>
             <p className="text-white/60">
               Se generaron {generatedTickets.length} entrada(s)
@@ -555,7 +556,7 @@ const ConfirmationPage = () => {
             )}
 
             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-baseline">
-              <span className="text-white font-bold">Total pagado</span>
+              <span className="text-white font-bold">{isFreeOrder ? 'Registro gratuito' : 'Total pagado'}</span>
               <div className="text-right">
                 <div
                   className="text-2xl font-bold text-[#FF9500]"
@@ -571,7 +572,7 @@ const ConfirmationPage = () => {
           <div className="bg-[#121212] rounded-2xl border border-white/10 p-5 mb-6">
             <div className="flex items-center space-x-2 mb-3">
               <User size={16} className="text-[#007AFF]" />
-              <h3 className="text-white font-semibold">Comprador</h3>
+              <h3 className="text-white font-semibold">{isFreeOrder ? 'Participante' : 'Comprador'}</h3>
             </div>
             <p className="text-white/80">
               {buyer?.firstName} {buyer?.lastName}

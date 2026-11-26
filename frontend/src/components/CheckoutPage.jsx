@@ -185,6 +185,8 @@ const CheckoutPage = () => {
     finalTotalFromSummary ?? summary?.total ?? 0,
   );
 
+  const isFreeOrder = total === 0;
+
   const event = selectedEvent;
 
   const isSeatedEvent =
@@ -303,12 +305,18 @@ const CheckoutPage = () => {
       }
     };
 
+    if (isFreeOrder) {
+      setPaypalConfigLoading(false);
+      setPaypalConfigError('');
+      return undefined;
+    }
+
     loadPayPalConfig();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [isFreeOrder]);
 
   /*
    * Cargar comprador autenticado.
@@ -756,6 +764,50 @@ const CheckoutPage = () => {
         );
       }
 
+      const createdData = extractApiData(created);
+
+      if (createdData?.paymentProvider === 'FREE' || isFreeOrder) {
+        if (createdData?.paymentProvider !== 'FREE' ||
+            createdData?.order?.status !== 'PAID' ||
+            createdData?.order?.total !== 0) {
+          throw new Error('El servidor no confirmo el registro gratuito. Verifica el importe y el estado de la orden.');
+        }
+
+        setCheckoutLocked(true);
+        setLocalOrderId(createdOrderId);
+        setBackendTickets(createdTickets);
+
+        const confirmationData = {
+          orderId: createdOrderId,
+          backendTickets: createdTickets,
+          event: {
+            id: event?.id,
+            title: event?.title,
+            image: event?.image,
+            imageUrl: event?.imageUrl || event?.image,
+            date: selectedFunction?.date || event?.date,
+            time: selectedFunction?.time || event?.time,
+            venue: event?.venue,
+            city: event?.city,
+            functions: event?.functions || [],
+          },
+          selectedFunction: selectedFunction || event?.functions?.[0] || null,
+          tickets: selectedTickets || [],
+          seats: selectedSeats || [],
+          buyer: formData,
+          total: 0,
+          currency: summary?.currency || 'USD',
+          paymentMethod: 'FREE',
+          paymentStatus: 'PAID',
+          timestamp: new Date().toISOString(),
+        };
+
+        sessionStorage.setItem('prontoticket_confirmation', JSON.stringify(confirmationData));
+        clearPurchase();
+        navigate('/evento/' + id + '/confirmacion/' + createdOrderId);
+        return;
+      }
+
       setLocalOrderId(createdOrderId);
       setBackendTickets(createdTickets);
       setCheckoutLocked(true);
@@ -1023,7 +1075,7 @@ const CheckoutPage = () => {
             </h1>
 
             <p className="text-white/60 text-sm sm:text-base">
-              Completa tus datos y realiza el pago
+              {isFreeOrder ? 'Completa tus datos y confirma tu registro' : 'Completa tus datos y realiza el pago'}
             </p>
           </div>
 
@@ -1040,7 +1092,7 @@ const CheckoutPage = () => {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-white font-semibold">
-                    Tiempo restante para finalizar el pago
+                    {isFreeOrder ? 'Tiempo restante para confirmar el registro' : 'Tiempo restante para finalizar el pago'}
                   </p>
 
                   {timerMessage && (
@@ -1291,7 +1343,7 @@ const CheckoutPage = () => {
                       </div>
 
                       <span className="text-white/70 text-sm">
-                        Comprar como invitado
+                        {isFreeOrder ? 'Registrarme como invitado' : 'Comprar como invitado'}
                       </span>
                     </label>
                   )}
@@ -1373,16 +1425,33 @@ const CheckoutPage = () => {
                           "'Outfit', sans-serif",
                       }}
                     >
-                      Método de pago
+                      {isFreeOrder ? 'Confirmacion de registro' : 'Método de pago'}
                     </h2>
 
                     <p className="text-white/50 text-xs">
-                      Selecciona cómo deseas completar tu compra.                      
+                      {isFreeOrder ? 'Confirma tu registro para recibir tus entradas.' : 'Selecciona cómo deseas completar tu compra.'}                      
                     </p>
                   </div>
                 </div>
 
-                {paypalConfigLoading && (
+                {isFreeOrder && !localOrderId && (
+                  <div className='space-y-4'>
+                    <div className='rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-green-400 text-center text-sm'>
+                      Evento gratuito. No necesitas realizar ningun pago.
+                    </div>
+                    <button
+                      type='button'
+                      onClick={handlePrepareOrder}
+                      disabled={!canPrepareOrder}
+                      className='w-full py-4 bg-gradient-to-r from-[#FF9500] to-[#ff7700] text-white font-bold rounded-full transition-all hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    >
+                      {isCreatingOrder ? <Loader2 size={20} className='animate-spin' /> : <BadgeCheck size={20} />}
+                      {isCreatingOrder ? 'Confirmando registro...' : 'Confirmar registro'}
+                    </button>
+                  </div>
+                )}
+
+                {!isFreeOrder && paypalConfigLoading && (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 text-[#007AFF] animate-spin" />
 
@@ -1392,7 +1461,7 @@ const CheckoutPage = () => {
                   </div>
                 )}
 
-                {paypalConfigError && (
+                {!isFreeOrder && paypalConfigError && (
                   <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start space-x-3">
                     <AlertTriangle
                       size={18}
@@ -1411,7 +1480,7 @@ const CheckoutPage = () => {
                   </div>
                 )}
 
-                {!paypalConfigLoading &&
+                {!isFreeOrder && !paypalConfigLoading &&
                   !paypalConfigError &&
                   !localOrderId && (
                     <>
@@ -1479,7 +1548,7 @@ const CheckoutPage = () => {
                     </>
                   )}
 
-                  {localOrderId && (
+                  {!isFreeOrder && localOrderId && (
                   <>
                     <div className="mb-5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 px-4 py-3">
                       <p className="text-[#86efac] text-sm font-semibold">
@@ -1577,7 +1646,7 @@ const CheckoutPage = () => {
 
                     <div>
                       <p className="text-red-400 font-semibold text-sm">
-                        Error en el pago
+                        {isFreeOrder ? 'Error en el registro' : 'Error en el pago'}
                       </p>
 
                       <p className="text-red-300/80 text-sm mt-1">
@@ -1683,7 +1752,7 @@ const CheckoutPage = () => {
 
                 <div className="bg-[#121212] rounded-2xl border border-white/10 p-5">
                   <h3 className="text-base font-bold text-white mb-4">
-                    Resumen del pago
+                    {isFreeOrder ? 'Resumen del registro' : 'Resumen del pago'}
                   </h3>
 
                   <div className="space-y-3 text-sm">
